@@ -3,10 +3,12 @@ from msal import ConfidentialClientApplication
 import mysql.connector
 import os
 import re
+from datetime import timedelta
 
 app = Flask(__name__)
 
-app.secret_key = os.urandom(24)
+app.config['SECRET_KEY'] = os.urandom(24)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 dpmdb = mysql.connector.connect(
     host="localhost",
@@ -39,10 +41,34 @@ def checkUserInformation(msoid):
         return None
     
     return dbcursorfetch[0]
+
+def getLocationsInformation(locationid = None):
+    if locationid == None:
+        dbcursor.execute("SELECT * FROM locations")
+        dbcursorfetch = dbcursor.fetchall()
+    else:
+        dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (locationid,))
+        dbcursorfetch = dbcursor.fetchall()[0]
+    
+    if len(dbcursorfetch) < 1:
+        return None
+    
+    return dbcursorfetch
      
 @app.route('/')
 def home():
-    return render_template('signin.html')
+    try:
+        if session.get('login') == True:
+            return redirect('/mslogin')
+        else:
+            return render_template('signin.html')
+    except:
+        return render_template('signin.html')
+    
+@app.route('/signout')
+def signout():
+    session.clear()
+    return redirect('/')
 
 @app.route('/maintainerSignin')
 def maintainerSignin():
@@ -67,12 +93,11 @@ def getAToken():
         userInfo = checkUserInformation(msoid)
         session['msoid'] = msoid
         if userInfo == None:
-            print(msUserInfo)
             return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
-        return render_template('passManager.html')
+        session['login'] = True
+        return redirect('/passManager')
     else:
         return f'Error: {result.get("error_description")}', 400
-    
     
 @app.route('/checkMsoid')
 def checkMsoid():
@@ -101,7 +126,25 @@ def webSerialTest():
 
 @app.route('/passManager')
 def passManager():
-    return render_template('passManager.html')
+    try:
+        if session.get('login'):
+            userinfo = checkUserInformation(session.get('msoid'))
+            username = userinfo[1]
+            useremail = userinfo[3]
+            userlocation = userinfo[5]
+            locationinfo = getLocationsInformation(userlocation)
+            if locationinfo == None:
+                locationname = 'None'
+                locationtype = 'None'
+                locationcapacity = 'None'
+            locationname = locationinfo[1]
+            locationtype = locationinfo[2]
+            locationcapacity = locationinfo[3]
+            return render_template('passManager.html', username = username, useremail = useremail, locationname = locationname, locationtype = locationtype, locationcapacity = locationcapacity)
+        else:
+            return redirect('/')
+    except:
+        return redirect('/')
 
 if __name__ == '__main__':
     app.run(port=8080, host="localhost")
