@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Choose Student Destination</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 520px; /* Reduced from 800px */
+                margin: 0;
+                overflow: hidden;
+                -webkit-user-select: none; /* Safari */
+                -ms-user-select: none; /* IE 10 and IE 11 */
+                user-select: none; /* Standard syntax */
+            }
+
+            .studentInfoContainer {
+                display: flex;
+                align-items: center;
+            }
+
+            img {
+                width: auto;
+                width: 78px; /* Reduced from 120px */
+                padding: 7px; /* Reduced from 10px */
+                padding-bottom: 0;
+                height: 97px; /* Reduced from 150px */
+                border-radius: 6.5%; /* Reduced from 10% */
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            p {
+                font-size: 14.5px;
+            }
+
+            .text-container {
+                width: 40%; /* Adjusted to fit smaller layout */
+            }
+
+            button {
+                background-image: linear-gradient(to right, rgb(104, 195, 155), rgb(9, 207, 118));
+                border: none;
+                color: white;
+                padding: 15px 32px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                margin: 4px 2px;
+                cursor: pointer;
+                border-radius: 5px;
+                transition: all 0.5s ease;
+                font-size: 15px;
+                margin: 10px;
+                height: 50px;
+                width: 250px;
+            }
+
+            button:disabled {
+                background-image: linear-gradient(to right, rgb(217, 150, 150), rgb(169, 77, 77));
+                cursor: not-allowed;
+            }
+
+            button:hover:enabled {
+                transform: scale(1.08);
+                background-image: linear-gradient(to right, rgb(114, 210, 169), rgb(11, 156, 91));
+              }
+
+            .closeButton {
+                background-image: linear-gradient(to right, rgb(150, 150, 217), rgb(84, 77, 169));
+            }
+
+            .closeButton:hover:enabled {
+                transform: scale(1.08);
+                background-image: linear-gradient(to right, rgb(17, 5, 143), rgb(61, 61, 175));
+            }
+            
+            hr {
+                width: 100%;
+            }
+        </style>
+        <script src="/static/js/studentDestinationChooser.js"></script>
+    </head>
+    <body>
+        <div class="studentInfoContainer">
+            <div class="image-container">
+                <img src="/static/resource/studentImagePlaceholder.png" alt="Student Photo" id="studentImage">
+            </div>
+            <div class="text-container">
+                <h1 id="studentName">null</h1>
+                <p id="studentInfo">null</p>
+            </div>
+        </div>
+        <hr>
+        <center><div id="destinationButtonContainer"></div><button id="closeButton" class="closeButton">Close</button></center>
+    </body>
+</html>

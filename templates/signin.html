@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dorm Pass Manager Sign-In</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .sign-in-options {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .microsoft-sign-in {
+            background-image: url('/static/resource/mssigninbutton.png');
+            background-size: cover;
+            background-position: center;
+            width: 343px;
+            height: 53px;
+            cursor: pointer;
+            border: none;
+            background-color: rgba(0, 0, 0, 0)
+        }
+        .maintainerbutton {
+            font-size: 12px;
+            position: absolute;
+            bottom: 0;
+        }
+
+        .exabyteText {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        button {
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        h1 {
+            font-size: 27px;
+        }
+
+        .loader {
+            position: absolute;
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid blue;
+            border-bottom: 16px solid blue;
+            width: 5vw;
+            height: 5vw;
+            animation: spin 2s linear infinite;
+            z-index: 10005;
+            left: 47.5vw;
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+          }
+          
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          
+    </style>
+    <script>
+        function renderLoader() {
+            const loaderslot = document.getElementById("loaderSlot")
+            loaderslot.insertAdjacentHTML("afterbegin", '<div class="loader"></div>')
+        }
+    </script>
+</head>
+<body>
+    <div id="loaderSlot"></div>
+    <div class="container">
+        <h1>Welcome to Dorm Pass Manager</h1>
+        <p>Please sign in with your Microsoft account.</p>
+        <div class="sign-in-options">
+            <button class="microsoft-sign-in" onclick="renderLoader(); window.location.replace('/mslogin');"></button>
+        </div>
+        <p class="exabyteText">POWERED BY EXABYTE</p>
+    </div>
+    <p class="maintainerbutton"><a href="/maintainerSignin">Maintainer Sign In</a></p>
+</body>
+</html>

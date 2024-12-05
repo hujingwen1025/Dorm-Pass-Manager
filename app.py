@@ -1,7 +1,87 @@
 from flask import *
+from msal import ConfidentialClientApplication
 import mysql.connector
+import os
+import re
 
 app = Flask(__name__)
+
+app.secret_key = os.urandom(24)
+
+dpmdb = mysql.connector.connect(
+    host="localhost",
+    user="dpmhost",
+    password="tlw7uwa1537b66d6p0o2",
+    autocommit = True,
+    database="Dorm Pass Manager",
+)
+
+dbcursor = dpmdb.cursor()
+
+CLIENT_ID = '64141594-9d10-4ae2-82c7-43a73eef5e20'
+CLIENT_SECRET = 'xca8Q~AGugkyWFFgihOw-nBwYV1hnrSilLrFXaF5'
+AUTHORITY = 'https://login.microsoftonline.com/common'  # "common" allows users from any organization
+REDIRECT_URI = 'http://localhost:8080/microsoftLoginCallback'
+SCOPE = ["User.Read"]  # Read basic user profile
+
+def get_msal_app():
+    return ConfidentialClientApplication(
+        CLIENT_ID,
+        authority=AUTHORITY,
+        client_credential=CLIENT_SECRET
+    )
+    
+def checkUserInformation(msoid):
+    dbcursor.execute(f"SELECT * FROM users WHERE msoid = %s", (msoid,))
+    dbcursorfetch = dbcursor.fetchall()
+        
+    if len(dbcursorfetch) < 1:
+        return None
+    
+    return dbcursorfetch[0]
+     
+@app.route('/')
+def home():
+    return render_template('signin.html')
+
+@app.route('/maintainerSignin')
+def maintainerSignin():
+    return render_template('maintainerLogin.html')
+    
+@app.route('/mslogin')
+def login():
+    msal_app = get_msal_app()
+    auth_url = msal_app.get_authorization_request_url(SCOPE, redirect_uri=REDIRECT_URI)
+    return redirect(auth_url)
+
+@app.route('/microsoftLoginCallback')
+def getAToken():
+    code = request.args.get('code')
+    if not code:
+        return 'Authorization code missing', 400
+    msal_app = get_msal_app()
+    result = msal_app.acquire_token_by_authorization_code(code, scopes=SCOPE, redirect_uri=REDIRECT_URI)
+    if 'access_token' in result:
+        msUserInfo = result.get('id_token_claims')
+        msoid = msUserInfo["oid"]
+        userInfo = checkUserInformation(msoid)
+        session['msoid'] = msoid
+        if userInfo == None:
+            print(msUserInfo)
+            return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
+        return render_template('passManager.html')
+    else:
+        return f'Error: {result.get("error_description")}', 400
+    
+    
+@app.route('/checkMsoid')
+def checkMsoid():
+    msoid = session["msoid"]
+    return f"MSOID: {msoid}"
+
+@app.route('/maintainerDashboard')
+def maintainerDashboard():
+    return render_template('maintainerDashboard.html')
 
 @app.route('/studentInfoDisplay')
 def studentInfoDisplay():
@@ -11,5 +91,17 @@ def studentInfoDisplay():
 def studentInfoFrame():
     return render_template('studentInfoFrame.html')
 
+@app.route('/studentDestinationChooser')
+def studentDestinationChooser():
+    return render_template('studentDestinationChooser.html')
+
+@app.route('/webSerialTest')
+def webSerialTest():
+    return render_template('webSerialTest.html')
+
+@app.route('/passManager')
+def passManager():
+    return render_template('passManager.html')
+
 if __name__ == '__main__':
-    app.run()
+    app.run(port=8080, host="localhost")

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Layout with Scrollable Content and Menu Bar Style List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .icons {
+            display: flex;
+        }
+        
+        .user-icon {
+            margin-right: 10px;
+        }
+        
+        .card {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            padding-top: 5px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .filterButton {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background-color 0.2s ease;
+            margin: 5px;
+            font-weight: bold;
+        }
+
+        .filterButton:hover {
+            transform: scale(1.04);
+            background-color: #0367d2;
+            font-weight: bolder;
+        }
+
+        .customFilterButton {
+            background-color: #004cff
+        }
+
+        .filterButton:hover {
+            background-color: #0036b3;
+        }
+
+        .list-container {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .list-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+    <script src="/static/js/passManager.js"></script>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="icons">
+            <span class="material-icons user-icon">person</span>
+            <span class="material-icons">home</span>
+            <span class="material-icons">settings</span>
+        </div>
+        <span class="material-icons">account_circle</span>
+    </div>
+
+    <div class="card">
+        <h2>Students Catalogue</h2>
+        <p><b>Filter:</b></p>
+        <div class="button-container">
+            <button class="filterButton">All</button>
+            <button class="filterButton">Local</button>
+            <button class="filterButton">Comming</button>
+            <button class="filterButton">Leaving</button>
+            <button class="filterButton">Flagged</button>
+            <button class="filterButton">Absent</button>
+            <button class="filterButton customFilterButton">Custom</button>
+        </div>
+        
+        <div class="list-container">
+            <ul class="list">
+                <li class="list-item">Item 1</li>
+                <li class="list-item">Item 2</li>
+                <li class="list-item">Item 3</li>
+                <li class="list-item">Item 4</li>
+                <li class="list-item">Item 5</li>
+                <li class="list-item">Item 6</li>
+                <li class="list-item">Item 7</li>
+                <li class="list-item">Item 8</li>
+                <li class="list-item">Item 9</li>
+                <li class="list-item">Item 10</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.list-container').on('scroll', function() {
+                if ($(this).scrollTop() + $(this).height() >= $(this)[0].scrollHeight - 1) {
+                    $(this).append('<li class="list-item">Item ' + ($('.list .list-item').length + 1) + '</li>');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

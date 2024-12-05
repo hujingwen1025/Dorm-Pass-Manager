@@ -25,9 +25,9 @@ function createNewStudentCard(studentName, studentInfo, studentTravelInfo, stude
 }
 
 function setWindowSizeOnCardAmount(cardAmount) {
-    window.resizeTo(425, 120 * (cardAmount + 1))
+    window.resizeTo(440, 125 * cardAmount + 130)
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-
+    window.resizeTo(440, 120)
 })
