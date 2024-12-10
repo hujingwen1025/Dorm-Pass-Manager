@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Card Layout with Scrollable Content and Menu Bar Style List</title>
+    <title>DPM - Student Catalogue</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -20,7 +20,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
-        .icons {
+        .text {
             display: flex;
         }
         
@@ -81,7 +81,7 @@
         
         .list-item {
             display: flex;
-            justify-content: space-between;
+            justify-content: left;
             align-items: center;
             padding: 10px;
             border-bottom: 1px solid #eee;
@@ -90,17 +90,36 @@
         .list-item:last-child {
             border-bottom: none;
         }
+
+        select {
+            font-size: 16px;
+            background-color: #f0f0f0;
+            border: none;
+        }
+
+        .studentNameDiv {
+            font-weight: bolder;
+            width: 30%;
+        }
+
+        .studentInfoDiv {
+            width: 20%;
+        }
     </style>
     <script src="/static/js/passManager.js"></script>
 </head>
 <body>
     <div class="top-bar">
-        <div class="icons">
-            <span class="material-icons user-icon">person</span>
-            <span class="material-icons">home</span>
-            <span class="material-icons">settings</span>
+        <div class="text">
+            <span class="material-text user-icon">person</span>
+            <span class="material-text">home</span>
+            <span class="material-text">settings</span>
         </div>
-        <span>{{ username }} | {{ locationname }}</span>
+        <span>{{ username }} | 
+            <select name="location" id="locationSelector">
+                <option value="none">None</option>
+            </select>
+        </span>
     </div>
 
     <div class="card">
@@ -109,7 +128,7 @@
         <div class="button-container">
             <button class="filterButton">All</button>
             <button class="filterButton">Local</button>
-            <button class="filterButton">Comming</button>
+            <button class="filterButton">Coming</button>
             <button class="filterButton">Leaving</button>
             <button class="filterButton">Flagged</button>
             <button class="filterButton">Absent</button>
@@ -118,20 +137,20 @@
         
         <div class="list-container">
             <ul class="list">
-                <li class="list-item">Item 1</li>
-                <li class="list-item">Item 2</li>
-                <li class="list-item">Item 3</li>
-                <li class="list-item">Item 4</li>
-                <li class="list-item">Item 5</li>
-                <li class="list-item">Item 6</li>
-                <li class="list-item">Item 7</li>
-                <li class="list-item">Item 8</li>
-                <li class="list-item">Item 9</li>
-                <li class="list-item">Item 10</li>
+                <li class="list-item"><div class="studentNameDiv">Item 1</div><div class="studentInfoDiv">Grade 12 West 6</div></li>
+                <li class="list-item"><div class="studentNameDiv">Item 2</div><div class="studentInfoDiv">Item 2</div></li>
+                <li class="list-item"><div class="studentNameDiv">Item 3</div><div class="studentInfoDiv">Item 3</div></li>
+                <li class="list-item"><div class="studentNameDiv">Item 4</div><div class="studentInfoDiv">Item 4</div></li>
+                <li class="list-item"><div class="studentNameDiv">Item 5</div><div class="studentInfoDiv">Item 5</div></li>
+                <li class="list-item"><div class="studentNameDiv">Item 6</div><div class="studentInfoDiv">Item 6</div></li>
+                <li class="list-item"><div class="studentNameDiv">Item 7</div><div class="studentInfoDiv">Item 7</div></li>
+                <li class="list-item"><div class="studentNameDiv">Item 8</div><div class="studentInfoDiv">Item 8</div></li>
+                <li class="list-item"><div class="studentNameDiv">Item 9</div><div class="studentInfoDiv">Item 9</div></li>
+                <li class="list-item"><div class="studentNameDiv">Item 1</div><div class="studentInfoDiv">Item 1</div></li>
             </ul>
         </div>
     </div>
-
+    <span id="locationList" hidden>{{ locationlist }}</span>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {

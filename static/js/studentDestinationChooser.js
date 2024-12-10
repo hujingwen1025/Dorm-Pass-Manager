@@ -1,5 +1,27 @@
 var destinationButtonAmount = 0;
 
+function renderDialog(closebuttonactive, title, body) {
+    if (localStorage.getItem("buttonpressing") == 1) {
+        console.log('already a display')
+        return 0;
+    }
+    localStorage.setItem("buttonpressing", 1)
+    console.log('set display')
+    const diagslot = document.getElementById("diagslot");
+    localStorage.setItem("buttonpressing", 1)
+    console.log('set display');
+    if (closebuttonactive) {
+        diagslot.insertAdjacentHTML("afterbegin", `<dialog open id="dialog" class="diag"><h1>${title}</h1><p>${body}</p><center><button class="diagclosebutton" id="diagclosebutton">Close</button></center></dialog>`)
+    } else {
+        diagslot.insertAdjacentHTML("afterbegin", `<dialog open id="dialog" class="diag"><h1>${title}</h1><p>${body}</p><center><button hidden id="diagclosebutton">Close</button></center></dialog>`)
+    }
+    var diagclosebutton = document.getElementById("diagclosebutton");
+    diagclosebutton.addEventListener('click', function() {
+        diagslot.removeChild(diagslot.children[0]);
+        localStorage.setItem("buttonpressing", 0);
+    })
+}
+
 function getParameterByName(name) {
     return new URLSearchParams(window.location.search).get(name);
 }
@@ -31,7 +53,7 @@ function createButtons(jsonData) {
         }
 
         button.addEventListener('click', () => {
-            parent.postMessage("doneselect" + button.id, '*')
+            parent.postMessage("destination" + button.id, '*')
             close()
         });
 

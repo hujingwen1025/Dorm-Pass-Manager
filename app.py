@@ -3,7 +3,8 @@ from msal import ConfidentialClientApplication
 import mysql.connector
 import os
 import re
-from datetime import timedelta
+from datetime import *
+import time
 
 app = Flask(__name__)
 
@@ -16,6 +17,7 @@ dpmdb = mysql.connector.connect(
     password="tlw7uwa1537b66d6p0o2",
     autocommit = True,
     database="Dorm Pass Manager",
+    buffered = True
 )
 
 dbcursor = dpmdb.cursor()
@@ -36,6 +38,8 @@ def get_msal_app():
 def checkUserInformation(msoid):
     dbcursor.execute(f"SELECT * FROM users WHERE msoid = %s", (msoid,))
     dbcursorfetch = dbcursor.fetchall()
+    
+    dbcursor.nextset()
         
     if len(dbcursorfetch) < 1:
         return None
@@ -44,25 +48,50 @@ def checkUserInformation(msoid):
 
 def getLocationsInformation(locationid = None):
     if locationid == None:
-        dbcursor.execute("SELECT * FROM locations")
+        dbcursor.execute("SELECT * FROM locations WHERE type = 1")
         dbcursorfetch = dbcursor.fetchall()
+        dbcursor.nextset()
     else:
-        dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (locationid,))
+        dbcursor.execute("SELECT * FROM locations WHERE locationid = %s AND type = 1", (locationid,))
         dbcursorfetch = dbcursor.fetchall()[0]
+        dbcursor.nextset()
     
     if len(dbcursorfetch) < 1:
         return None
     
     return dbcursorfetch
+
+def joinLocations(locationList):
+    joinedString = ""
+    for i in range(len(locationList)):
+        joinedString += str(locationList[i][1])
+        joinedString += ','
+    joinedString = joinedString[:-1]
+    return joinedString
+
+def ensureLoggedIn(session):
+    try:
+        if session.get('login'):
+            return True
+        else:
+            return False
+    except:
+        return False
+    
+def currentDatetime():
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+def listToJson(lst):
+    res_dict = {}
+    for i in range(len(lst)):
+        res_dict[lst[i][0]] = lst[i][1]
+    return res_dict
      
 @app.route('/')
 def home():
-    try:
-        if session.get('login') == True:
-            return redirect('/mslogin')
-        else:
-            return render_template('signin.html')
-    except:
+    if ensureLoggedIn(session):
+        return redirect('/mslogin')
+    else:
         return render_template('signin.html')
     
 @app.route('/signout')
@@ -99,6 +128,154 @@ def getAToken():
     else:
         return f'Error: {result.get("error_description")}', 400
     
+@app.route('/getLocationId', methods=['POST'])
+def getLocationId():
+    time.sleep(2)
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        locationtype = request.json.get('type')
+        
+        dbcursor.execute("SELECT locationid, name FROM locations WHERE type = %s", (locationtype,))
+        dbcursorfetch = dbcursor.fetchall()
+        dbcursor.nextset()
+        
+        retinfo['status'] = 'ok'
+        retinfo['locationJson'] = listToJson(dbcursorfetch)
+        
+        print(retinfo)
+        
+        
+        return jsonify(retinfo)
+
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'notloggedin'
+        
+        return jsonify(retinfo)
+    
+@app.route('/getStudents', methods=['POST'])
+def getStudents():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        userinfo = checkUserInformation(session.get('msoid'))
+        userid = userinfo[0]
+        userlocation = userinfo[5]
+        
+        searchfilters = request.json.get('filter')
+        
+        sqlquery = "SELECT * FROM passes WHERE 1 = 1 "
+        sqlqueryvar = []
+        
+        try:
+            locationfilter = searchfilters['location']
+            sqlquery += "AND destinationid = %s "
+            if locationfilter == 'local':
+                sqlqueryvar += str(userlocation)
+            else:
+                sqlqueryvar += str(locationfilter)
+        except KeyError:
+            pass            
+            
+        try:
+            flagfilter = searchfilters['flag']
+            if flagfilter:
+                sqlquery += "AND flagged = TRUE "
+        except KeyError:
+            pass
+        
+        try:
+            statusfilter = searchfilters['status']
+            nullstatus = ['AND fleavetime = NULL ', 'AND darrivetime = NULL', 'AND dleavetime = NULL', 'AND farrivetime = NULL']
+            sqlquery += nullstatus[statusfilter]
+        except KeyError:
+            pass
+        
+        print(sqlquery)
+        print(sqlqueryvar)
+        dbcursor.execute(sqlquery, sqlqueryvar)
+        dbcursorfetch = dbcursor.fetchall()
+        dbcursor.nextset()
+        
+        retinfo['status'] = 'ok'
+        retinfo['students'] = dbcursorfetch
+        print(dbcursorfetch)
+        return jsonify(retinfo)        
+    
+@app.route('/newPass', methods=['POST'])
+def newPass():
+    if ensureLoggedIn(session): 
+        retinfo = {}
+        
+        studentid = request.json.get('studentid')
+        destinationid = request.json.get('destinationid')
+        
+        dbcursor.execute("SELECT * FROM passes WHERE studentid = %s AND farrivetime = NULL", (studentid,))
+        dbcursorfetch = dbcursor.fetchall()
+        dbcursor.nextset()
+        
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'passactive'
+            retinfo['passid'] = dbcursorfetch[0][0]
+            
+            return jsonify(retinfo)
+        
+        dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (destinationid))
+        dbcursorfetch = dbcursor.fetchall()
+        dbcursor.nextset()
+        
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'nulllocation'
+            
+            return jsonify(retinfo)
+        
+        dbcursor.execute("SELECT * FROM students WHERE studentid = %s", (studentid))
+        dbcursorfetch = dbcursor.fetchall()
+        dbcursor.nextset()
+        
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'nullstudent'
+            
+            return jsonify(retinfo)
+        
+        if str(destinationid) in dbcursorfetch[0][5].split():
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'locationdisabled'
+            
+            return jsonify(retinfo)
+        
+        userinfo = checkUserInformation(session.get('msoid'))
+        userid = userinfo[0]
+        userlocationid = userinfo[5]
+        
+        leavetime = currentDatetime()
+        
+        try:
+            dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged, creatorid, approverid) VALUES (%s, %s, %s, %s, NULL, NULL, NULL, FALSE, %s, NULL)', (studentid, userlocationid, destinationid, leavetime, userid))
+        except:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'sqlerror'
+            
+            return jsonify(retinfo)
+        
+        retinfo['status'] = 'ok'
+        
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'notloggedin'
+        
+        return jsonify(retinfo)
+    
 @app.route('/checkMsoid')
 def checkMsoid():
     msoid = session["msoid"]
@@ -126,24 +303,21 @@ def webSerialTest():
 
 @app.route('/passManager')
 def passManager():
-    try:
-        if session.get('login'):
-            userinfo = checkUserInformation(session.get('msoid'))
-            username = userinfo[1]
-            useremail = userinfo[3]
-            userlocation = userinfo[5]
-            locationinfo = getLocationsInformation(userlocation)
-            if locationinfo == None:
-                locationname = 'None'
-                locationtype = 'None'
-                locationcapacity = 'None'
-            locationname = locationinfo[1]
-            locationtype = locationinfo[2]
-            locationcapacity = locationinfo[3]
-            return render_template('passManager.html', username = username, useremail = useremail, locationname = locationname, locationtype = locationtype, locationcapacity = locationcapacity)
-        else:
-            return redirect('/')
-    except:
+    if ensureLoggedIn(session):
+        userinfo = checkUserInformation(session.get('msoid'))
+        username = userinfo[1]
+        useremail = userinfo[3]
+        userlocation = userinfo[5]
+        locationinfo = getLocationsInformation(userlocation)
+        if locationinfo == None:
+            locationname = 'None'
+            locationtype = 'None'
+            locationcapacity = 'None'
+        locationname = locationinfo[1]
+        locationtype = locationinfo[2]
+        locationcapacity = locationinfo[3]
+        return render_template('passManager.html', username = username, useremail = useremail, locationname = locationname, locationtype = locationtype, locationcapacity = locationcapacity)
+    else:
         return redirect('/')
 
 if __name__ == '__main__':
