@@ -171,32 +171,58 @@ async function setLocationSelector(locationJson) {
 
 async function setStudentIndex(studentsJson) {
     const studentListSlot = document.getElementById("studentList")
+
+    studentListSlot.innerHTML = ""
+
     var students = []
     var studentsJson = await studentsJson
-    console.log(Object.keys(studentsJson).length)
     for (i = 0; i < Object.keys(studentsJson).length; i ++) {
-        students[i ] = studentsJson[i + 1]
+        students[i] = [i + 1, studentsJson[i + 1]]
     }
-    console.log(students)
     students.forEach(curstudent => {
         var studentli = document.createElement('li')
 
         studentListSlot.appendChild(studentli)
         studentli.classList.add('list-item')
+        studentli.setAttribute('id', `stu-${curstudent[0]}`)
 
         var studentNameDiv = document.createElement('div')
         var studentInfoDiv = document.createElement('div')
+        var studentActionButton = document.createElement('button')
+        var studentApproveButton = document.createElement('button')
+        var studentFlagButton = document.createElement('button')
         
         studentli.appendChild(studentNameDiv);
         studentli.appendChild(studentInfoDiv);
+        studentli.appendChild(studentActionButton);
+        studentli.appendChild(studentApproveButton);
+        studentli.appendChild(studentFlagButton);
 
         studentNameDiv.classList.add('studentNameDiv')
         studentInfoDiv.classList.add('studentInfoDiv')
+        studentActionButton.classList.add('studentActionButton')
+        studentApproveButton.classList.add('studentActionButton')
+        studentFlagButton.classList.add('studentActionButton')
 
-        studentNameDiv.innerHTML = curstudent[0]
-        studentInfoDiv.innerHTML = curstudent[1]
+        studentNameDiv.innerHTML = curstudent[1][0]
+        studentInfoDiv.innerHTML = curstudent[1][1]
+        studentActionButton.innerHTML = 'Actions'
+        studentApproveButton.innerHTML = 'Approve'
+        studentFlagButton.innerHTML = 'Flag'
 
-        console.log(curstudent[0])
+        studentActionButton.setAttribute('id', `actions-${curstudent[0]}`)
+        studentApproveButton.setAttribute('id', `approve-${curstudent[0]}`)
+        studentFlagButton.setAttribute('id', `flag-${curstudent[0]}`)
+
+        document.getElementById(`actions-${curstudent[0]}`).onclick = function(event){
+            alert(event.target.parentNode.id);
+        }
+        document.getElementById(`approve-${curstudent[0]}`).onclick = function(event){
+            alert(event.target.parentNode.id);
+        }
+        document.getElementById(`flag-${curstudent[0]}`).onclick = function(event){
+            alert(event.target.parentNode.id);
+        }
     })
 }
 
