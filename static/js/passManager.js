@@ -35,6 +35,41 @@ async function getLocationId(type) {
     }
 }
 
+async function getUserInfo() {
+    try {
+        const response = await fetch("/getUserInfo", {
+            method: 'POST',
+            body: JSON.stringify({}),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                return response.errorinfo
+                break;
+            case "ok":
+                return responseJson.userinfo
+                break;
+            default:
+                return None
+        }
+        removeLoader()
+    } catch (error) {
+        console.error('Error:', error);
+        renderDialog(true, "Error", "An error occurred while requesting for item return");
+        removeLoader()
+    }
+}
+
 async function getStudents(filters) {
     try {
         const response = await fetch("/getStudents", {
@@ -134,11 +169,53 @@ async function setLocationSelector(locationJson) {
     });
   }
 
-document.addEventListener('DOMContentLoaded', () => {
+async function setStudentIndex(studentsJson) {
+    const studentListSlot = document.getElementById("studentList")
+    var students = []
+    var studentsJson = await studentsJson
+    console.log(Object.keys(studentsJson).length)
+    for (i = 0; i < Object.keys(studentsJson).length; i ++) {
+        students[i ] = studentsJson[i + 1]
+    }
+    console.log(students)
+    students.forEach(curstudent => {
+        var studentli = document.createElement('li')
+
+        studentListSlot.appendChild(studentli)
+        studentli.classList.add('list-item')
+
+        var studentNameDiv = document.createElement('div')
+        var studentInfoDiv = document.createElement('div')
+        
+        studentli.appendChild(studentNameDiv);
+        studentli.appendChild(studentInfoDiv);
+
+        studentNameDiv.classList.add('studentNameDiv')
+        studentInfoDiv.classList.add('studentInfoDiv')
+
+        studentNameDiv.innerHTML = curstudent[0]
+        studentInfoDiv.innerHTML = curstudent[1]
+
+        console.log(curstudent[0])
+    })
+}
+
+async function setUsernameTopbar(username) {
+    const usernameTopbarDispaly = document.getElementById("usernameTopbar")
+    usernameTopbarDispaly.textContent = username
+}
+
+async function mainProcess() {
     var destinationIds = getLocationId(1)
     var floorIds = getLocationId(2)
+    var userinfo = await getUserInfo()
+    var username = userinfo['user'][1]
 
+    setUsernameTopbar(username)
 
-    console.log(destinationIds)
     setLocationSelector(destinationIds);      
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    mainProcess()
 });

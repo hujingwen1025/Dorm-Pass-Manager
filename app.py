@@ -1,5 +1,6 @@
 from flask import *
 from msal import ConfidentialClientApplication
+from mysql.connector import *
 import mysql.connector
 import os
 import re
@@ -11,7 +12,14 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
-dpmdb = mysql.connector.connect(
+CLIENT_ID = '64141594-9d10-4ae2-82c7-43a73eef5e20'
+CLIENT_SECRET = 'xca8Q~AGugkyWFFgihOw-nBwYV1hnrSilLrFXaF5'
+AUTHORITY = 'https://login.microsoftonline.com/common'  # "common" allows users from any organization
+REDIRECT_URI = 'http://localhost:8080/microsoftLoginCallback'
+SCOPE = ["User.Read"]  # Read basic user profile
+
+def dbConnect():
+    return mysql.connector.connect(
     host="localhost",
     user="dpmhost",
     password="tlw7uwa1537b66d6p0o2",
@@ -20,14 +28,6 @@ dpmdb = mysql.connector.connect(
     buffered = True
 )
 
-dbcursor = dpmdb.cursor()
-
-CLIENT_ID = '64141594-9d10-4ae2-82c7-43a73eef5e20'
-CLIENT_SECRET = 'xca8Q~AGugkyWFFgihOw-nBwYV1hnrSilLrFXaF5'
-AUTHORITY = 'https://login.microsoftonline.com/common'  # "common" allows users from any organization
-REDIRECT_URI = 'http://localhost:8080/microsoftLoginCallback'
-SCOPE = ["User.Read"]  # Read basic user profile
-
 def get_msal_app():
     return ConfidentialClientApplication(
         CLIENT_ID,
@@ -35,12 +35,12 @@ def get_msal_app():
         client_credential=CLIENT_SECRET
     )
     
-def checkUserInformation(msoid):
-    dbcursor.execute(f"SELECT * FROM users WHERE msoid = %s", (msoid,))
-    dbcursorfetch = dbcursor.fetchall()
-    
-    dbcursor.nextset()
-        
+def checkUserInformation(usergetparam, msoid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute(f"SELECT {usergetparam} FROM users WHERE msoid = %s", (msoid,))
+            dbcursorfetch = dbcursor.fetchall()
+            
     if len(dbcursorfetch) < 1:
         return None
     
@@ -48,13 +48,15 @@ def checkUserInformation(msoid):
 
 def getLocationsInformation(locationid = None):
     if locationid == None:
-        dbcursor.execute("SELECT * FROM locations WHERE type = 1")
-        dbcursorfetch = dbcursor.fetchall()
-        dbcursor.nextset()
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT * FROM locations WHERE type = 1")
+                dbcursorfetch = dbcursor.fetchall()
     else:
-        dbcursor.execute("SELECT * FROM locations WHERE locationid = %s AND type = 1", (locationid,))
-        dbcursorfetch = dbcursor.fetchall()[0]
-        dbcursor.nextset()
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT * FROM locations WHERE locationid = %s AND type = 1", (locationid,))
+                dbcursorfetch = dbcursor.fetchall()
     
     if len(dbcursorfetch) < 1:
         return None
@@ -84,7 +86,7 @@ def currentDatetime():
 def listToJson(lst):
     res_dict = {}
     for i in range(len(lst)):
-        res_dict[lst[i][0]] = lst[i][1]
+        res_dict[str(lst[i][0])] = lst[i][1:]
     return res_dict
      
 @app.route('/')
@@ -119,7 +121,8 @@ def getAToken():
     if 'access_token' in result:
         msUserInfo = result.get('id_token_claims')
         msoid = msUserInfo["oid"]
-        userInfo = checkUserInformation(msoid)
+        userInfo = checkUserInformation("userid, name, msoid, email, role, locationid", msoid)
+        print(userInfo)
         session['msoid'] = msoid
         if userInfo == None:
             return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
@@ -130,15 +133,17 @@ def getAToken():
     
 @app.route('/getLocationId', methods=['POST'])
 def getLocationId():
-    time.sleep(2)
     if ensureLoggedIn(session):
         retinfo = {}
         
         locationtype = request.json.get('type')
         
-        dbcursor.execute("SELECT locationid, name FROM locations WHERE type = %s", (locationtype,))
-        dbcursorfetch = dbcursor.fetchall()
-        dbcursor.nextset()
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT locationid, name FROM locations WHERE type = %s", (locationtype,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        print(dbcursorfetch)
         
         retinfo['status'] = 'ok'
         retinfo['locationJson'] = listToJson(dbcursorfetch)
@@ -161,7 +166,7 @@ def getStudents():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userinfo = checkUserInformation(session.get('msoid'))
+        userinfo = checkUserInformation("userid, name, msoid, email, role, locationid", session.get('msoid'))
         userid = userinfo[0]
         userlocation = userinfo[5]
         
@@ -194,16 +199,32 @@ def getStudents():
         except KeyError:
             pass
         
-        print(sqlquery)
-        print(sqlqueryvar)
-        dbcursor.execute(sqlquery, sqlqueryvar)
-        dbcursorfetch = dbcursor.fetchall()
-        dbcursor.nextset()
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute(sqlquery, sqlqueryvar)
+                dbcursorfetch = dbcursor.fetchall()
         
         retinfo['status'] = 'ok'
         retinfo['students'] = dbcursorfetch
         print(dbcursorfetch)
-        return jsonify(retinfo)        
+        return jsonify(retinfo)       
+    
+@app.route('/getUserInfo', methods=['POST'])
+def getUserInfo():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        userinfo = ["user"]
+        userinfo += checkUserInformation("userid, name, email, locationid", session.get('msoid')) 
+        userinfo = [userinfo]
+        
+        print(userinfo)
+        
+        retinfo["status"] = 'ok'
+        retinfo["userinfo"] = listToJson(userinfo)
+        
+        return jsonify(retinfo)
+        
     
 @app.route('/newPass', methods=['POST'])
 def newPass():
@@ -213,9 +234,10 @@ def newPass():
         studentid = request.json.get('studentid')
         destinationid = request.json.get('destinationid')
         
-        dbcursor.execute("SELECT * FROM passes WHERE studentid = %s AND farrivetime = NULL", (studentid,))
-        dbcursorfetch = dbcursor.fetchall()
-        dbcursor.nextset()
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT * FROM passes WHERE studentid = %s AND farrivetime = NULL", (studentid,))
+                dbcursorfetch = dbcursor.fetchall()
         
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -224,9 +246,10 @@ def newPass():
             
             return jsonify(retinfo)
         
-        dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (destinationid))
-        dbcursorfetch = dbcursor.fetchall()
-        dbcursor.nextset()
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (destinationid))
+                dbcursorfetch = dbcursor.fetchall()
         
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -234,9 +257,10 @@ def newPass():
             
             return jsonify(retinfo)
         
-        dbcursor.execute("SELECT * FROM students WHERE studentid = %s", (studentid))
-        dbcursorfetch = dbcursor.fetchall()
-        dbcursor.nextset()
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT * FROM students WHERE studentid = %s", (studentid))
+                dbcursorfetch = dbcursor.fetchall()
         
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -250,14 +274,17 @@ def newPass():
             
             return jsonify(retinfo)
         
-        userinfo = checkUserInformation(session.get('msoid'))
+        userinfo = checkUserInformation("userid, name, msoid, email, role, locationid", session.get('msoid'))
         userid = userinfo[0]
         userlocationid = userinfo[5]
         
         leavetime = currentDatetime()
         
         try:
-            dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged, creatorid, approverid) VALUES (%s, %s, %s, %s, NULL, NULL, NULL, FALSE, %s, NULL)', (studentid, userlocationid, destinationid, leavetime, userid))
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged, creatorid, approverid) VALUES (%s, %s, %s, %s, NULL, NULL, NULL, FALSE, %s, NULL)', (studentid, userlocationid, destinationid, leavetime, userid))
+                    dbcursorfetch = dbcursor.fetchall()
         except:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'sqlerror'
@@ -304,19 +331,7 @@ def webSerialTest():
 @app.route('/passManager')
 def passManager():
     if ensureLoggedIn(session):
-        userinfo = checkUserInformation(session.get('msoid'))
-        username = userinfo[1]
-        useremail = userinfo[3]
-        userlocation = userinfo[5]
-        locationinfo = getLocationsInformation(userlocation)
-        if locationinfo == None:
-            locationname = 'None'
-            locationtype = 'None'
-            locationcapacity = 'None'
-        locationname = locationinfo[1]
-        locationtype = locationinfo[2]
-        locationcapacity = locationinfo[3]
-        return render_template('passManager.html', username = username, useremail = useremail, locationname = locationname, locationtype = locationtype, locationcapacity = locationcapacity)
+        return render_template('passManager.html')
     else:
         return redirect('/')
 
