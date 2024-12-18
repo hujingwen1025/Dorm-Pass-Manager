@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DPM - Student Catalogue</title>
+    <title>DPM - Pass Catalogue</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -126,7 +126,7 @@
             border: none;
             border-radius: 3px;
             height: 30px;
-            width: 75px;
+            width: 100px;
             color: #ffffff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             margin: 5px;
@@ -210,15 +210,16 @@
             color: black;
           }
     </style>
-    <script src="/static/js/passManager.js"></script>
+    <script src="/static/js/passCatalogue.js"></script>
 </head>
 <body id="body">
     <div class="alertContainer" id="alertContainer"></div>
     <div class="top-bar">
         <div class="text">
-            <button class="material-button">person</button>
-            <button class="material-button">home</button>
-            <button class="material-button">settings</button>
+            <button class="material-button">Passes</button>
+            <button class="material-button">Students</button>
+            <button class="material-button">Manage</button>
+            <button class="material-button">Settings</button>
         </div>
         <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar"></span> | 
             <select name="location" class="locationSelector" id="locationSelector">
@@ -227,11 +228,11 @@
     </div>
 
     <div class="card">
-        <h2>Students Catalogue</h2>
+        <h2>Pass Catalogue</h2>
         <p><b>Filter: </b><span id="filterDisplay"></span></p>
         <div class="button-container">
             <button class="filterButton" id="filterButtonAll">All</button>
-            <button class="filterButton" id="filterButtonLocal">Local</button>
+            <button class="filterButton" id="filterButtonRelated">Related</button>
             <button class="filterButton" id="filterButtonArriving">Arriving</button>
             <button class="filterButton" id="filterButtonLeaving">Leaving</button>
             <button class="filterButton" id="filterButtonFlagged">Flagged</button>

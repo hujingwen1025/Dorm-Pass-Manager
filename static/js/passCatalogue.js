@@ -234,9 +234,9 @@ function createStudentInfoDisplayPopup() {
     open("/studentInfoDisplay", "Student Status Display", params)
 }
 
-async function createNewStudentPass(studnetid, destinationid) {
+async function createNewStudentPass(studentid, destinationid) {
     try {
-        const response = await fetch("/updateitemstatus", {
+        const response = await fetch("/newPass", {
             method: 'POST',
             body: JSON.stringify({
                 "studentid": studentid,
@@ -259,7 +259,21 @@ async function createNewStudentPass(studnetid, destinationid) {
                 console.error(responseJson.errorinfo)
                 return 'error'
             case "ok":
-                break;
+                var studentName = await getStudentInfo(studentid)
+                studentName = studentName[0]
+                createAlertPopup('success', 'Pass Created', `A new pass has been created for ${studentName}`)
+                setTimeout(function () {
+                    var approveRightNow = confirm('Pass has been created but is not active. Do you also want to approve and activate the pass right now? (The student leaves now)')
+                    if (approveRightNow) {
+                        updateStudentPass({passid: responseJson.passid, approve: true})
+                        if (updateStudentPass != 'error') {
+                            createAlertPopup('success',' Approve Success', `${studentName} has been approved.`)
+                        } else {
+                            createAlertPopup(null, 'Error', 'Error while updating student pass')
+                        }
+                    }
+                }, 200)
+                return 0
             default:
                 createAlertPopup(null, 'Error', 'Server returned unreadable data')
                 return 0
@@ -294,7 +308,8 @@ async function updateStudentPass(params) {
                 console.error(responseJson.errorinfo)
                 return 'error'
             case "ok":
-                break;
+                console.log(responseJson)
+                return responseJson
             default:
                 createAlertPopup(null, 'Error', 'Server returned unreadable data')
                 return 0
@@ -311,8 +326,8 @@ async function setLocationSelector(locationJson) {
     const optionSlot = document.getElementById("locationSelector")
     var locations = []
     var locationJson = await locationJson
-    for (i = 1; i < Object.keys(locationJson).length; i ++) {
-        locations[i - 1] = locationJson[i]
+    for (i = 0; i < Object.keys(locationJson).length; i ++) {
+        locations[i] = locationJson[Object.keys(locationJson)[i]]
     }
     locations.forEach(curlocation => {
       const option = document.createElement('option');
@@ -378,17 +393,45 @@ async function setStudentIndex(studentsJson) {
         document.getElementById(`actions-${curstudent[0]}`).onclick = function(event){
             alert(event.target.parentNode.id);
         }
-        document.getElementById(`approve-${curstudent[0]}`).onclick = function(event){
+        document.getElementById(`approve-${curstudent[0]}`).onclick = async function(event){
             var confirmApprove = confirm(`APPROVE ${curstudent[0]} ?`)
             if (confirmApprove) {
-                var updateResult = updateStudentPass({'passid': passid,'approve': true})
+                var updateResult = await updateStudentPass({'passid': passid,'approve': true})
                 if (updateResult != 'error') {
-                    createAlertPopup('success', 'Approve Success', `${curstudent[0]} has been approved`)
+                    var elapsedstring = 'Elapsed Time: '
+                    console.log(updateResult.elapsedtime)
+                    if (updateResult.elapsedtime != null) {
+                        var updateResultET = updateResult.elapsedtime
+                        console.log('d')
+                        console.log(updateResultET)
+                        if (updateResultET[0] != 0) {
+                            if (updateResultET[0] == 1) {
+                                elapsedstring += '1 Hour '
+                            } else {
+                                elapsedstring += `${updateResultET[0]} Hours `
+                            }
+                        }
+                        if (updateResultET[1] != 0) {
+                            if (updateResultET[1] == 1) {
+                                elapsedstring += '1 Minute '
+                            } else {
+                                elapsedstring += `${updateResultET[1]} Minutes `
+                            }
+                        }
+                        if (updateResultET[2] != 0) {
+                            if (updateResultET[2] == 1) {
+                                elapsedstring += '1 Second '
+                            } else {
+                                elapsedstring += `${updateResultET[2]} Seconds `
+                            }
+                        }
+                    }
+                    createAlertPopup('success',' Approve Success', `${curstudent[0]} has been approved. ${elapsedstring}`)
                 } else {
                     createAlertPopup(null, 'Error', 'Error while updating student pass')
                     return 0
                 }
-                document.getElementById(window.lastfilterchoice).click()
+                setTimeout(function () {document.getElementById(window.lastfilterchoice).click()}, 1500)
             }
         }
         document.getElementById(`flag-${curstudent[0]}`).onclick = function(event){
@@ -462,11 +505,11 @@ function setFilterDisplay(text) {
 }
 
 async function mainProcess() {
-    var destinationIds = getLocationId(1)
-    var floorIds = getLocationId(2)
+    var destinationIds = await getLocationId(1)
+    var floorIds = await getLocationId(2)
     var userinfo = await getUserInfo()
     var username = userinfo['user'][1]
-    window.lastfilterchoice = 'filterButtonLocal'
+    window.lastfilterchoice = 'filterButtonRelated'
 
     if (userinfo == 'error') {
         userinfo = null
@@ -476,26 +519,29 @@ async function mainProcess() {
 
     setUsernameTopbar(username)
 
+    console.log(destinationIds)
     setLocationSelector(destinationIds);  
+    console.log(floorIds)
+    setLocationSelector(floorIds);  
     
     document.getElementById('filterButtonAll').onclick = function(event) {
         window.lastfilterchoice = 'filterButtonAll'
-        setStudents({})
+        setStudents({'all': true})
         setFilterDisplay('All')
     }
-    document.getElementById('filterButtonLocal').onclick = function(event) {
-        window.lastfilterchoice = 'filterButtonLocal'
-        setStudents({'location': 'local'})
-        setFilterDisplay('Local')
+    document.getElementById('filterButtonRelated').onclick = function(event) {
+        window.lastfilterchoice = 'filterButtonRelated'
+        setStudents({})
+        setFilterDisplay('Related')
     }
     document.getElementById('filterButtonArriving').onclick = function(event) {
         window.lastfilterchoice = 'filterButtonArriving'
-        setStudents({'location': 'local', 'status': 1})
+        setStudents({'status': 1})
         setFilterDisplay('Arriving')
     }
     document.getElementById('filterButtonLeaving').onclick = function(event) {
         window.lastfilterchoice = 'filterButtonLeaving'
-        setStudents({'location': 'local', 'status': 3})
+        setStudents({'status': 3})
         setFilterDisplay('Leaving')
     }
     document.getElementById('filterButtonFlagged').onclick = function(event) {
@@ -505,7 +551,7 @@ async function mainProcess() {
     }
     document.getElementById('filterButtonPresent').onclick = function(event) {
         window.lastfilterchoice = 'filterButtonPresent'
-        setStudents({'location': 'local', 'status': 2})
+        setStudents({'status': 2})
         setFilterDisplay('Present')
     }
 

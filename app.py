@@ -69,6 +69,14 @@ def getLocationsInformation(type, locationid = None):
     
     return dbcursorfetch
 
+def getLocationType(locationid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute("SELECT type FROM locations WHERE locationid = %s", (locationid,))
+            dbcursorfetch = dbcursor.fetchall()
+            
+    return dbcursorfetch[0][0]
+
 def joinLocations(locationList):
     joinedString = ""
     for i in range(len(locationList)):
@@ -149,7 +157,7 @@ def getAToken():
         if userInfo == None:
             return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
         session['login'] = True
-        return redirect('/passManager')
+        return redirect('/passCatalogue')
     else:
         return f'Error: {result.get("error_description")}', 400
     
@@ -189,7 +197,7 @@ def updatePass():
         
         passid = request.json.get('passid')
                 
-        retinfo["elaspedtime"] = None
+        retinfo["elapsedtime"] = None
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
@@ -261,11 +269,11 @@ def updatePass():
                         stamptime = dbcursor.fetchall()
                 
                 stamptime = stamptime[0]
-                elaspedtime = str(stamptime[1] - stamptime[0]).split(':')
-                for i in range(len(elaspedtime)):
-                    elaspedtime[i] = int(elaspedtime[i])
+                elapsedtime = str(stamptime[1] - stamptime[0]).split(':')
+                for i in range(len(elapsedtime)):
+                    elapsedtime[i] = int(elapsedtime[i])
                     
-                retinfo["elaspedtime"] = elaspedtime
+                retinfo["elapsedtime"] = elapsedtime
         
         sqlquery += 'keywords = %s WHERE passid = %s'
         sqlqueryvar += [f'{studentname} {studentgrade} {floorname} {destinationname}', passid]
@@ -288,21 +296,31 @@ def getStudents():
         userinfo = checkUserInformation("userid, name, msoid, email, role, locationid", session.get('msoid'))
         userid = userinfo[0]
         userlocation = userinfo[5]
+        userlocationtype = getLocationType(userlocation)
         
         searchfilters = request.json.get('filter')
         
         sqlquery = "SELECT passid, studentid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged FROM passes WHERE 1 = 1 "
         sqlqueryvar = []
         
+        allfilter = False
+        
         try:
-            locationfilter = searchfilters['location']
-            sqlquery += "AND destinationid = %s "
-            if locationfilter == 'local':
-                sqlqueryvar += str(userlocation)
-            else:
-                sqlqueryvar += str(locationfilter)
+            if searchfilters['all']:
+                allfilter = True
         except KeyError:
-            pass            
+            pass
+        
+        if not allfilter:
+            try:
+                if userlocationtype == 1:
+                    sqlquery += "AND destinationid = %s"
+                    sqlqueryvar += str(userlocation)
+                else:
+                    sqlquery += "AND floorid = %s"
+                    sqlqueryvar += str(userlocation)
+            except KeyError:
+                pass            
             
         try:
             flagfilter = searchfilters['flag']
@@ -313,7 +331,10 @@ def getStudents():
         
         try:
             statusfilter = searchfilters['status']
+            if userlocationtype == 2:
+                statusfilter -= 2
             nullstatus = ['AND fleavetime IS NULL ', 'AND fleavetime IS NOT NULL AND darrivetime IS NULL', 'AND darrivetime IS NOT NULL AND dleavetime IS NULL', 'AND dleavetime IS NOT NULL AND farrivetime IS NULL']
+            print(nullstatus[statusfilter])
             sqlquery += nullstatus[statusfilter]
         except KeyError:
             pass
@@ -336,7 +357,7 @@ def getStudents():
             with connection.cursor() as dbcursor:
                 dbcursor.execute(sqlquery, sqlqueryvar)
                 dprint('execed')
-                dprint(dbcursor.statement)
+                print(dbcursor.statement)
                 dbcursorfetch = dbcursor.fetchall()
         
         retinfo['status'] = 'ok'
@@ -429,8 +450,11 @@ def newPass():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT * FROM passes WHERE studentid = %s AND farrivetime = NULL", (studentid,))
+                dbcursor.execute("SELECT * FROM passes WHERE studentid = %s AND farrivetime IS null", (studentid,))
                 dbcursorfetch = dbcursor.fetchall()
+                
+                print('pa')
+                print(dbcursorfetch)
         
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -441,7 +465,7 @@ def newPass():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (destinationid))
+                dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (destinationid,))
                 dbcursorfetch = dbcursor.fetchall()
         
         if len(dbcursorfetch) < 1:
@@ -452,7 +476,7 @@ def newPass():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT * FROM students WHERE studentid = %s", (studentid))
+                dbcursor.execute("SELECT * FROM students WHERE studentid = %s", (studentid,))
                 dbcursorfetch = dbcursor.fetchall()
         
         if len(dbcursorfetch) < 1:
@@ -470,14 +494,18 @@ def newPass():
         userinfo = checkUserInformation("userid, name, msoid, email, role, locationid", session.get('msoid'))
         userid = userinfo[0]
         userlocationid = userinfo[5]
-        
-        leavetime = currentDatetime()
-        
+                
         try:
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
-                    dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged, creatorid, approverid) VALUES (%s, %s, %s, %s, NULL, NULL, NULL, FALSE, %s, NULL)', (studentid, userlocationid, destinationid, leavetime, userid))
+                    dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid) VALUES (%s, %s, %s)', (studentid, userlocationid, destinationid,))
+                                        
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT passid FROM passes WHERE studentid = %s AND fleavetime IS null', (studentid,))
                     dbcursorfetch = dbcursor.fetchall()
+                    
+            passid = str(dbcursorfetch[0][0])
         except:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'sqlerror'
@@ -485,6 +513,7 @@ def newPass():
             return jsonify(retinfo)
         
         retinfo['status'] = 'ok'
+        retinfo['passid'] = passid
         
         return jsonify(retinfo)
     
@@ -521,10 +550,10 @@ def studentDestinationChooser():
 def webSerialTest():
     return render_template('webSerialTest.html')
 
-@app.route('/passManager')
-def passManager():
+@app.route('/passCatalogue')
+def passCatalogue():
     if ensureLoggedIn(session):
-        return render_template('passManager.html')
+        return render_template('passCatalogue.html')
     else:
         return redirect('/')
 
