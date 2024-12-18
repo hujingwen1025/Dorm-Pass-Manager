@@ -24,10 +24,6 @@
             display: flex;
         }
         
-        .user-icon {
-            margin-right: 10px;
-        }
-        
         .card {
             max-width: 800px;
             margin: 40px auto;
@@ -41,7 +37,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
         
         .filterButton {
@@ -51,15 +47,9 @@
             border: none;
             cursor: pointer;
             border-radius: 3px;
-            transition: background-color 0.2s ease;
+            transition: all 0.2s ease;
             margin: 5px;
             font-weight: bold;
-        }
-
-        .filterButton:hover {
-            transform: scale(1.04);
-            background-color: #0367d2;
-            font-weight: bolder;
         }
 
         .customFilterButton {
@@ -67,7 +57,9 @@
         }
 
         .filterButton:hover {
+            transform: scale(1.04);
             background-color: #0036b3;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
         .list-container {
@@ -91,11 +83,17 @@
             border-bottom: none;
         }
 
-        select {
+        .locationSelector {
             font-size: 16px;
             background-color: #f0f0f0;
             border: none;
+            font-weight: 675;
         }
+
+        .locationSelector:focus {
+            outline: none;
+        }
+    
 
         .studentNameDiv {
             font-weight: bolder;
@@ -114,48 +112,140 @@
             color: #ffffff;
             border-radius: 5px;
             margin-right: 7.5px;
+            transition: all 0.2s ease;
         }
 
         .studentActionButton:hover {
             transform: scale(1.04);
             background-color:#004cff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
+
+        .material-button {
+            background-color: #0080ff;
+            border: none;
+            border-radius: 3px;
+            height: 30px;
+            width: 75px;
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            margin: 5px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .material-button:hover {
+            background-color:#003dcb;
+            transform: scale(1.04);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.65);
+        }
+
+        .usernameTopbar {
+            font-weight: 675;
+        }
+        
+        .userInfoTopbar{
+            border: solid;
+            border-width: 0.2px;
+            border-radius: 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            padding: 7px;
+        }
+
+        .filterSearchInput {
+            width: 99%;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: 25px;
+            padding: 2px;
+            padding-left: 5px;
+            padding-right: 0;
+            font-size: 15px;
+        }
+
+        .filterSearchInput:focus {
+            outline: none;
+        }
+
+        .alert {
+            padding: 20px;
+            background-color: #f7675a;
+            color: white;
+            opacity: 1;
+            transition: opacity 0.6s;
+            margin-bottom: 15px;
+            z-index: 1000;
+            margin: 5px;
+            border-radius: 7.5px;
+          }
+
+          .alertContainer {
+            right: 0;
+            top: 0;
+            float: right;
+            max-width: 27%;
+            min-width: 27%;
+            position: absolute;
+            margin-right: 5px;
+          }
+          
+          .alert.success {background-color: #4bb885;}
+          .alert.info {background-color: #52a9f5;}
+          .alert.warning {background-color: #ffa946;}
+          
+          .closebtn {
+            margin-left: 15px;
+            color: white;
+            font-weight: bold;
+            float: right;
+            font-size: 22px;
+            line-height: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+          }
+          
+          .closebtn:hover {
+            color: black;
+          }
     </style>
     <script src="/static/js/passManager.js"></script>
 </head>
-<body>
+<body id="body">
+    <div class="alertContainer" id="alertContainer"></div>
     <div class="top-bar">
         <div class="text">
-            <span class="material-text user-icon">person</span>
-            <span class="material-text">home</span>
-            <span class="material-text">settings</span>
+            <button class="material-button">person</button>
+            <button class="material-button">home</button>
+            <button class="material-button">settings</button>
         </div>
-        <span><span id="usernameTopbar"></span> | 
-            <select name="location" id="locationSelector">
-                <option value="none">None</option>
+        <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar"></span> | 
+            <select name="location" class="locationSelector" id="locationSelector">
             </select>
         </span>
     </div>
 
     <div class="card">
         <h2>Students Catalogue</h2>
-        <p><b>Filter:</b></p>
+        <p><b>Filter: </b><span id="filterDisplay"></span></p>
         <div class="button-container">
-            <button class="filterButton">All</button>
-            <button class="filterButton">Local</button>
-            <button class="filterButton">Coming</button>
-            <button class="filterButton">Leaving</button>
-            <button class="filterButton">Flagged</button>
-            <button class="filterButton">Absent</button>
+            <button class="filterButton" id="filterButtonAll">All</button>
+            <button class="filterButton" id="filterButtonLocal">Local</button>
+            <button class="filterButton" id="filterButtonArriving">Arriving</button>
+            <button class="filterButton" id="filterButtonLeaving">Leaving</button>
+            <button class="filterButton" id="filterButtonFlagged">Flagged</button>
+            <button class="filterButton" id="filterButtonPresent">Present</button>
             <button class="filterButton customFilterButton">Custom</button>
         </div>
+
+        <input class="filterSearchInput" id="filterSearchInput" placeholder="Search">
         
         <div class="list-container">
             <ul class="list" id="studentList">
             </ul>
         </div>
     </div>
-    <span id="locationList" hidden>{{ locationlist }}</span>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {

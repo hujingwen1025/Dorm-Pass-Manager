@@ -12,11 +12,17 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
+debug = False
+
 CLIENT_ID = '64141594-9d10-4ae2-82c7-43a73eef5e20'
 CLIENT_SECRET = 'xca8Q~AGugkyWFFgihOw-nBwYV1hnrSilLrFXaF5'
 AUTHORITY = 'https://login.microsoftonline.com/common'  # "common" allows users from any organization
 REDIRECT_URI = 'http://localhost:8080/microsoftLoginCallback'
 SCOPE = ["User.Read"]  # Read basic user profile
+
+def dprint(text):
+    if debug:
+        print(text)
 
 def dbConnect():
     return mysql.connector.connect(
@@ -46,16 +52,16 @@ def checkUserInformation(usergetparam, msoid):
     
     return dbcursorfetch[0]
 
-def getLocationsInformation(locationid = None):
+def getLocationsInformation(type, locationid = None):
     if locationid == None:
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT * FROM locations WHERE type = 1")
+                dbcursor.execute("SELECT locationid, name FROM locations WHERE type = %s", (type,))
                 dbcursorfetch = dbcursor.fetchall()
-    else:
+    else:            
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT * FROM locations WHERE locationid = %s AND type = 1", (locationid,))
+                dbcursor.execute("SELECT locationid, name FROM locations WHERE locationid = %s AND type = %s", (locationid, type,))
                 dbcursorfetch = dbcursor.fetchall()
     
     if len(dbcursorfetch) < 1:
@@ -88,6 +94,22 @@ def listToJson(lst):
     for i in range(len(lst)):
         res_dict[str(lst[i][0])] = lst[i][1:]
     return res_dict
+
+def getPassStatus(passid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT fleavetime, darrivetime, dleavetime, farrivetime FROM passes WHERE passid = %s', (passid,))
+            result = dbcursor.fetchall()
+            
+    if result[0][0] == None:
+        return 0
+    elif result[0][1] == None:
+        return 1
+    elif result[0][2] == None:
+        return 2
+    elif result[0][3] == None:
+        return 3
+
      
 @app.route('/')
 def home():
@@ -122,7 +144,7 @@ def getAToken():
         msUserInfo = result.get('id_token_claims')
         msoid = msUserInfo["oid"]
         userInfo = checkUserInformation("userid, name, msoid, email, role, locationid", msoid)
-        print(userInfo)
+        dprint(userInfo)
         session['msoid'] = msoid
         if userInfo == None:
             return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
@@ -138,17 +160,12 @@ def getLocationId():
         
         locationtype = request.json.get('type')
         
-        with dbConnect() as connection:
-            with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT locationid, name FROM locations WHERE type = %s", (locationtype,))
-                dbcursorfetch = dbcursor.fetchall()
-                
-        print(dbcursorfetch)
-        
+        locations = getLocationsInformation(locationtype)
+                        
         retinfo['status'] = 'ok'
-        retinfo['locationJson'] = listToJson(dbcursorfetch)
+        retinfo['locationJson'] = listToJson(locations)
         
-        print(retinfo)
+        dprint(retinfo)
         
         
         return jsonify(retinfo)
@@ -158,6 +175,110 @@ def getLocationId():
         
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'notloggedin'
+        
+        return jsonify(retinfo)
+    
+@app.route('/updatePass', methods=['POST'])
+def updatePass():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        userinfo = checkUserInformation("userid, name, msoid, email, role, locationid", session.get('msoid'))
+        userid = userinfo[0]
+        userlocation = userinfo[5]
+        
+        passid = request.json.get('passid')
+        
+        retinfo["elaspedtime"] = None
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM passes WHERE passid = %s', (passid,))
+                result = dbcursor.fetchall()
+                
+        if len(result) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'invalidpass'
+            
+            return jsonify(retinfo)
+        
+        studentid = result[0][1]
+        floorid = result[0][2]
+        destinationid = result[0][3]
+        
+        print(studentid)
+        
+        floorname = getLocationsInformation(2, floorid)[0][1]
+        destinationname = getLocationsInformation(1, destinationid)[0][1]
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT name, grade FROM students WHERE studentid = %s', (studentid,))
+                result = dbcursor.fetchall()
+                
+        print(result)
+        
+        studentname = result[0][0]
+        studentgrade = 'Grade ' + str(result[0][1])
+        
+        sqlquery = 'UPDATE passes SET '
+        sqlqueryvar = []
+        
+        updateflag = request.json.get('flag')
+        if updateflag != None:
+            sqlquery += 'flagged = true, '
+        
+        updatefloorid = request.json.get('floorid')
+        if updatefloorid != None:
+            floorname = getLocationsInformation(2, updatefloorid)[0][1]
+            sqlquery += 'floorid = %s, '
+            sqlqueryvar += str(updatefloorid)
+        
+        updatedestinationid = request.json.get('destinationid')
+        if updatedestinationid != None:
+            destinationname = getLocationsInformation(1, updatedestinationid)[0][1]
+            sqlquery += 'destinationid = %s, '
+            sqlqueryvar += str(updatedestinationid)
+
+        updateapprove = request.json.get('approve')
+        if updateapprove != None:
+            timestamp = currentDatetime()
+
+            stampposition = 0
+            timepositions = ['fleavetime', 'darrivetime', 'dleavetime', 'farrivetime']
+            
+            stampposition = getPassStatus(passid)
+                        
+            if stampposition != None:
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        print('wefgsdf')
+                        dbcursor.execute(f'UPDATE passes SET {timepositions[stampposition]} = "{timestamp}" WHERE passid = %s', (passid,))
+                        print(dbcursor.statement)
+                    
+            if stampposition != 0 and stampposition != None:
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute(f"SELECT {timepositions[stampposition - 1]}, {timepositions[stampposition]} FROM passes WHERE passid = %s", (passid,))
+                        stamptime = dbcursor.fetchall()
+                
+                stamptime = stamptime[0]
+                elaspedtime = str(stamptime[1] - stamptime[0]).split(':')
+                for i in range(len(elaspedtime)):
+                    elaspedtime[i] = int(elaspedtime[i])
+                    
+                retinfo["elaspedtime"] = elaspedtime
+        
+        sqlquery += 'keywords = %s WHERE passid = %s'
+        sqlqueryvar += [f'{studentname} {studentgrade} {floorname} {destinationname}', passid]
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                print(sqlquery)
+                print(sqlqueryvar)
+                dbcursor.execute(sqlquery, sqlqueryvar)
+
+        retinfo['status'] = 'ok'
         
         return jsonify(retinfo)
     
@@ -172,7 +293,7 @@ def getStudents():
         
         searchfilters = request.json.get('filter')
         
-        sqlquery = "SELECT * FROM passes WHERE 1 = 1 "
+        sqlquery = "SELECT passid, studentid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged FROM passes WHERE 1 = 1 "
         sqlqueryvar = []
         
         try:
@@ -194,20 +315,69 @@ def getStudents():
         
         try:
             statusfilter = searchfilters['status']
-            nullstatus = ['AND fleavetime = NULL ', 'AND darrivetime = NULL', 'AND dleavetime = NULL', 'AND farrivetime = NULL']
+            nullstatus = ['AND fleavetime IS NULL ', 'AND fleavetime IS NOT NULL AND darrivetime IS NULL', 'AND darrivetime IS NOT NULL AND dleavetime IS NULL', 'AND dleavetime IS NOT NULL AND farrivetime IS NULL']
             sqlquery += nullstatus[statusfilter]
         except KeyError:
             pass
         
+        try:
+            searchfilter = str(searchfilters['search'])
+            searchkeywords = searchfilter.split()
+            dprint(searchkeywords)
+            for keyword in searchkeywords:
+                dprint(keyword)
+                sqlquery += 'AND keywords LIKE %s'
+                sqlqueryvar.append(f'%{keyword}%')
+        except KeyError:
+            pass
+        
+        dprint(sqlquery)
+        dprint(sqlqueryvar)
+        
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute(sqlquery, sqlqueryvar)
+                dprint('execed')
+                dprint(dbcursor.statement)
                 dbcursorfetch = dbcursor.fetchall()
         
         retinfo['status'] = 'ok'
         retinfo['students'] = dbcursorfetch
-        print(dbcursorfetch)
-        return jsonify(retinfo)       
+        dprint(dbcursorfetch)
+        return jsonify(retinfo)   
+    
+@app.route('/updateUserLocation', methods=['POST'])
+def updateUserLocation():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        userid = checkUserInformation("userid", session.get('msoid'))[0]
+        
+        locationName = str(request.json.get('location'))
+        
+        dprint(type(locationName))
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT locationid FROM locations WHERE name = %s', (locationName,))
+                dbcursorfetch = dbcursor.fetchall()
+                                
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'invalidlocation'
+            
+            return jsonify(retinfo)
+                
+        locationid = dbcursorfetch[0][0]
+                
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('UPDATE users SET locationid = %s WHERE userid = %s', (locationid, userid,))
+                
+        retinfo['status'] = 'ok'
+        
+        return jsonify(retinfo)
+        
     
 @app.route('/getUserInfo', methods=['POST'])
 def getUserInfo():
@@ -218,10 +388,35 @@ def getUserInfo():
         userinfo += checkUserInformation("userid, name, email, locationid", session.get('msoid')) 
         userinfo = [userinfo]
         
-        print(userinfo)
+        dprint(userinfo)
         
         retinfo["status"] = 'ok'
         retinfo["userinfo"] = listToJson(userinfo)
+        
+        return jsonify(retinfo)
+    
+@app.route('/getStudentInfo', methods=['POST'])
+def getStudentsInfo():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        studentid = str(request.json.get('studentid'))
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT name, grade, floorid, disabledlocations FROM students WHERE studentid = %s", (studentid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) < 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'nostudent'
+            
+            return jsonify(retinfo)
+        
+        studentinfo = dbcursorfetch[0]
+        
+        retinfo['status'] = 'ok'
+        retinfo['studentinfo'] = studentinfo
         
         return jsonify(retinfo)
         
