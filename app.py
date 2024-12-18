@@ -22,7 +22,7 @@ SCOPE = ["User.Read"]  # Read basic user profile
 
 def dprint(text):
     if debug:
-        print(text)
+        dprint(text)
 
 def dbConnect():
     return mysql.connector.connect(
@@ -188,7 +188,7 @@ def updatePass():
         userlocation = userinfo[5]
         
         passid = request.json.get('passid')
-        
+                
         retinfo["elaspedtime"] = None
         
         with dbConnect() as connection:
@@ -205,9 +205,7 @@ def updatePass():
         studentid = result[0][1]
         floorid = result[0][2]
         destinationid = result[0][3]
-        
-        print(studentid)
-        
+                
         floorname = getLocationsInformation(2, floorid)[0][1]
         destinationname = getLocationsInformation(1, destinationid)[0][1]
         
@@ -216,7 +214,7 @@ def updatePass():
                 dbcursor.execute('SELECT name, grade FROM students WHERE studentid = %s', (studentid,))
                 result = dbcursor.fetchall()
                 
-        print(result)
+        dprint(result)
         
         studentname = result[0][0]
         studentgrade = 'Grade ' + str(result[0][1])
@@ -246,15 +244,15 @@ def updatePass():
 
             stampposition = 0
             timepositions = ['fleavetime', 'darrivetime', 'dleavetime', 'farrivetime']
+            approvepositions = ['flapprover', 'daapprover', 'dlapprover', 'faapprover']
             
             stampposition = getPassStatus(passid)
                         
             if stampposition != None:
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
-                        print('wefgsdf')
-                        dbcursor.execute(f'UPDATE passes SET {timepositions[stampposition]} = "{timestamp}" WHERE passid = %s', (passid,))
-                        print(dbcursor.statement)
+                        dbcursor.execute(f'UPDATE passes SET {timepositions[stampposition]} = "{timestamp}", {approvepositions[stampposition]} = %s WHERE passid = %s', (userid, passid,))
+                        dprint(dbcursor.statement)
                     
             if stampposition != 0 and stampposition != None:
                 with dbConnect() as connection:
@@ -274,8 +272,8 @@ def updatePass():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                print(sqlquery)
-                print(sqlqueryvar)
+                dprint(sqlquery)
+                dprint(sqlqueryvar)
                 dbcursor.execute(sqlquery, sqlqueryvar)
 
         retinfo['status'] = 'ok'

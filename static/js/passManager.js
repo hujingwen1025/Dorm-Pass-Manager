@@ -23,7 +23,8 @@ async function getLocationId(type) {
 
         switch (responseJson.status) {
             case "error":
-                return response.errorinfo
+                console.error(response.errorinfo)
+                return 'error'
                 break;
             case "ok":
                 if (type == 1) {
@@ -40,7 +41,7 @@ async function getLocationId(type) {
     } catch (error) {
         console.error('Error:', error);
         createAlertPopup(null, 'Error', 'Error while sending data to server')
-        
+        return 0
     }
 }
 
@@ -63,7 +64,8 @@ async function getUserInfo() {
 
         switch (responseJson.status) {
             case "error":
-                return response.errorinfo
+                console.error(responseJson.errorinfo)
+                return 'error'
                 break;
             case "ok":
                 return responseJson.userinfo
@@ -75,7 +77,7 @@ async function getUserInfo() {
     } catch (error) {
         console.error('Error:', error);
         createAlertPopup(null, 'Error', 'Error while sending data to server')
-        
+        return 0
     }
 }
 
@@ -100,7 +102,8 @@ async function getStudents(filters) {
 
         switch (responseJson.status) {
             case "error":
-                return response.errorinfo
+                console.error(responseJson.errorinfo)
+                return 'error'
                 break;
             case "ok":
                 return responseJson.students
@@ -112,7 +115,7 @@ async function getStudents(filters) {
     } catch (error) {
         console.error('Error:', error);
         createAlertPopup(null, 'Error', 'Error while sending data to server')
-        
+        return 0
     }
 }
 
@@ -137,7 +140,8 @@ async function getStudentInfo(studentid) {
 
         switch (responseJson.status) {
             case "error":
-                return response.errorinfo
+                console.error(responseJson.errorinfo)
+                return 'error'
                 break;
             case "ok":
                 return responseJson.studentinfo
@@ -149,7 +153,7 @@ async function getStudentInfo(studentid) {
     } catch (error) {
         console.error('Error:', error);
         createAlertPopup(null, 'Error', 'Error while sending data to server')
-        
+        return 0
     }
 }
 
@@ -174,8 +178,8 @@ async function updateUserLocation(locationName) {
 
         switch (responseJson.status) {
             case "error":
-                createAlertPopup(null, 'Error', 'Error while updating location to server')
-                return response.errorinfo
+                console.error(responseJson.errorinfo)
+                return 'error'
                 break;
             case "ok":
                 return 0
@@ -187,7 +191,7 @@ async function updateUserLocation(locationName) {
     } catch (error) {
         console.error('Error:', error);
         createAlertPopup(null, 'Error', 'Error while sending data to server')
-        
+        return 0
     }
 }
 
@@ -252,18 +256,19 @@ async function createNewStudentPass(studnetid, destinationid) {
 
         switch (responseJson.status) {
             case "error":
-                createAlertPopup(null, 'Error', 'Cannot reach server for data exchange')
-                break;
+                console.error(responseJson.errorinfo)
+                return 'error'
             case "ok":
                 break;
             default:
                 createAlertPopup(null, 'Error', 'Server returned unreadable data')
+                return 0
         }
         
     } catch (error) {
         console.error('Error:', error);
         createAlertPopup(null, 'Error', 'Error while sending data to server')
-        
+        return 0
     }
 }
 
@@ -286,18 +291,19 @@ async function updateStudentPass(params) {
 
         switch (responseJson.status) {
             case "error":
-                createAlertPopup(null, 'Error', 'Cannot reach server for data exchange')
-                break;
+                console.error(responseJson.errorinfo)
+                return 'error'
             case "ok":
                 break;
             default:
                 createAlertPopup(null, 'Error', 'Server returned unreadable data')
+                return 0
         }
         
     } catch (error) {
         console.error('Error:', error);
         createAlertPopup(null, 'Error', 'Error while sending data to server')
-        
+        return 0
     }
 }
 
@@ -375,16 +381,26 @@ async function setStudentIndex(studentsJson) {
         document.getElementById(`approve-${curstudent[0]}`).onclick = function(event){
             var confirmApprove = confirm(`APPROVE ${curstudent[0]} ?`)
             if (confirmApprove) {
-                updateStudentPass({'passid': passid,'approve': true})
-                createAlertPopup('success', 'Approve Success', `${curstudent[0]} has been approved`)
+                var updateResult = updateStudentPass({'passid': passid,'approve': true})
+                if (updateResult != 'error') {
+                    createAlertPopup('success', 'Approve Success', `${curstudent[0]} has been approved`)
+                } else {
+                    createAlertPopup(null, 'Error', 'Error while updating student pass')
+                    return 0
+                }
                 document.getElementById(window.lastfilterchoice).click()
             }
         }
         document.getElementById(`flag-${curstudent[0]}`).onclick = function(event){
             var confirmApprove = confirm(`FLAG ${curstudent[0]} ?`)
             if (confirmApprove) {
-                updateStudentPass({'passid': passid,'flag': true})
-                createAlertPopup('success', 'Flag Success', `${curstudent[0]} has been flagged`)
+                var updateResult = updateStudentPass({'passid': passid,'flag': true})
+                if (updateResult != 'error') {
+                    createAlertPopup('success', 'Flag Success', `${curstudent[0]} has been flagged`)
+                } else {
+                    createAlertPopup(null, 'Error', 'Error while updating student pass')
+                    return 0
+                }
                 document.getElementById(window.lastfilterchoice).click()
             }
         }
@@ -393,11 +409,15 @@ async function setStudentIndex(studentsJson) {
 
 async function setStudents(filters) {
     if (window.destinationLocationJson == null) {
-        getLocationId(1)
+        window.destinationLocationJson = getLocationId(1)
     } else if (window.floorLocationJson == null) {
-        getLocationId(2)
+        window.floorLocationJson = getLocationId(2)
     }
     var studentsInformation = await getStudents(filters)
+    if (studentsInformation == 'error') {
+        createAlertPopup(null, 'Error', 'Error while getting student information')
+        return 0
+    }
     window.opo = studentsInformation
     let studentsJson = {}
     for (l = 0; l < studentsInformation.length; l ++) {
@@ -408,6 +428,11 @@ async function setStudents(filters) {
         let passid = studentsInformation[l][0]
         let flagged = studentsInformation[l][8]
         let passStatus = ''
+
+        if (studentInfo == 'error') {
+            createAlertPopup(null, 'Error', 'Error while getting student info')
+            return 0
+        }
 
         if (studentsInformation[l][4] == null) {
             passStatus = '◽️🏢◽️'
@@ -442,6 +467,12 @@ async function mainProcess() {
     var userinfo = await getUserInfo()
     var username = userinfo['user'][1]
     window.lastfilterchoice = 'filterButtonLocal'
+
+    if (userinfo == 'error') {
+        userinfo = null
+        createAlertPopup(null, 'Error', 'An error occured while getting user information')
+        return 0
+    }
 
     setUsernameTopbar(username)
 
@@ -495,8 +526,11 @@ async function mainProcess() {
 
     locationSelector.onchange = (event) => {
         updateUserLocation(locationSelector.value)
+        if (updateUserLocation == 'error') {
+            createAlertPopup(null, 'Error', 'Error while updating user location data')
+            return 0
+        }
         if (window.searchActivated == false) {
-            console.log('fck')
             setTimeout(() => {document.getElementById(window.lastfilterchoice).click()}, 1000);
         }
     }
