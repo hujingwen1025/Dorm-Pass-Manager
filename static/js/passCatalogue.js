@@ -40,7 +40,7 @@ async function getLocationId(type) {
         
     } catch (error) {
         console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
 }
@@ -76,7 +76,7 @@ async function getUserInfo() {
         
     } catch (error) {
         console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
 }
@@ -104,17 +104,15 @@ async function getStudents(filters) {
             case "error":
                 console.error(responseJson.errorinfo)
                 return 'error'
-                break;
             case "ok":
                 return responseJson.students
-                break;
             default:
                 return None
         }
         
     } catch (error) {
         console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
 }
@@ -152,7 +150,7 @@ async function getStudentInfo(studentid) {
         
     } catch (error) {
         console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
 }
@@ -190,17 +188,19 @@ async function updateUserLocation(locationName) {
         
     } catch (error) {
         console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
 }
 
-function createAlertPopup(type, title, body) {
+function createAlertPopup(closetimeout, type = null, title, body, alertid = '') {
     let alertContainer = document.getElementById('alertContainer')
 
     let alertElement = document.createElement('div');
+    alertElement.setAttribute('id', alertid)
     alertElement.classList.add('alert')
-    if (alertElement != null) {
+    console.log(type)
+    if (type != null && type != undefined && type != '') {
         alertElement.classList.add(type)
     }
 
@@ -221,7 +221,9 @@ function createAlertPopup(type, title, body) {
 
     alertContainer.appendChild(alertElement)
 
-    let closeTimout = setTimeout(function () {alertElement.remove()}, 5000);
+    if (closetimeout != null) {
+        let closeTimout = setTimeout(function () {alertElement.remove()}, closetimeout);
+    }
 }
 
 function createDestinationChooserPopup(studentName, studentInfo, studentImage, destinationButtonJson) {
@@ -260,28 +262,29 @@ async function createNewStudentPass(studentid, destinationid) {
                 return 'error'
             case "ok":
                 var studentName = await getStudentInfo(studentid)
-                studentName = studentName[0]
-                createAlertPopup('success', 'Pass Created', `A new pass has been created for ${studentName}`)
+                createAlertPopup(5000, type = 'success', 'Pass Created', `A new pass has been created for ${studentName}`)
+                setTimeout(function () {document.getElementById(window.lastfilterchoice).click()}, 1500)
                 setTimeout(function () {
                     var approveRightNow = confirm('Pass has been created but is not active. Do you also want to approve and activate the pass right now? (The student leaves now)')
                     if (approveRightNow) {
-                        updateStudentPass({passid: responseJson.passid, approve: true})
-                        if (updateStudentPass != 'error') {
-                            createAlertPopup('success',' Approve Success', `${studentName} has been approved.`)
+                        var updateResult = updateStudentPass({passid: responseJson.passid, approve: true})
+                        console.log(updateResult,)
+                        if (updateResult != 'error') {
+                            createAlertPopup(5000, type = 'success',' Approve Success', `${studentName} has been approved.`)
                         } else {
-                            createAlertPopup(null, 'Error', 'Error while updating student pass')
+                            createAlertPopup(5000, null, 'Error', 'Error while updating student pass')
                         }
                     }
                 }, 200)
                 return 0
             default:
-                createAlertPopup(null, 'Error', 'Server returned unreadable data')
+                createAlertPopup(5000, null, 'Error', 'Server returned unreadable data')
                 return 0
         }
         
     } catch (error) {
         console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
 }
@@ -308,16 +311,23 @@ async function updateStudentPass(params) {
                 console.error(responseJson.errorinfo)
                 return 'error'
             case "ok":
+                window.exsistingAlert[`${params['passid'].toString()}alert`] = false
+                window.exsistingAlert[`${params['passid'].toString()}warning`] = false
+                try {
+                    document.getElementById(`${params['passid'].toString()}alert`).remove()
+                } catch (error) {
+                    console.log('No alert found to dismiss')
+                }
                 console.log(responseJson)
                 return responseJson
             default:
-                createAlertPopup(null, 'Error', 'Server returned unreadable data')
+                createAlertPopup(5000, null, 'Error', 'Server returned unreadable data')
                 return 0
         }
         
     } catch (error) {
         console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
 }
@@ -397,9 +407,24 @@ async function setStudentIndex(studentsJson) {
             var confirmApprove = confirm(`APPROVE ${curstudent[0]} ?`)
             if (confirmApprove) {
                 var updateResult = await updateStudentPass({'passid': passid,'approve': true})
+                var alertType = ''
                 if (updateResult != 'error') {
-                    if (updateResult.elapsedtime != null) {
-                        var elapsedstring = 'Elapsed Time: '
+                    if (updateResult.elapsedtime != null || updateResult.elapsedtime != undefined) {
+                        var elapsedstring = ''
+                        console.log(updateResult.elapsedtimewarning)
+                        if (updateResult.elapsedtimewarning == 'min') {
+                            alertType = 'warning'
+                            elapsedstring = 'The travel time of the student might be too short. Elapsed Time: '
+                        } else if (updateResult.elapsedtimewarning == 'warning') {
+                            alertType = 'warning'
+                            elapsedstring = 'The student has been traveling for an extended period of time. Elapsed Time: '
+                        } else if (updateResult.elapsedtimewarning == 'alert') {
+                            alertType = ''
+                            elapsedstring = 'The student has been traveling for too long. Elapsed Time: '
+                        } else {
+                            elapsedstring = 'Elapsed Time: '
+                            alertType = 'success'
+                        }
                         var updateResultET = updateResult.elapsedtime
                         console.log('d')
                         console.log(updateResultET)
@@ -424,10 +449,13 @@ async function setStudentIndex(studentsJson) {
                                 elapsedstring += `${updateResultET[2]} Seconds `
                             }
                         }
+                    } else {
+                        elapsedstring = ''
+                        alertType = 'success'
                     }
-                    createAlertPopup('success',' Approve Success', `${curstudent[0]} has been approved. ${elapsedstring}`)
+                    createAlertPopup(5000, type = alertType,' Approve Success', `${curstudent[0]} has been approved. ${elapsedstring}`)
                 } else {
-                    createAlertPopup(null, 'Error', 'Error while updating student pass')
+                    createAlertPopup(5000, null, 'Error', 'Error while updating student pass')
                     return 0
                 }
                 setTimeout(function () {document.getElementById(window.lastfilterchoice).click()}, 1500)
@@ -438,9 +466,9 @@ async function setStudentIndex(studentsJson) {
             if (confirmApprove) {
                 var updateResult = updateStudentPass({'passid': passid,'flag': true})
                 if (updateResult != 'error') {
-                    createAlertPopup('success', 'Flag Success', `${curstudent[0]} has been flagged`)
+                    createAlertPopup(5000, type = 'success', 'Flag Success', `${curstudent[0]} has been flagged`)
                 } else {
-                    createAlertPopup(null, 'Error', 'Error while updating student pass')
+                    createAlertPopup(5000, null, 'Error', 'Error while updating student pass')
                     return 0
                 }
                 document.getElementById(window.lastfilterchoice).click()
@@ -457,7 +485,7 @@ async function setStudents(filters) {
     }
     var studentsInformation = await getStudents(filters)
     if (studentsInformation == 'error') {
-        createAlertPopup(null, 'Error', 'Error while getting student information')
+        createAlertPopup(5000, null, 'Error', 'Error while getting student information')
         return 0
     }
     window.opo = studentsInformation
@@ -471,8 +499,16 @@ async function setStudents(filters) {
         let flagged = studentsInformation[l][8]
         let passStatus = ''
 
+        if ((studentsInformation[l][studentsInformation[l].length - 1] == 'alert') && window.exsistingAlert[`${passid.toString()}alert`] != true) {
+            createAlertPopup(null, null, 'Student Timeout Warning', `${studentName} from ${floorName} has been inactive for too long. Please take necessary actions!`, alertid = `${passid.toString()}alert`)
+            window.exsistingAlert[`${passid.toString()}alert`] = true
+        } else if ((studentsInformation[l][studentsInformation[l].length - 1] == 'warning') && window.exsistingAlert[`${passid.toString()}warning`] != true) {
+            createAlertPopup(15000, 'warning', 'Student Timeout Warning', `${studentName} from ${floorName} has been inactive for a extended period of time.`, alertid = `${passid.toString()}warning`)
+            window.exsistingAlert[`${passid.toString()}warning`] = true
+        }
+
         if (studentInfo == 'error') {
-            createAlertPopup(null, 'Error', 'Error while getting student info')
+            createAlertPopup(5000, null, 'Error', 'Error while getting student info')
             return 0
         }
 
@@ -509,10 +545,11 @@ async function mainProcess() {
     var userinfo = await getUserInfo()
     var username = userinfo['user'][1]
     window.lastfilterchoice = 'filterButtonRelated'
+    window.exsistingAlert = {}
 
     if (userinfo == 'error') {
         userinfo = null
-        createAlertPopup(null, 'Error', 'An error occured while getting user information')
+        createAlertPopup(5000, null, 'Error', 'An error occured while getting user information')
         return 0
     }
 
@@ -572,7 +609,7 @@ async function mainProcess() {
     locationSelector.onchange = (event) => {
         updateUserLocation(locationSelector.value)
         if (updateUserLocation == 'error') {
-            createAlertPopup(null, 'Error', 'Error while updating user location data')
+            createAlertPopup(5000, null, 'Error', 'Error while updating user location data')
             return 0
         }
         if (window.searchActivated == false) {

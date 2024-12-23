@@ -74,7 +74,18 @@ def getLocationType(locationid):
         with connection.cursor() as dbcursor:
             dbcursor.execute("SELECT type FROM locations WHERE locationid = %s", (locationid,))
             dbcursorfetch = dbcursor.fetchall()
-            
+                        
+    return dbcursorfetch[0][0]
+
+def getSettingsValue(settingName):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT value FROM settings WHERE name = %s', (settingName,))
+            dprint(dbcursor.statement)
+            dbcursorfetch = dbcursor.fetchall()
+                       
+    dprint('setf')
+    dprint(dbcursorfetch) 
     return dbcursorfetch[0][0]
 
 def joinLocations(locationList):
@@ -95,7 +106,7 @@ def ensureLoggedIn(session):
         return False
     
 def currentDatetime():
-    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.now()
 
 def listToJson(lst):
     res_dict = {}
@@ -262,18 +273,50 @@ def updatePass():
                         dbcursor.execute(f'UPDATE passes SET {timepositions[stampposition]} = "{timestamp}", {approvepositions[stampposition]} = %s WHERE passid = %s', (userid, passid,))
                         dprint(dbcursor.statement)
                     
+            retinfo["elapsedtimewarning"] = None
+                    
             if stampposition != 0 and stampposition != None:
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
                         dbcursor.execute(f"SELECT {timepositions[stampposition - 1]}, {timepositions[stampposition]} FROM passes WHERE passid = %s", (passid,))
                         stamptime = dbcursor.fetchall()
+                        
+                studentWarningTimeout = int(getSettingsValue('studentWarningTimeout'))
+                studentAlertTimeout = int(getSettingsValue('studentAlertTimemout'))
+                studentMinimumTimeout = int(getSettingsValue('studentMinimumTimeout'))
+                
+                dprint(studentMinimumTimeout)
                 
                 stamptime = stamptime[0]
                 elapsedtime = str(stamptime[1] - stamptime[0]).split(':')
                 for i in range(len(elapsedtime)):
                     elapsedtime[i] = int(elapsedtime[i])
                     
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('SELECT fleavetime, darrivetime, dleavetime, farrivetime FROM passes WHERE passid = %s', (passid,))
+                        curpass = dbcursor.fetchall()[0]
+                        
+                retinfo["elapsedtimewarning"] = None
+                
+                dprint(curpass)
+                    
+                if (curpass[1] != None and curpass[2] == None) or (curpass[3] != None) :
+                                        
+                    elapsedSecond = elapsedtime[0] * 3600 + elapsedtime[1] * 60 + elapsedtime[2]
+
+                    if elapsedSecond > studentAlertTimeout:
+                        retinfo["elapsedtimewarning"] = 'alert'
+                    elif elapsedSecond > studentWarningTimeout:
+                        retinfo["elapsedtimewarning"] = 'warning'
+                    elif elapsedSecond < studentMinimumTimeout:
+                        retinfo["elapsedtimewarning"] = 'min'
+                    
                 retinfo["elapsedtime"] = elapsedtime
+                
+                dprint('set')
+                dprint(studentWarningTimeout)
+                dprint(studentAlertTimeout)
         
         sqlquery += 'keywords = %s WHERE passid = %s'
         sqlqueryvar += [f'{studentname} {studentgrade} {floorname} {destinationname}', passid]
@@ -333,8 +376,8 @@ def getStudents():
             statusfilter = searchfilters['status']
             if userlocationtype == 2:
                 statusfilter -= 2
-            nullstatus = ['AND fleavetime IS NULL ', 'AND fleavetime IS NOT NULL AND darrivetime IS NULL', 'AND darrivetime IS NOT NULL AND dleavetime IS NULL', 'AND dleavetime IS NOT NULL AND farrivetime IS NULL']
-            print(nullstatus[statusfilter])
+            nullstatus = ['AND fleavetime NULL ', 'AND fleavetime IS NOT NULL AND darrivetime IS NULL', 'AND darrivetime IS NOT NULL AND dleavetime IS NULL', 'AND dleavetime IS NOT NULL AND farrivetime IS NULL']
+            dprint(nullstatus[statusfilter])
             sqlquery += nullstatus[statusfilter]
         except KeyError:
             pass
@@ -357,9 +400,41 @@ def getStudents():
             with connection.cursor() as dbcursor:
                 dbcursor.execute(sqlquery, sqlqueryvar)
                 dprint('execed')
-                print(dbcursor.statement)
+                dprint(dbcursor.statement)
                 dbcursorfetch = dbcursor.fetchall()
-        
+                
+        studentWarningTimeout = int(getSettingsValue('studentWarningTimeout'))
+        studentAlertTimeout = int(getSettingsValue('studentAlertTimemout'))
+                
+        curpasscur = 0
+        for curpass in dbcursorfetch:
+            if (curpass[4] != None and curpass[5] == None) or (curpass[6] != None and curpass[7] == None) :
+                for i in range(4):
+                    dprint('d')
+                    dprint(curpass)
+                    dprint(-2 - i)
+                    dprint(curpass[-2 - i])
+                    if curpass[-2 - i] != None:
+                        dprint(currentDatetime() - curpass[-2 - i])
+                        elapsedtime = str(currentDatetime() - curpass[-2 - i]).split(':')
+                        for i in range(len(elapsedtime)):
+                            dprint(elapsedtime[i])
+                            elapsedtime[i] = int(float(elapsedtime[i]))
+                        elapsedSecond = elapsedtime[0] * 3600 + elapsedtime[1] * 60 + elapsedtime[2]
+
+                        if elapsedSecond > studentAlertTimeout:
+                            dbcursorfetch[curpasscur] += ('alert',)
+                        elif elapsedSecond > studentWarningTimeout:
+                            dbcursorfetch[curpasscur] += ('warning',)
+                        else:
+                            dbcursorfetch[curpasscur] += (None,)
+
+                        break
+            else:
+                dprint('atstablelocation')
+                dbcursorfetch[curpasscur] += (None,)
+                        
+                
         retinfo['status'] = 'ok'
         retinfo['students'] = dbcursorfetch
         dprint(dbcursorfetch)
@@ -453,8 +528,8 @@ def newPass():
                 dbcursor.execute("SELECT * FROM passes WHERE studentid = %s AND farrivetime IS null", (studentid,))
                 dbcursorfetch = dbcursor.fetchall()
                 
-                print('pa')
-                print(dbcursorfetch)
+                dprint('pa')
+                dprint(dbcursorfetch)
         
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -494,11 +569,12 @@ def newPass():
         userinfo = checkUserInformation("userid, name, msoid, email, role, locationid", session.get('msoid'))
         userid = userinfo[0]
         userlocationid = userinfo[5]
+        timestamp = currentDatetime()
                 
         try:
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
-                    dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid) VALUES (%s, %s, %s)', (studentid, userlocationid, destinationid,))
+                    dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid, creationtime) VALUES (%s, %s, %s, %s)', (studentid, userlocationid, destinationid, timestamp,))
                                         
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
