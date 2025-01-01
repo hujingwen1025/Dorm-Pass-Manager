@@ -41,10 +41,10 @@ def get_msal_app():
         client_credential=CLIENT_SECRET
     )
     
-def checkUserInformation(usergetparam, msoid):
+def checkUserInformation(usergetparam, oid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
-            dbcursor.execute(f"SELECT {usergetparam} FROM users WHERE msoid = %s", (msoid,))
+            dbcursor.execute(f"SELECT {usergetparam} FROM users WHERE oid = %s", (oid,))
             dbcursorfetch = dbcursor.fetchall()
             
     if len(dbcursorfetch) < 1:
@@ -128,6 +128,19 @@ def getPassStatus(passid):
         return 2
     elif result[0][3] == None:
         return 3
+    
+def calculateElapsedSeconds(timestamp):
+    rawtime = currentDatetime() - timestamp
+    return rawtime.days * 86400 + rawtime.seconds
+
+def convertSecondsToTime(seconds):
+    seconds = seconds % (24 * 3600)
+    hour = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+     
+    return [hour, minutes, seconds]
 
      
 @app.route('/')
@@ -161,10 +174,10 @@ def getAToken():
     result = msal_app.acquire_token_by_authorization_code(code, scopes=SCOPE, redirect_uri=REDIRECT_URI)
     if 'access_token' in result:
         msUserInfo = result.get('id_token_claims')
-        msoid = msUserInfo["oid"]
-        userInfo = checkUserInformation("userid, name, msoid, email, role, locationid", msoid)
+        oid = msUserInfo["oid"]
+        userInfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
         dprint(userInfo)
-        session['msoid'] = msoid
+        session['oid'] = oid
         if userInfo == None:
             return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
         session['login'] = True
@@ -202,7 +215,7 @@ def updatePass():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userinfo = checkUserInformation("userid, name, msoid, email, role, locationid", session.get('msoid'))
+        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", session.get('oid'))
         userid = userinfo[0]
         userlocation = userinfo[5]
         
@@ -288,9 +301,9 @@ def updatePass():
                 dprint(studentMinimumTimeout)
                 
                 stamptime = stamptime[0]
-                elapsedtime = str(stamptime[1] - stamptime[0]).split(':')
-                for i in range(len(elapsedtime)):
-                    elapsedtime[i] = int(elapsedtime[i])
+                
+                print(type(stamptime))
+                print(stamptime)
                     
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
@@ -300,10 +313,14 @@ def updatePass():
                 retinfo["elapsedtimewarning"] = None
                 
                 dprint(curpass)
+                
+                elapsedtime = None
                     
                 if (curpass[1] != None and curpass[2] == None) or (curpass[3] != None) :
                                         
-                    elapsedSecond = elapsedtime[0] * 3600 + elapsedtime[1] * 60 + elapsedtime[2]
+                    elapsedSecond = calculateElapsedSeconds(stamptime[0])
+                    
+                    elapsedtime = convertSecondsToTime(elapsedSecond)                   
 
                     if elapsedSecond > studentAlertTimeout:
                         retinfo["elapsedtimewarning"] = 'alert'
@@ -336,7 +353,7 @@ def getStudents():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userinfo = checkUserInformation("userid, name, msoid, email, role, locationid", session.get('msoid'))
+        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", session.get('oid'))
         userid = userinfo[0]
         userlocation = userinfo[5]
         userlocationtype = getLocationType(userlocation)
@@ -415,12 +432,7 @@ def getStudents():
                     dprint(-2 - i)
                     dprint(curpass[-2 - i])
                     if curpass[-2 - i] != None:
-                        dprint(currentDatetime() - curpass[-2 - i])
-                        elapsedtime = str(currentDatetime() - curpass[-2 - i]).split(':')
-                        for i in range(len(elapsedtime)):
-                            dprint(elapsedtime[i])
-                            elapsedtime[i] = int(float(elapsedtime[i]))
-                        elapsedSecond = elapsedtime[0] * 3600 + elapsedtime[1] * 60 + elapsedtime[2]
+                        elapsedSecond = calculateElapsedSeconds(curpass[-2 - i])
 
                         if elapsedSecond > studentAlertTimeout:
                             dbcursorfetch[curpasscur] += ('alert',)
@@ -445,7 +457,7 @@ def updateUserLocation():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userid = checkUserInformation("userid", session.get('msoid'))[0]
+        userid = checkUserInformation("userid", session.get('oid'))[0]
         
         locationName = str(request.json.get('location'))
         
@@ -479,7 +491,7 @@ def getUserInfo():
         retinfo = {}
         
         userinfo = ["user"]
-        userinfo += checkUserInformation("userid, name, email, locationid", session.get('msoid')) 
+        userinfo += checkUserInformation("userid, name, email, locationid", session.get('oid')) 
         userinfo = [userinfo]
         
         dprint(userinfo)
@@ -566,7 +578,7 @@ def newPass():
             
             return jsonify(retinfo)
         
-        userinfo = checkUserInformation("userid, name, msoid, email, role, locationid", session.get('msoid'))
+        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", session.get('oid'))
         userid = userinfo[0]
         userlocationid = userinfo[5]
         timestamp = currentDatetime()
@@ -601,10 +613,10 @@ def newPass():
         
         return jsonify(retinfo)
     
-@app.route('/checkMsoid')
-def checkMsoid():
-    msoid = session["msoid"]
-    return f"MSOID: {msoid}"
+@app.route('/checkOid')
+def checkOid():
+    oid = session["oid"]
+    return f"OID: {oid}"
 
 @app.route('/maintainerDashboard')
 def maintainerDashboard():
