@@ -2,6 +2,11 @@ window.onbeforeunload = function(e) {
     return 'Are you sure you want to leave this page?  You will lose any unsaved data.';
   };
 
+function triggerDisplayUpdate() {
+    document.getElementById(window.lastfilterchoice).click()
+}
+
+
 async function getLocationId(type) {
     try {
         const response = await fetch("/getLocationId", {
@@ -262,8 +267,10 @@ async function createNewStudentPass(studentid, destinationid) {
                 return 'error'
             case "ok":
                 var studentName = await getStudentInfo(studentid)
+                studentName = studentName[0]
+                window.stun = studentName
                 createAlertPopup(5000, type = 'success', 'Pass Created', `A new pass has been created for ${studentName}`)
-                setTimeout(function () {document.getElementById(window.lastfilterchoice).click()}, 1500)
+                setTimeout(function () {triggerDisplayUpdate()}, 1500)
                 setTimeout(function () {
                     var approveRightNow = confirm('Pass has been created but is not active. Do you also want to approve and activate the pass right now? (The student leaves now)')
                     if (approveRightNow) {
@@ -458,7 +465,7 @@ async function setStudentIndex(studentsJson) {
                     createAlertPopup(5000, null, 'Error', 'Error while updating student pass')
                     return 0
                 }
-                setTimeout(function () {document.getElementById(window.lastfilterchoice).click()}, 1500)
+                setTimeout(function () {triggerDisplayUpdate()}, 1500)
             }
         }
         document.getElementById(`flag-${curstudent[0]}`).onclick = function(event){
@@ -471,7 +478,7 @@ async function setStudentIndex(studentsJson) {
                     createAlertPopup(5000, null, 'Error', 'Error while updating student pass')
                     return 0
                 }
-                document.getElementById(window.lastfilterchoice).click()
+                triggerDisplayUpdate()
             }
         }
     })
@@ -599,7 +606,7 @@ async function mainProcess() {
             setFilterDisplay(`Search - ${filterSearchInput.value}`)
         } else {
             window.searchActivated = false
-            document.getElementById(window.lastfilterchoice).click()
+            triggerDisplayUpdate()
         }
         }
     )
@@ -613,11 +620,11 @@ async function mainProcess() {
             return 0
         }
         if (window.searchActivated == false) {
-            setTimeout(() => {document.getElementById(window.lastfilterchoice).click()}, 1000);
+            setTimeout(() => {triggerDisplayUpdate()}, 1000);
         }
     }
 
-    document.getElementById(window.lastfilterchoice).click()
+    triggerDisplayUpdate()
 
     window.searchActivated = false
 }
@@ -625,7 +632,7 @@ async function mainProcess() {
 function updateDisplay() {
     console.log('Updating info...')
     if (window.searchActivated == false) {
-        document.getElementById(window.lastfilterchoice).click()
+        triggerDisplayUpdate()
     }
     setTimeout(updateDisplay, 15000);
 }

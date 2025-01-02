@@ -1,4 +1,5 @@
 from flask import *
+from cryptography.fernet import Fernet
 from msal import ConfidentialClientApplication
 from mysql.connector import *
 import mysql.connector
@@ -12,6 +13,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
+encryption_key = Fernet.generate_key()
+fernet = Fernet(encryption_key)
+
 debug = False
 
 CLIENT_ID = '64141594-9d10-4ae2-82c7-43a73eef5e20'
@@ -23,6 +27,14 @@ SCOPE = ["User.Read"]  # Read basic user profile
 def dprint(text):
     if debug:
         dprint(text)
+        
+def encrypt(data):
+    encrypted_data = str(fernet.encrypt(data.encode()).decode('ascii'))
+    return encrypted_data
+
+def decrypt(encrypted_data):
+    decrypted_data = fernet.decrypt(encrypted_data).decode()
+    return decrypted_data
 
 def dbConnect():
     return mysql.connector.connect(
@@ -177,7 +189,7 @@ def getAToken():
         oid = msUserInfo["oid"]
         userInfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
         dprint(userInfo)
-        session['oid'] = oid
+        session['oid'] = str(encrypt(oid))
         if userInfo == None:
             return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
         session['login'] = True
@@ -215,7 +227,7 @@ def updatePass():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", session.get('oid'))
+        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", decrypt(str(session.get('oid'))))
         userid = userinfo[0]
         userlocation = userinfo[5]
         
@@ -353,7 +365,7 @@ def getStudents():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", session.get('oid'))
+        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", decrypt(str(session.get('oid'))))
         userid = userinfo[0]
         userlocation = userinfo[5]
         userlocationtype = getLocationType(userlocation)
@@ -457,7 +469,7 @@ def updateUserLocation():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userid = checkUserInformation("userid", session.get('oid'))[0]
+        userid = checkUserInformation("userid", decrypt(str(session.get('oid'))))[0]
         
         locationName = str(request.json.get('location'))
         
@@ -491,7 +503,7 @@ def getUserInfo():
         retinfo = {}
         
         userinfo = ["user"]
-        userinfo += checkUserInformation("userid, name, email, locationid", session.get('oid')) 
+        userinfo += checkUserInformation("userid, name, email, locationid", decrypt(str(session.get('oid')))) 
         userinfo = [userinfo]
         
         dprint(userinfo)
@@ -578,7 +590,7 @@ def newPass():
             
             return jsonify(retinfo)
         
-        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", session.get('oid'))
+        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", decrypt(str(session.get('oid'))))
         userid = userinfo[0]
         userlocationid = userinfo[5]
         timestamp = currentDatetime()
