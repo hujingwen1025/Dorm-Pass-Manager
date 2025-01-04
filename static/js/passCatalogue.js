@@ -598,6 +598,19 @@ async function mainProcess() {
         setFilterDisplay('Present')
     }
 
+    document.getElementById('passesNavButton').onclick = function(event) {
+        window.location.href = '/passCatalogue'
+    }
+    document.getElementById('studentsNavButton').onclick = function(event) {
+        window.location.href = '/studentCatalogue'
+    }
+    document.getElementById('manageNavButton').onclick = function(event) {
+        window.location.href = '/managePanel'
+    }
+    document.getElementById('settingsNavButton').onclick = function(event) {
+        window.location.href = '/settingsPanel'
+    }
+
     const filterSearchInput = document.getElementById("filterSearchInput")
     filterSearchInput.addEventListener("input", function(event) {
         if (filterSearchInput.value != '') {

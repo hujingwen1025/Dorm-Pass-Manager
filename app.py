@@ -7,6 +7,8 @@ import os
 import re
 from datetime import *
 import time
+import string
+import random
 
 app = Flask(__name__)
 
@@ -15,6 +17,8 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 encryption_key = Fernet.generate_key()
 fernet = Fernet(encryption_key)
+
+passkeylength = 32
 
 debug = False
 
@@ -26,7 +30,7 @@ SCOPE = ["User.Read"]  # Read basic user profile
 
 def dprint(text):
     if debug:
-        dprint(text)
+        print(text)
         
 def encrypt(data):
     encrypted_data = str(fernet.encrypt(data.encode()).decode('ascii'))
@@ -154,7 +158,47 @@ def convertSecondsToTime(seconds):
      
     return [hour, minutes, seconds]
 
-     
+class sessionStorage:
+    def create(oid = None, keepstatedays = 7):
+        passkey = ''.join(random.choices(string.ascii_uppercase + string.digits, k=passkeylength))
+        expdate = currentDatetime() + timedelta(days=keepstatedays)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('INSERT INTO sessions (oid, passkey, expdate) VALUES (%s, %s, %s)', (oid, passkey, expdate))
+                dbcursor.execute('SELECT LAST_INSERT_ID()')
+                result = dbcursor.fetchall()
+                                
+        return [str(result[0][0]), passkey]
+                
+    def verify(sessionid, passkey):
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT oid, expdate FROM sessions WHERE sessionid = %s AND passkey = %s', (sessionid, passkey))
+                result = dbcursor.fetchall()
+        
+        if len(result) < 1:
+            return None
+
+        oid = result[0][0]
+        expdate = result[0][1]
+        
+        if expdate < currentDatetime():
+            return None
+        
+        return oid
+    
+def getOidFromSession(session):
+    sessionid = decrypt(str(session.get('sessionid')))
+    passkey = decrypt(str(session.get('passkey')))
+    
+    print('gofsi')
+    print([sessionid, passkey])
+    
+    oid = sessionStorage.verify(sessionid, passkey)
+    
+    return oid
+
 @app.route('/')
 def home():
     if ensureLoggedIn(session):
@@ -189,7 +233,9 @@ def getAToken():
         oid = msUserInfo["oid"]
         userInfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
         dprint(userInfo)
-        session['oid'] = str(encrypt(oid))
+        sessioninfo = sessionStorage.create(oid)
+        session['sessionid'] = str(encrypt(sessioninfo[0]))
+        session['passkey'] = str(encrypt(sessioninfo[1]))
         if userInfo == None:
             return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
         session['login'] = True
@@ -227,7 +273,9 @@ def updatePass():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", decrypt(str(session.get('oid'))))
+        oid = getOidFromSession(session)
+        
+        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
         userid = userinfo[0]
         userlocation = userinfo[5]
         
@@ -314,8 +362,8 @@ def updatePass():
                 
                 stamptime = stamptime[0]
                 
-                print(type(stamptime))
-                print(stamptime)
+                dprint(type(stamptime))
+                dprint(stamptime)
                     
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
@@ -365,7 +413,9 @@ def getStudents():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", decrypt(str(session.get('oid'))))
+        oid = getOidFromSession(session)
+        
+        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
         userid = userinfo[0]
         userlocation = userinfo[5]
         userlocationtype = getLocationType(userlocation)
@@ -386,10 +436,10 @@ def getStudents():
         if not allfilter:
             try:
                 if userlocationtype == 1:
-                    sqlquery += "AND destinationid = %s"
+                    sqlquery += "AND destinationid = %s "
                     sqlqueryvar += str(userlocation)
                 else:
-                    sqlquery += "AND floorid = %s"
+                    sqlquery += "AND floorid = %s "
                     sqlqueryvar += str(userlocation)
             except KeyError:
                 pass            
@@ -405,7 +455,7 @@ def getStudents():
             statusfilter = searchfilters['status']
             if userlocationtype == 2:
                 statusfilter -= 2
-            nullstatus = ['AND fleavetime NULL ', 'AND fleavetime IS NOT NULL AND darrivetime IS NULL', 'AND darrivetime IS NOT NULL AND dleavetime IS NULL', 'AND dleavetime IS NOT NULL AND farrivetime IS NULL']
+            nullstatus = ['AND fleavetime IS NULL ', 'AND fleavetime IS NOT NULL AND darrivetime IS NULL ', 'AND darrivetime IS NOT NULL AND dleavetime IS NULL ', 'AND dleavetime IS NOT NULL AND farrivetime IS NULL ']
             dprint(nullstatus[statusfilter])
             sqlquery += nullstatus[statusfilter]
         except KeyError:
@@ -417,7 +467,7 @@ def getStudents():
             dprint(searchkeywords)
             for keyword in searchkeywords:
                 dprint(keyword)
-                sqlquery += 'AND keywords LIKE %s'
+                sqlquery += 'AND keywords LIKE %s '
                 sqlqueryvar.append(f'%{keyword}%')
         except KeyError:
             pass
@@ -427,6 +477,8 @@ def getStudents():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
+                dprint(sqlquery)
+                dprint(sqlqueryvar)
                 dbcursor.execute(sqlquery, sqlqueryvar)
                 dprint('execed')
                 dprint(dbcursor.statement)
@@ -469,7 +521,9 @@ def updateUserLocation():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userid = checkUserInformation("userid", decrypt(str(session.get('oid'))))[0]
+        oid = getOidFromSession(session)
+        
+        userid = checkUserInformation("userid", oid)[0]
         
         locationName = str(request.json.get('location'))
         
@@ -502,8 +556,10 @@ def getUserInfo():
     if ensureLoggedIn(session):
         retinfo = {}
         
+        oid = getOidFromSession(session)
+        
         userinfo = ["user"]
-        userinfo += checkUserInformation("userid, name, email, locationid", decrypt(str(session.get('oid')))) 
+        userinfo += checkUserInformation("userid, name, email, locationid", oid) 
         userinfo = [userinfo]
         
         dprint(userinfo)
@@ -590,7 +646,9 @@ def newPass():
             
             return jsonify(retinfo)
         
-        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", decrypt(str(session.get('oid'))))
+        oid = getOidFromSession(session)
+        
+        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
         userid = userinfo[0]
         userlocationid = userinfo[5]
         timestamp = currentDatetime()
@@ -627,7 +685,7 @@ def newPass():
     
 @app.route('/checkOid')
 def checkOid():
-    oid = session["oid"]
+    oid = str(decrypt(session["oid"]))
     return f"OID: {oid}"
 
 @app.route('/maintainerDashboard')

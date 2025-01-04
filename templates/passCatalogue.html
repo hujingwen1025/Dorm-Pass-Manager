@@ -32,6 +32,7 @@
             margin: 40px auto;
             padding: 20px;
             padding-top: 5px;
+            border-radius: 7.5px;
             background-color: white;
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
@@ -71,7 +72,6 @@
             border: 1px solid #ddd;
             border-radius: 8px;
             padding-top: 5px;
-            padding-button: 5px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
@@ -220,10 +220,10 @@
     <div class="alertContainer" id="alertContainer"></div>
     <div class="top-bar">
         <div class="text">
-            <button class="material-button">Passes</button>
-            <button class="material-button">Students</button>
-            <button class="material-button">Manage</button>
-            <button class="material-button">Settings</button>
+            <button class="material-button" id="passesNavButton">Passes</button>
+            <button class="material-button" id="studentsNavButton">Students</button>
+            <button class="material-button" id="manageNavButton">Manage</button>
+            <button class="material-button" id="settingsNavButton">Settings</button>
         </div>
         <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar"></span> | 
             <select name="location" class="locationSelector" id="locationSelector">
