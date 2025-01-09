@@ -714,6 +714,13 @@ def passCatalogue():
         return render_template('passCatalogue.html')
     else:
         return redirect('/')
+    
+@app.route('/managePanel')
+def managePanel():
+    if ensureLoggedIn(session):
+        return render_template('managePanel.html')
+    else:
+        return redirect('/')
 
 if __name__ == '__main__':
     app.run(port=8080, host="localhost")
