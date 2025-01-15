@@ -41,6 +41,44 @@ async function getLocationId(type) {
     }
 }
 
+async function searchStudents(filters) {
+    try {
+        const response = await fetch("/searchStudents", {
+            method: 'POST',
+            body: JSON.stringify({
+                "searchFilter": filters
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                console.error(response.errorinfo)
+                return 'error'
+                break;
+            case "ok":
+                return responseJson.students
+                break;
+            default:
+                return None
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 0
+    }
+}
+
 async function getUserInfo() {
     try {
         const response = await fetch("/getUserInfo", {
@@ -251,11 +289,159 @@ async function setLocationSelector(locationJson) {
     });
   }
 
+function doOptionUpdate(optionid = null) {
+    const studentsOption = document.getElementById('studentsOption');
+    const usersOption = document.getElementById('usersOption');
+    const locationsOption = document.getElementById('locationsOption');
+    const diagnosticsOption = document.getElementById('diagnosticsOption');
+    const backupOption = document.getElementById('backupOption');
+    const settingsOption = document.getElementById('settingsOption');
+
+    switch (optionid) {
+        case 'studentsOption':
+            studentsOption.classList.add('optionActivated')
+            break;
+        case 'usersOption':
+            usersOption.classList.add('optionActivated')
+            break;
+        case 'locationsOption':
+            locationsOption.classList.add('optionActivated')
+            break;
+        case 'diagnosticsOption':
+            diagnosticsOption.classList.add('optionActivated')
+            break;
+        case 'backupOption':
+            backupOption.classList.add('optionActivated')
+            break;
+        case 'settingsOption':
+            settingsOption.classList.add('optionActivated')
+            break;
+        case 'moreset':
+            studentsOption.classList.remove('optionActivated')
+            usersOption.classList.remove('optionActivated')
+            locationsOption.classList.remove('optionActivated')
+            diagnosticsOption.classList.remove('optionActivated')
+            backupOption.classList.remove('optionActivated')
+            settingsOption.classList.remove('optionActivated')
+
+            switch (window.selectedOption) {
+                case 'studentsOption':
+                    studentsOption.classList.add('optionActivated')
+                    break;
+                case 'usersOption':
+                    usersOption.classList.add('optionActivated')
+                    break;
+                case 'locationsOption':
+                    locationsOption.classList.add('optionActivated')
+                    break;
+                case 'diagnosticsOption':
+                    diagnosticsOption.classList.add('optionActivated')
+                    break;
+                case 'backupOption':
+                    backupOption.classList.add('optionActivated')
+                    break;
+                case 'settingsOption':
+                    settingsOption.classList.add('optionActivated')
+                    break;
+            }
+            break;
+        case 'reset':
+            studentsOption.classList.remove('optionActivated')
+            usersOption.classList.remove('optionActivated')
+            locationsOption.classList.remove('optionActivated')
+            diagnosticsOption.classList.remove('optionActivated')
+            backupOption.classList.remove('optionActivated')
+            settingsOption.classList.remove('optionActivated')
+        default:
+            console.log('Incorrect reference')
+            break;
+    }
+}
+
+function setSelectedCustomOption(alloptions, selectedOption, pinnedOption) {
+    for (let i = 0; i < alloptions.length; i ++) {
+        document.getElementById(alloptions[i]).classList.remove('buttonSelectorActivated')
+    }
+    if (selectedOption != null) {
+        console.log(alloptions[selectedOption])
+        document.getElementById(alloptions[selectedOption]).classList.add('buttonSelectorActivated')
+    }
+    if (pinnedOption != null) {
+        document.getElementById(pinnedOption).classList.add('buttonSelectorActivated')
+    }
+}
+
+function setSelectedOption(optionid) {
+    const studentsContainer = document.getElementById('studentsContainer');
+    const usersContainer = document.getElementById('usersContainer');
+    const locationsContainer = document.getElementById('locationsContainer');
+    const diagnosticsContainer = document.getElementById('diagnosticsContainer');
+    const backupContainer = document.getElementById('backupContainer');
+    const settingsContainer = document.getElementById('settingsContainer');
+
+    studentsContainer.classList.add('containerHidden')
+    usersContainer.classList.add('containerHidden')
+    locationsContainer.classList.add('containerHidden')
+    diagnosticsContainer.classList.add('containerHidden')
+    backupContainer.classList.add('containerHidden')
+    settingsContainer.classList.add('containerHidden')
+
+    window.selectedOption = optionid
+    doOptionUpdate('moreset')
+
+    switch (optionid) {
+        case 'studentsOption':
+            studentsContainer.classList.remove('containerHidden')
+            break;
+        case 'usersOption':
+            usersContainer.classList.remove('containerHidden')
+            break;
+        case 'locationsOption':
+            locationsContainer.classList.remove('containerHidden')
+            break;
+        case 'diagnosticsOption':
+            diagnosticsContainer.classList.remove('containerHidden')
+            break;
+        case 'backupOption':
+            backupContainer.classList.remove('containerHidden')
+            break;
+        case 'settingsOption':
+            settingsContainer.classList.remove('containerHidden')
+            break;
+        default:
+            console.log('Incorrect Reference')
+            break;
+    }
+}
+
+async function doEditStudentDatalistUpdate(name) {
+    const studentEditDatalist = document.getElementById('editStudentFoundStudents')
+    studentEditDatalist.innerHTML = ''
+    var studentList = await searchStudents({'name': name})
+    if (studentList != [] && studentList != undefined && studentList != null) {
+        for (let i = 0; i < studentList.length; i ++) {
+            const option = document.createElement('option')
+            option.value = studentList[i][0]
+            studentEditDatalist.appendChild(option)
+        }
+    }
+}
+
+function setOptionContentVisibility(allContent, selectedContent) {
+    for (let i = 0; i < allContent.length; i ++) {
+        document.getElementById(allContent[i]).classList.add('containerHidden')
+    }
+    console.log('unh')
+    console.log(allContent[selectedContent])
+    document.getElementById(allContent[selectedContent]).classList.remove('containerHidden')
+}
+
 async function mainProcess() {
     var destinationIds = await getLocationId(1)
     var floorIds = await getLocationId(2)
     var userinfo = await getUserInfo()
     var username = userinfo['user'][1]
+    window.selectedOption = null
 
     if (userinfo == 'error') {
         userinfo = null
@@ -293,6 +479,94 @@ async function mainProcess() {
             setTimeout(() => {triggerDisplayUpdate()}, 1000);
         }
     }
+
+    const studentsOption = document.getElementById('studentsOption');
+    const usersOption = document.getElementById('usersOption');
+    const locationsOption = document.getElementById('locationsOption');
+    const diagnosticsOption = document.getElementById('diagnosticsOption');
+    const backupOption = document.getElementById('backupOption');
+    const settingsOption = document.getElementById('settingsOption');
+
+    studentsOption.onmouseover = function() {doOptionUpdate('studentsOption')}
+    usersOption.onmouseover = function() {doOptionUpdate('usersOption')}
+    locationsOption.onmouseover = function() {doOptionUpdate('locationsOption')}
+    diagnosticsOption.onmouseover = function() {doOptionUpdate('diagnosticsOption')}
+    backupOption.onmouseover = function() {doOptionUpdate('backupOption')}
+    settingsOption.onmouseover = function() {doOptionUpdate('settingsOption')}
+
+    studentsOption.onmouseout = function() {doOptionUpdate('moreset')}
+    usersOption.onmouseout = function() {doOptionUpdate('moreset')}
+    locationsOption.onmouseout = function() {doOptionUpdate('moreset')}
+    diagnosticsOption.onmouseout = function() {doOptionUpdate('moreset')}
+    backupOption.onmouseout = function() {doOptionUpdate('moreset')}
+    settingsOption.onmouseout = function() {doOptionUpdate('moreset')}
+
+    studentsOption.onclick = function() {setSelectedOption('studentsOption')}
+    usersOption.onclick = function() {setSelectedOption('usersOption')}
+    locationsOption.onclick = function() {setSelectedOption('locationsOption')}
+    diagnosticsOption.onclick = function() {setSelectedOption('diagnosticsOption')}
+    backupOption.onclick = function() {setSelectedOption('backupOption')}
+    settingsOption.onclick = function() {setSelectedOption('settingsOption')}
+
+    const studentAddButton = document.getElementById('addStudentSelector')
+    const studentEditButton = document.getElementById('editStudentSelector')
+    studentAddButton.onmouseover = function() {setSelectedCustomOption(['addStudentSelector', 'editStudentSelector'], 0, window.studentSelectorChoice)}
+    studentEditButton.onmouseover = function() {setSelectedCustomOption(['addStudentSelector', 'editStudentSelector'], 1, window.studentSelectorChoice)}
+    studentAddButton.onmouseout = function() {setSelectedCustomOption(['addStudentSelector', 'editStudentSelector'], null, window.studentSelectorChoice)}
+    studentEditButton.onmouseout = function() {setSelectedCustomOption(['addStudentSelector', 'editStudentSelector'], null, window.studentSelectorChoice)}
+    window.studentSelectorChoice = null
+
+    document.getElementById('addStudentSelector').onclick = function(event) {
+        window.studentSelectorChoice = 'addStudentSelector'
+        setSelectedCustomOption(['addStudentSelector', 'editStudentSelector'], 0, window.studentSelectorChoice)
+        setOptionContentVisibility(['addStudentContent', 'editStudentContent'], 0)
+    }
+    document.getElementById('editStudentSelector').onclick = function(event) {
+        window.studentSelectorChoice = 'editStudentSelector'
+        setSelectedCustomOption(['addStudentSelector', 'editStudentSelector'], 1, window.studentSelectorChoice)
+        setOptionContentVisibility(['addStudentContent', 'editStudentContent'], 1)
+    }
+
+    const userAddButton = document.getElementById('addUserSelector')
+    const userEditButton = document.getElementById('editUserSelector')
+    userAddButton.onmouseover = function() {setSelectedCustomOption(['addUserSelector', 'editUserSelector'], 0, window.userSelectorChoice)}
+    userEditButton.onmouseover = function() {setSelectedCustomOption(['addUserSelector', 'editUserSelector'], 1, window.userSelectorChoice)}
+    userAddButton.onmouseout = function() {setSelectedCustomOption(['addUserSelector', 'editUserSelector'], null, window.userSelectorChoice)}
+    userEditButton.onmouseout = function() {setSelectedCustomOption(['addUserSelector', 'editUserSelector'], null, window.userSelectorChoice)}
+    window.userSelectorChoice = null
+
+    document.getElementById('addUserSelector').onclick = function(event) {
+        window.userSelectorChoice = 'addUserSelector'
+        setSelectedCustomOption(['addUserSelector', 'editUserSelector'], 0, window.userSelectorChoice)
+        setOptionContentVisibility(['addUserContent', 'editUserContent'], 0)
+    }
+    document.getElementById('editUserSelector').onclick = function(event) {
+        window.userSelectorChoice = 'editUserSelector'
+        setSelectedCustomOption(['addUserSelector', 'editUserSelector'], 1, window.userSelectorChoice)
+        setOptionContentVisibility(['addUserContent', 'editUserContent'], 1)
+    }
+
+    const locationAddButton = document.getElementById('addLocationSelector')
+    const locationEditButton = document.getElementById('editLocationSelector')
+    locationAddButton.onmouseover = function() {setSelectedCustomOption(['addLocationSelector', 'editLocationSelector'], 0, window.locationSelectorChoice)}
+    locationEditButton.onmouseover = function() {setSelectedCustomOption(['addLocationSelector', 'editLocationSelector'], 1, window.locationSelectorChoice)}
+    locationAddButton.onmouseout = function() {setSelectedCustomOption(['addLocationSelector', 'editLocationSelector'], null, window.locationSelectorChoice)}
+    locationEditButton.onmouseout = function() {setSelectedCustomOption(['addLocationSelector', 'editLocationSelector'], null, window.locationSelectorChoice)}
+    window.locationSelectorChoice = null
+
+    document.getElementById('addLocationSelector').onclick = function(event) {
+        window.locationSelectorChoice = 'addLocationSelector'
+        setSelectedCustomOption(['addLocationSelector', 'editLocationSelector'], 0, window.locationSelectorChoice)
+        setOptionContentVisibility(['addLocationContent', 'editLocationContent'], 0)
+    }
+    document.getElementById('editLocationSelector').onclick = function(event) {
+        window.locationSelectorChoice = 'editLocationSelector'
+        setSelectedCustomOption(['addLocationSelector', 'editLocationSelector'], 1, window.locationSelectorChoice)
+        setOptionContentVisibility(['addLocationContent', 'editLocationContent'], 1)
+    }
+
+    const editStudentDatalist = document.getElementById('editStudentChoose')
+    editStudentDatalist.oninput = function(){doEditStudentDatalistUpdate(editStudentDatalist.value)}
 }
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -95,7 +95,7 @@
                 border-radius: 7.5px;
             }
 
-            .option:hover {
+            .optionActivated {
                 transform: scale(1.05);
                 box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             }
@@ -109,6 +109,99 @@
             .option p {
                 font-size: 14px;
                 margin: 0;
+            }
+
+            .containerHidden {
+                display: none;
+            }
+
+            .manageContainer {
+                margin-top: 10px;
+                margin-left: 10px;
+            }
+
+            .actionSeparationLine {
+                margin: 15px;
+            }
+
+            hr {
+                border: 0;
+                height: 1.25px;
+                background: #2a2a2a;
+            }
+
+            .buttonSelector {
+                text-align: center;
+                width: 125px;
+                transition: all 0.2s ease;
+                border-radius: 5px;
+                margin-right: 10px;
+                float: left;
+            }
+
+            .buttonSelectorActivated {
+                transform: scale(1.05);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            }
+
+            .buttonContainer {
+                height: 55px;
+            }
+
+            .formLabel {
+                padding: 10px;
+                font-weight: 750;
+            }
+
+            .formInput {
+                margin: 10px;
+            }
+
+            .formInput {
+                background-color: #ffffff;
+                width: 95%;
+                height: 25px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                padding: 2px;
+                padding-left: 5px;
+                padding-right: 0;
+                font-size: 15px;
+            }
+
+            .formSelect {
+                height: 30px;
+                width: 96%
+            }
+
+            .formSubmit {
+                display: block; 
+                margin: 0 auto;
+                width: 90%;
+                height: 35px;
+                background-color: #007bff;
+                border: none;
+                color: #ffffff;
+                border-radius: 5px;
+                margin-top: 10px;
+                transition: all 0.2s ease;
+            }
+
+            .formSubmit:hover {
+                transform: scale(1.04);
+                background-color:#004cff;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            }
+
+            .formSubmit:active {
+                transform: scale(1.02);
+                background-color:#004cff;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            }
+
+            .actionCard {
+                margin-top: 10px;
             }
         </style>
         <script src="/static/js/managePanel.js"></script>
@@ -129,30 +222,131 @@
         <div class="card">
             <h2>Manage Panel</h2>
             <div class="options-container">
-                <div class="option">
-                    <img src="/static/resource/add_subtract_icon.png" alt="Option 1 Icon" class="option-icon">
+                <div class="option" id="studentsOption">
+                    <img src="/static/resource/add_subtract_icon.png" alt="Students Icon" class="option-icon">
                     <p>Students</p>
                 </div>
-                <div class="option">
-                    <img src="/static/resource/people_search_icon.png" alt="Option 2 Icon" class="option-icon">
+                <div class="option" id="usersOption">
+                    <img src="/static/resource/people_search_icon.png" alt="Users Icon" class="option-icon">
                     <p>Users</p>
                 </div>
-                <div class="option">
-                    <img src="/static/resource/local_pin_icon.png" alt="Option 3 Icon" class="option-icon">
+                <div class="option" id="locationsOption">
+                    <img src="/static/resource/local_pin_icon.png" alt="Locations Icon" class="option-icon">
                     <p>Locations</p>
                 </div>
-                <div class="option">
-                    <img src="/static/resource/microscope_icon.png" alt="Option 4 Icon" class="option-icon">
+                <div class="option" id="diagnosticsOption">
+                    <img src="/static/resource/microscope_icon.png" alt="Diagnostics Icon" class="option-icon">
                     <p>Diagnostics</p>
                 </div>
-                <div class="option">
-                    <img src="/static/resource/database_download_icon.png" alt="Option 4 Icon" class="option-icon">
+                <div class="option" id="backupOption">
+                    <img src="/static/resource/database_download_icon.png" alt="Backup Icon" class="option-icon">
                     <p>Backup</p>
                 </div>
-                <div class="option">
-                    <img src="/static/resource/file_settings_icon.png" alt="Option 4 Icon" class="option-icon">
+                <div class="option" id="settingsOption">
+                    <img src="/static/resource/file_settings_icon.png" alt="Settings Icon" class="option-icon">
                     <p>Settings</p>
                 </div>
+            </div>
+            <hr class="actionSeparationLine">
+            <div class="manageContainer containerHidden" id="studentsContainer">
+                <h3>Select Action</h3>
+                <div class="buttonContainer">
+                    <div class="buttonSelector" id="addStudentSelector">
+                        <p>Add Student</p>
+                    </div>
+                    <div class="buttonSelector" id="editStudentSelector">
+                        <p>Edit Student</p>
+                    </div>
+                </div>
+                <div id="addStudentContent" class="containerHidden actionCard">
+                    <form>
+                        <label class="formLabel" for="name">Full Name</label><br>
+                        <input class="formInput formInput" type="text" id="addStudentName" name="name" placeholder="Xiaoming John Li" required><br>
+                        <label class="formLabel" for="grade">Grade Level</label><br>
+                        <input class="formInput formInput" type="number" id="addStudentGrade" name="grade" placeholder="10" min="1" max="12" required><br>
+                        <label class="formLabel" for="floor">Dorm Floor</label><br>
+                        <input class="formInput formInput" type="text" id="addStudentFloor" name="floor" placeholder="West 6"><br>
+                        <label class="formLabel" for="cardid">Card ID</label><br>
+                        <input class="formInput formInput" type="text" id="addStudentCardid" name="cardid" placeholder="1234567890"><br>
+                        <input class="formInput formSubmit" type="button" value="Submit">
+                      </form>  
+                </div>
+                <div id="editStudentContent" class="containerHidden actionCard">
+                    <form>
+                        <label class="formLabel" for="studentChoose">Select Student</label>
+                        <input class="formInput formInput" type="text" list="editStudentFoundStudents" id="editStudentChoose" name="studentChoose" placeholder="Start typing to search ...">
+                        <datalist id="editStudentFoundStudents">
+                        </datalist>
+                        <label class="formLabel" for="name">Full Name</label><br>
+                        <input class="formInput formInput" type="text" id="editStudentName" name="name" placeholder="Xiaoming John Li" required><br>
+                        <label class="formLabel" for="grade">Grade Level</label><br>
+                        <input class="formInput formInput" type="number" id="editStudentGrade" name="grade" placeholder="10" min="1" max="12" required><br>
+                        <label class="formLabel" for="floor">Dorm Floor</label><br>
+                        <input class="formInput formInput" type="text" id="editStudentFloor" name="floor" placeholder="West 6"><br>
+                        <label class="formLabel" for="cardid">Card ID</label><br>
+                        <input class="formInput formInput" type="text" id="addStudentCardid" name="cardid" placeholder="1234567890"><br>
+                        <input class="formInput formSubmit" type="button" value="Submit">
+                      </form>
+                </div>
+            </div>
+            <div class="manageContainer containerHidden" id="usersContainer">
+                <h3>Select Action</h3>
+                <div class="buttonContainer">
+                    <div class="buttonSelector" id="addUserSelector">
+                        <p>Add User</p>
+                    </div>
+                    <div class="buttonSelector" id="editUserSelector">
+                        <p>Edit User</p>
+                    </div>
+                </div>
+                <div id="addUserContent" class="containerHidden actionCard">
+                    <form>
+                        <label class="formLabel" for="name">Full Name</label><br>
+                        <input class="formInput formInput" type="text" id="addUserName" name="name" placeholder="Xiaoming John Li" required><br>
+                        <label class="formLabel" for="email">Email</label><br>
+                        <input class="formInput formInput" type="email" id="addUserEmail" name="email" placeholder="xiaoming.li@example.domain" required><br>
+                        <label class="formLabel" for="role">Role</label><br>
+                        <select name="role" id="addUserRole" class="formInput formSelect">
+                            <option value="admin">Admin</option>
+                            <option value="proctor">Proctor</option>
+                            <option value="approver">Approver</option>
+                        </select><br>
+                        <label class="formLabel" for="location">Location</label><br>
+                        <input class="formInput formInput" type="text" id="cardid" name="cardid" placeholder="1234567890"><br>
+                        <label class="formLabel" for="password">Password (Optional)</label><br>
+                        <input class="formInput formInput" type="password" id="addUserPassword" name="password" required><br>
+                        <input class="formInput formSubmit" type="button" value="Submit">
+                      </form>  
+                </div>
+                <div id="editUserContent" class="containerHidden actionCard">
+                    <p>Edit Placeholder</p>
+                </div>
+            </div>
+            <div class="manageContainer containerHidden" id="locationsContainer">
+                <h3>Select Action</h3>
+                <div class="buttonContainer">
+                    <div class="buttonSelector" id="addLocationSelector">
+                        <p>Add Location</p>
+                    </div>
+                    <div class="buttonSelector" id="editLocationSelector">
+                        <p>Edit Location</p>
+                    </div>
+                </div>
+                <div id="addLocationContent" class="containerHidden actionCard">
+                    <p>Add Placeholder</p>
+                </div>
+                <div id="editLocationContent" class="containerHidden actionCard">
+                    <p>Edit Placeholder</p>
+                </div>
+            </div>
+            <div class="manageContainer containerHidden" id="diagnosticsContainer">
+                <p>Diagnostics Container Placeholder</p>
+            </div>
+            <div class="manageContainer containerHidden" id="backupContainer">
+                <p>Backup Container Placeholder</p>
+            </div>
+            <div class="manageContainer containerHidden" id="settingsContainer">
+                <p>Settings Container Placeholder</p>
             </div>
         </div>
     </body>

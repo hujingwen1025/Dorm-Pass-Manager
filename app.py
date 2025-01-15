@@ -9,6 +9,7 @@ from datetime import *
 import time
 import string
 import random
+import hashlib
 
 app = Flask(__name__)
 
@@ -19,6 +20,8 @@ encryption_key = Fernet.generate_key()
 fernet = Fernet(encryption_key)
 
 passkeylength = 32
+
+studentSearchLimit = 20
 
 debug = False
 
@@ -39,6 +42,9 @@ def encrypt(data):
 def decrypt(encrypted_data):
     decrypted_data = fernet.decrypt(encrypted_data).decode()
     return decrypted_data
+
+def generateSHA256(text):
+    return str(hashlib.sha256(text.encode()).hexdigest())
 
 def dbConnect():
     return mysql.connector.connect(
@@ -222,7 +228,7 @@ def login():
     return redirect(auth_url)
 
 @app.route('/microsoftLoginCallback')
-def getAToken():
+def microsoftLoginCallback():
     code = request.args.get('code')
     if not code:
         return 'Authorization code missing', 400
@@ -242,6 +248,32 @@ def getAToken():
         return redirect('/passCatalogue')
     else:
         return f'Error: {result.get("error_description")}', 400
+    
+@app.route('/maintainerLoginCallback', methods=['POST'])
+def maintainerLoginCallback():
+    username = request.form['username']
+    password = request.form['password']
+    
+    print(username)
+    print(password)
+    
+    passwordhash = generateSHA256(password)
+    
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT oid FROM users WHERE username = %s AND password = %s', (username, passwordhash))
+            result = dbcursor.fetchall()
+            
+    if len(result) < 1:
+        oid = result[0][0]
+        userInfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+        sessioninfo = sessionStorage.create(oid)
+        session['sessionid'] = str(encrypt(sessioninfo[0]))
+        session['passkey'] = str(encrypt(sessioninfo[1]))
+        session['login'] = True
+        return redirect('/passCatalogue')
+    else:
+        return render_template('userNotRegistered.html', email = username)
     
 @app.route('/getLocationId', methods=['POST'])
 def getLocationId():
@@ -514,7 +546,69 @@ def getStudents():
         retinfo['status'] = 'ok'
         retinfo['students'] = dbcursorfetch
         dprint(dbcursorfetch)
-        return jsonify(retinfo)   
+        return jsonify(retinfo) 
+    
+@app.route('/searchStudents', methods=['POST'])
+def searchStudents():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        searchFilter = request.json.get('searchFilter')
+        
+        sqlquery = "SELECT name, grade, cardid, floorid, disabledlocations FROM students WHERE 1 = 1 "
+        sqlqueryvar = []
+        
+        try:
+            nameFilter = str(searchFilter['name'])
+            nameKeywords = nameFilter.split()
+            dprint(nameKeywords)
+            for keyword in nameKeywords:
+                dprint(keyword)
+                sqlquery += 'AND name LIKE %s '
+                sqlqueryvar.append(f'%{keyword}%')
+        except KeyError:
+            pass
+        
+        try:
+            gradeFilter = int(searchFilter['grade'])
+            dprint(gradeFilter)
+            sqlquery += 'AND grade = %s '
+            sqlqueryvar.append(gradeFilter)
+        except KeyError:
+            pass
+        
+        try:
+            cardidFilter = str(searchFilter['cardid'])
+            dprint(cardidFilter)
+            sqlquery += 'AND cardid = %s '
+            sqlqueryvar.append(cardidFilter)
+        except KeyError:
+            pass
+        
+        try:
+            flooridFilter = str(searchFilter['floorid'])
+            dprint(flooridFilter)
+            sqlquery += 'AND floorid = %s '
+            sqlqueryvar.append(flooridFilter)
+        except KeyError:
+            pass
+        
+        dprint(sqlquery)
+        dprint(sqlqueryvar)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dprint(sqlquery)
+                dprint(sqlqueryvar)
+                dbcursor.execute(sqlquery, sqlqueryvar)
+                dprint('execed')
+                dprint(dbcursor.statement)
+                dbcursorfetch = dbcursor.fetchall()
+                
+        retinfo['status'] = 'ok'
+        retinfo['students'] = dbcursorfetch[:studentSearchLimit]
+
+        return jsonify(retinfo)            
     
 @app.route('/updateUserLocation', methods=['POST'])
 def updateUserLocation():
@@ -687,10 +781,6 @@ def newPass():
 def checkOid():
     oid = str(decrypt(session["oid"]))
     return f"OID: {oid}"
-
-@app.route('/maintainerDashboard')
-def maintainerDashboard():
-    return render_template('maintainerDashboard.html')
 
 @app.route('/studentInfoDisplay')
 def studentInfoDisplay():
