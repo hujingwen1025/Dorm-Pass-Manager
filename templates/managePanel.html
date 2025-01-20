@@ -265,10 +265,10 @@
                         <label class="formLabel" for="grade">Grade Level</label><br>
                         <input class="formInput formInput" type="number" id="addStudentGrade" name="grade" placeholder="10" min="1" max="12" required><br>
                         <label class="formLabel" for="floor">Dorm Floor</label><br>
-                        <input class="formInput formInput" type="text" id="addStudentFloor" name="floor" placeholder="West 6"><br>
+                        <input class="formInput formInput" type="text" id="addStudentFloor" name="floor" placeholder="West 6" requried><br>
                         <label class="formLabel" for="cardid">Card ID</label><br>
                         <input class="formInput formInput" type="text" id="addStudentCardid" name="cardid" placeholder="1234567890"><br>
-                        <input class="formInput formSubmit" type="button" value="Submit">
+                        <input class="formInput formSubmit" id="addStudentSubmit" type="button" value="Submit">
                       </form>  
                 </div>
                 <div id="editStudentContent" class="containerHidden actionCard">
@@ -276,16 +276,16 @@
                         <label class="formLabel" for="studentChoose">Select Student</label>
                         <input class="formInput formInput" type="text" list="editStudentFoundStudents" id="editStudentChoose" name="studentChoose" placeholder="Start typing to search ...">
                         <datalist id="editStudentFoundStudents">
-                        </datalist>
+                        </datalist><br><br
                         <label class="formLabel" for="name">Full Name</label><br>
-                        <input class="formInput formInput" type="text" id="editStudentName" name="name" placeholder="Xiaoming John Li" required><br>
+                        <input class="formInput formInput" type="text" id="editStudentName" name="name" placeholder="Xiaoming John Li" required disabled><br>
                         <label class="formLabel" for="grade">Grade Level</label><br>
-                        <input class="formInput formInput" type="number" id="editStudentGrade" name="grade" placeholder="10" min="1" max="12" required><br>
+                        <input class="formInput formInput" type="number" id="editStudentGrade" name="grade" placeholder="10" min="1" max="12" required disabled><br>
                         <label class="formLabel" for="floor">Dorm Floor</label><br>
-                        <input class="formInput formInput" type="text" id="editStudentFloor" name="floor" placeholder="West 6"><br>
+                        <input class="formInput formInput" type="text" id="editStudentFloor" name="floor" placeholder="West 6" required disabled><br>
                         <label class="formLabel" for="cardid">Card ID</label><br>
-                        <input class="formInput formInput" type="text" id="addStudentCardid" name="cardid" placeholder="1234567890"><br>
-                        <input class="formInput formSubmit" type="button" value="Submit">
+                        <input class="formInput formInput" type="text" id="editStudentCardid" name="cardid" placeholder="1234567890" disabled><br>
+                        <input class="formInput formSubmit" id="editStudentSubmit" type="button" value="Submit">
                       </form>
                 </div>
             </div>
