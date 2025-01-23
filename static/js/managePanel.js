@@ -115,6 +115,44 @@ async function getUserInfo() {
     }
 }
 
+async function getLocationInfo(locationFilter) {
+    try {
+        const response = await fetch("/getLocationInfo", {
+            method: 'POST',
+            body: JSON.stringify({
+                "filters": locationFilter
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                console.error(responseJson.errorinfo)
+                return 'error'
+                break;
+            case "ok":
+                return responseJson.locationinfo
+                break;
+            default:
+                return None
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 0
+    }
+}
+
 async function getStudents(filters) {
     try {
         const response = await fetch("/getStudents", {
@@ -421,9 +459,57 @@ async function doEditStudentDatalistUpdate(name) {
     if (studentList != [] && studentList != undefined && studentList != null) {
         for (let i = 0; i < studentList.length; i ++) {
             const option = document.createElement('option')
-            option.value = studentList[i][0]
+            option.value = studentList[i][1]
             studentEditDatalist.appendChild(option)
         }
+    }
+}
+
+async function doEditStudentFloorDatalistUpdate(locationName) {
+    const studentEditFloorDatalist = document.getElementById('editStudentFoundFloors')
+    studentEditFloorDatalist.innerHTML = ''
+    var locationList = await getLocationInfo({'name': locationName})
+    if (locationList != [] && locationList != undefined && locationList != null) {
+        for (let i = 0; i < locationList.length; i ++) {
+            const option = document.createElement('option')
+            option.value = locationList[i][1]
+            studentEditFloorDatalist.appendChild(option)
+            console.log('Added option:', option);
+        }
+    }
+}
+
+function setStudentEditDisable(status) {
+    document.getElementById('editStudentName').disabled = status
+    document.getElementById('editStudentGrade').disabled = status
+    document.getElementById('editStudentCardid').disabled = status
+    document.getElementById('editStudentFloor').disabled = status
+}
+
+async function loadStudentInfoEdit(name) {
+    var studentList = await searchStudents({'strictname': name})
+    if (studentList.length > 0) {
+        console.log('found student, updating')
+        var nameInfo = studentList[0][1]
+        var gradeInfo = studentList[0][2]
+        var locationInfo = await getLocationInfo({'id': studentList[0][4]})
+        locationInfo = locationInfo[0][1]
+        var cardidInfo = studentList[0][3]
+
+        setStudentEditDisable(false)
+
+        document.getElementById('editStudentName').value = nameInfo
+        document.getElementById('editStudentGrade').value = gradeInfo
+        document.getElementById('editStudentCardid').value = cardidInfo
+        document.getElementById('editStudentFloor').value = locationInfo
+    } else {
+        console.log('student not found, clearing')
+        document.getElementById('editStudentName').value = ''
+        document.getElementById('editStudentGrade').value = ''
+        document.getElementById('editStudentCardid').value = ''
+        document.getElementById('editStudentFloor').value = ''
+
+        setStudentEditDisable(true)
     }
 }
 
@@ -567,6 +653,16 @@ async function mainProcess() {
 
     const editStudentDatalist = document.getElementById('editStudentChoose')
     editStudentDatalist.oninput = function(){doEditStudentDatalistUpdate(editStudentDatalist.value)}
+    editStudentDatalist.addEventListener('focusout', (event) => {
+            loadStudentInfoEdit(editStudentDatalist.value)
+      });
+
+    const editStudentFloorDatalist = document.getElementById('editStudentFloor')
+    editStudentFloorDatalist.oninput = function(){doEditStudentFloorDatalistUpdate(editStudentFloorDatalist.value)}
+
+    editStudentDatalist.value = ''
+    console.log('setting')
+    loadStudentInfoEdit('')
 }
 
 document.addEventListener('DOMContentLoaded', () => {

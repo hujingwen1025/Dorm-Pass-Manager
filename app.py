@@ -21,7 +21,7 @@ fernet = Fernet(encryption_key)
 
 passkeylength = 32
 
-studentSearchLimit = 20
+querySearchLimit = 20
 
 debug = False
 
@@ -198,8 +198,8 @@ def getOidFromSession(session):
     sessionid = decrypt(str(session.get('sessionid')))
     passkey = decrypt(str(session.get('passkey')))
     
-    print('gofsi')
-    print([sessionid, passkey])
+    dprint('gofsi')
+    dprint([sessionid, passkey])
     
     oid = sessionStorage.verify(sessionid, passkey)
     
@@ -208,7 +208,7 @@ def getOidFromSession(session):
 @app.route('/')
 def home():
     if ensureLoggedIn(session):
-        return redirect('/mslogin')
+        return redirect('/passCatalogue')
     else:
         return render_template('signin.html')
     
@@ -234,16 +234,32 @@ def microsoftLoginCallback():
         return 'Authorization code missing', 400
     msal_app = get_msal_app()
     result = msal_app.acquire_token_by_authorization_code(code, scopes=SCOPE, redirect_uri=REDIRECT_URI)
+    print(result)
     if 'access_token' in result:
         msUserInfo = result.get('id_token_claims')
         oid = msUserInfo["oid"]
+        email = msUserInfo["preferred_username"]
         userInfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
         dprint(userInfo)
         sessioninfo = sessionStorage.create(oid)
         session['sessionid'] = str(encrypt(sessioninfo[0]))
         session['passkey'] = str(encrypt(sessioninfo[1]))
         if userInfo == None:
-            return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT * FROM users WHERE email = %s', (email,))
+                    result = dbcursor.fetchall()
+                    
+            if len(result) > 0:
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('UPDATE users SET oid = %s WHERE email = %s', (oid, email,))   
+                session['login'] = True
+                return render_template('firstLanding.html')
+            else:
+                return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
+                        
+            
         session['login'] = True
         return redirect('/passCatalogue')
     else:
@@ -253,20 +269,18 @@ def microsoftLoginCallback():
 def maintainerLoginCallback():
     username = request.form['username']
     password = request.form['password']
-    
-    print(username)
-    print(password)
-    
+        
     passwordhash = generateSHA256(password)
+    
+    print(passwordhash)
     
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
-            dbcursor.execute('SELECT oid FROM users WHERE username = %s AND password = %s', (username, passwordhash))
+            dbcursor.execute('SELECT oid FROM users WHERE name = %s AND password = %s', (username, passwordhash,))
             result = dbcursor.fetchall()
             
-    if len(result) < 1:
+    if len(result) > 0:
         oid = result[0][0]
-        userInfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
         sessioninfo = sessionStorage.create(oid)
         session['sessionid'] = str(encrypt(sessioninfo[0]))
         session['passkey'] = str(encrypt(sessioninfo[1]))
@@ -555,7 +569,9 @@ def searchStudents():
         
         searchFilter = request.json.get('searchFilter')
         
-        sqlquery = "SELECT name, grade, cardid, floorid, disabledlocations FROM students WHERE 1 = 1 "
+        dprint(searchFilter)
+        
+        sqlquery = "SELECT studentid, name, grade, cardid, floorid, disabledlocations FROM students WHERE 1 = 1 "
         sqlqueryvar = []
         
         try:
@@ -566,6 +582,14 @@ def searchStudents():
                 dprint(keyword)
                 sqlquery += 'AND name LIKE %s '
                 sqlqueryvar.append(f'%{keyword}%')
+        except KeyError:
+            pass
+        
+        try:
+            strictNameFilter = str(searchFilter['strictname'])
+            dprint(strictNameFilter)
+            sqlquery += 'AND name = %s '
+            sqlqueryvar.append(strictNameFilter)
         except KeyError:
             pass
         
@@ -606,9 +630,52 @@ def searchStudents():
                 dbcursorfetch = dbcursor.fetchall()
                 
         retinfo['status'] = 'ok'
-        retinfo['students'] = dbcursorfetch[:studentSearchLimit]
+        retinfo['students'] = dbcursorfetch[:querySearchLimit]
 
-        return jsonify(retinfo)            
+        return jsonify(retinfo)   
+    
+@app.route('/getLocationInfo', methods=['POST'])    
+def getLocationInfo():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        locationfilter = request.json.get('filters')
+        
+        sqlquery = 'SELECT locationid, name, type FROM locations WHERE 1 = 1 '
+        sqlqueryvar = []
+        
+        try:
+            idfilter = int(locationfilter['id'])
+            sqlquery += 'AND locationid = %s '
+            sqlqueryvar.append(idfilter)
+        except KeyError:
+            pass
+        
+        try:
+            namefilter = str(locationfilter['name'])
+            namekeywords = namefilter.split()
+            for keyword in namekeywords:
+                sqlquery += 'AND name LIKE %s '
+                sqlqueryvar.append(f'%{keyword}%')
+        except KeyError:
+            pass
+        
+        try:
+            typefilter = str(locationfilter['type'])
+            sqlquery += 'AND type = %s '
+            sqlqueryvar.append(typefilter)
+        except KeyError:
+            pass
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute(sqlquery, sqlqueryvar)
+                dbcursorfetch = dbcursor.fetchall()
+                
+        retinfo['status'] = 'ok'
+        retinfo['locationinfo'] = dbcursorfetch[:querySearchLimit]
+        
+        return jsonify(retinfo)   
     
 @app.route('/updateUserLocation', methods=['POST'])
 def updateUserLocation():

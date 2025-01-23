@@ -87,15 +87,15 @@
         <form id="loginForm" action="/maintainerLoginCallback" method="POST">
             <div class="input-group">
                 <label for="username">Username:</label>
-                <input type="text" id="username" required>
+                <input type="text" id="username" name="username" required>
             </div>
             <div class="input-group">
                 <label for="password">Password:</label>
-                <input type="password" id="password" required>
+                <input type="password" id="password" name="password" required>
             </div>
             <button type="submit">Log In</button>
         </form>
-        <p class="forgot-password" onclick="alert('Please notify super admin to change password')">Forgot Password?</p>
+        <p class="forgot-password" onclick="alert('Please notify admin to change password')">Forgot Password?</p>
         <br>
         <p class="bottomText">This portal is for maintainers with no linked Microsoft account. Maintainers with a Microsoft account can also login from here.</p>
         <br>
