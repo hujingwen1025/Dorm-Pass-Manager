@@ -1,3 +1,19 @@
+console.log(`%c  _____ _______ ____  _____  
+ / ____|__   __/ __ \\|  __ \\ 
+| (___    | | | |  | | |__) |
+ \\___ \\   | | | |  | |  ___/ 
+ ____) |  | | | |__| | |     
+|_____/   |_|  \\____/|_|     
+                             
+DANGER ZONE
+注意：开发者区域
+
+This is a browser feature intended for developers. If someone told you to copy-paste something here to enable a feature or "hack" someone's account, it is a scam and will give them access to your account. By pasting anything here, you might be putting your account and database information at risk!
+If you don't understand what you are doing, please close this window.
+这是一个针对开发人员的浏览器特性。如果有人告诉你在这里复制粘贴一些东西来启用某个功能或“入侵”某人的账户，这是一个骗局，他们会获得你的账户。通过在这里粘贴任何内容，您可能会将您的帐户和数据库信息置于危险之中！
+如果您不明白自己在做什么，请关闭此窗口。
+`, 'color: red') 
+
 window.onbeforeunload = function(e) {
     return 'Are you sure you want to leave this page?  You will lose any unsaved data.';
   };
@@ -28,7 +44,7 @@ async function getLocationId(type) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(response.errorinfo)
+                createAlertPopup(5000, null, 'Error While Getting Location Info', responseJson.errorinfo)
                 return 'error'
                 break;
             case "ok":
@@ -44,7 +60,7 @@ async function getLocationId(type) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -69,7 +85,7 @@ async function getUserInfo() {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Getting User Info', responseJson.errorinfo)
                 return 'error'
                 break;
             case "ok":
@@ -80,10 +96,59 @@ async function getUserInfo() {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
+}
+
+async function generateKioskToken() {
+    try {
+        const response = await fetch("/generateKioskToken", {
+            method: 'POST',
+            body: JSON.stringify({}),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Starting KIOSK', responseJson.errorinfo)
+                return 'error'
+                break;
+            case "ok":
+                return responseJson.kioskToken
+                break;
+            default:
+                return None
+        }
+        
+    } catch (error) {
+        console.log('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 0
+    }
+}
+
+async function startKioskMode() {
+    var kioskToken = await generateKioskToken()
+    if (kioskToken == 'error') {
+        createAlertPopup(5000, null, 'Error', 'Error while generating kiosk token')
+        return 0
+    }
+    window.onbeforeunload = function(e) {}
+    window.dpmkiosklaunched = true
+    location.replace(`dpmkiosk://${kioskToken}`)
+    createAlertPopup(15000, type = 'success', 'DPM Kiosk Launched', `DPM Kiosk has been launched if you have it installed. If you do not have DPM Kiosk installed, please navigate to <a target="_blank" href="https://google.com">here</a> and download DPM Kiosk.`)
+    window.onbeforeunload = function(e) { return 'Are you sure you want to leave this page?  You will lose any unsaved data.';}
 }
 
 async function getStudents(filters) {
@@ -107,7 +172,7 @@ async function getStudents(filters) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Fetching Students List', responseJson.errorinfo)
                 return 'error'
             case "ok":
                 return responseJson.students
@@ -116,7 +181,46 @@ async function getStudents(filters) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 0
+    }
+}
+
+async function addStudent(studentName, studentGrade, studentFloor, studentCardid) {
+    try {
+        const response = await fetch("/addStudent", {
+            method: 'POST',
+            body: JSON.stringify({
+                "name": studentName,
+                "grade": studentGrade,
+                "floor": studentFloor,
+                "cardid": studentCardid
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Adding Students', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return responseJson.studentid
+            default:
+                return None
+        }
+        
+    } catch (error) {
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -143,7 +247,7 @@ async function getStudentInfo(studentid) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Getting Student Info', responseJson.errorinfo)
                 return 'error'
                 break;
             case "ok":
@@ -154,7 +258,7 @@ async function getStudentInfo(studentid) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -181,7 +285,7 @@ async function updateUserLocation(locationName) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Updating Location', responseJson.errorinfo)
                 return 'error'
                 break;
             case "ok":
@@ -192,7 +296,7 @@ async function updateUserLocation(locationName) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -218,7 +322,7 @@ function createAlertPopup(closetimeout, type = null, title, body, alertid = '') 
     titleText.textContent = title
 
     let bodyText = document.createElement('p')
-    bodyText.textContent = body
+    bodyText.innerHTML = body
 
     alertElement.appendChild(closeButton)
     alertElement.appendChild(titleText)
@@ -263,7 +367,7 @@ async function createNewStudentPass(studentid, destinationid) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Creating Pass', responseJson.errorinfo)
                 return 'error'
             case "ok":
                 var studentName = await getStudentInfo(studentid)
@@ -290,7 +394,7 @@ async function createNewStudentPass(studentid, destinationid) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -315,7 +419,7 @@ async function updateStudentPass(params) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Updating Pass', responseJson.errorinfo)
                 return 'error'
             case "ok":
                 window.exsistingAlert[`${params['passid'].toString()}alert`] = false
@@ -333,7 +437,7 @@ async function updateStudentPass(params) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -391,7 +495,6 @@ async function setStudentIndex(studentsJson) {
         studentApproveButton.classList.add('studentActionButton')
         studentFlagButton.classList.add('studentActionButton')
 
-        console.log(curstudent)
         if (flagged == 1) {
             studentNameDiv.innerHTML = `🔴 ${curstudent[0]}`
         } else {
@@ -462,7 +565,6 @@ async function setStudentIndex(studentsJson) {
                     }
                     createAlertPopup(5000, type = alertType,' Approve Success', `${curstudent[0]} has been approved. ${elapsedstring}`)
                 } else {
-                    createAlertPopup(5000, null, 'Error', 'Error while updating student pass')
                     return 0
                 }
                 setTimeout(function () {triggerDisplayUpdate()}, 1500)
@@ -475,7 +577,6 @@ async function setStudentIndex(studentsJson) {
                 if (updateResult != 'error') {
                     createAlertPopup(5000, type = 'success', 'Flag Success', `${curstudent[0]} has been flagged`)
                 } else {
-                    createAlertPopup(5000, null, 'Error', 'Error while updating student pass')
                     return 0
                 }
                 triggerDisplayUpdate()
@@ -492,7 +593,6 @@ async function setStudents(filters) {
     }
     var studentsInformation = await getStudents(filters)
     if (studentsInformation == 'error') {
-        createAlertPopup(5000, null, 'Error', 'Error while getting student information')
         return 0
     }
     window.opo = studentsInformation
@@ -562,9 +662,7 @@ async function mainProcess() {
 
     setUsernameTopbar(username)
 
-    console.log(destinationIds)
     setLocationSelector(destinationIds);  
-    console.log(floorIds)
     setLocationSelector(floorIds);  
     
     document.getElementById('filterButtonAll').onclick = function(event) {
@@ -624,6 +722,13 @@ async function mainProcess() {
         }
     )
 
+    document.getElementById('usernameTopbar').onclick = function(event) {
+        var signoutNow = confirm('Do you want no signout now?')
+        if (signoutNow) {
+            window.location = '/signout'
+        }
+    }
+
     const locationSelector = window.document.getElementById('locationSelector')
 
     locationSelector.onchange = (event) => {
@@ -643,7 +748,6 @@ async function mainProcess() {
 }
 
 function updateDisplay() {
-    console.log('Updating info...')
     if (window.searchActivated == false) {
         triggerDisplayUpdate()
     }

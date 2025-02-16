@@ -80,6 +80,7 @@
             color: #666;
         }
     </style>
+<script src="/static/js/tamperDetect.js"></script>
 </head>
 <body>
     <div class="login-container">
@@ -92,6 +93,11 @@
             <div class="input-group">
                 <label for="password">Password:</label>
                 <input type="password" id="password" name="password" required>
+            </div>
+            <div class="input-group">
+                <label for="password">Captcha:</label>
+                <a href="/maintainerSignin">{{ captcha() }}</a>
+                <input type="text" id="captcha" name="captcha" required>
             </div>
             <button type="submit">Log In</button>
         </form>

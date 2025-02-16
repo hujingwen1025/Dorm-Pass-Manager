@@ -203,10 +203,52 @@
             .actionCard {
                 margin-top: 10px;
             }
+
+            .alert {
+                padding: 20px;
+                background-color: #f7675a;
+                color: white;
+                opacity: 1;
+                transition: opacity 0.6s;
+                margin-bottom: 15px;
+                z-index: 1000;
+                margin: 5px;
+                border-radius: 7.5px;
+            }
+            .alertContainer {
+              right: 0;
+              top: 0;
+              float: right;
+              max-width: 27%;
+              min-width: 27%;
+              position: absolute;
+              margin-right: 5px;
+            }
+            
+            .alert.success {background-color: #4bb885;}
+            .alert.info {background-color: #52a9f5;}
+            .alert.warning {background-color: #ffa946;}
+            
+            .closebtn {
+              margin-left: 15px;
+              color: white;
+              font-weight: bold;
+              float: right;
+              font-size: 22px;
+              line-height: 20px;
+              cursor: pointer;
+              transition: 0.3s;
+            }
+            
+            .closebtn:hover {
+              color: black;
+            }
         </style>
         <script src="/static/js/managePanel.js"></script>
+        <script src="/static/js/tamperDetect.js"></script>
     </head>
     <body id="body">
+        <div class="alertContainer" id="alertContainer"></div>
         <div class="top-bar">
             <div class="text">
                 <button class="material-button" id="passesNavButton">Passes</button>
@@ -265,10 +307,14 @@
                         <label class="formLabel" for="grade">Grade Level</label><br>
                         <input class="formInput formInput" type="number" id="addStudentGrade" name="grade" placeholder="10" min="1" max="12" required><br>
                         <label class="formLabel" for="floor">Dorm Floor</label><br>
-                        <input class="formInput formInput" type="text" id="addStudentFloor" name="floor" placeholder="West 6" requried><br>
-                        <label class="formLabel" for="cardid">Card ID</label><br>
+                        <input class="formInput formInput" type="text" list="addStudentFoundFloors" id="addStudentFloor" name="floor" placeholder="West 6" requried><br>
+                        <datalist id="addStudentFoundFloors">
+                        </datalist>
+                        <label class="formLabel" for="cardid">Card ID (Optional)</label><br>
                         <input class="formInput formInput" type="text" id="addStudentCardid" name="cardid" placeholder="1234567890"><br>
-                        <input class="formInput formSubmit" id="addStudentSubmit" type="button" value="Submit">
+                        <label class="formLabel" for="image">Student Image (Optional)</label><br>
+                        <input class="formInput" type="file" id="addStudentImage" name="image" accept=".png" /><br>
+                        <input class="formInput formSubmit" id="addStudentButtonSubmit" type="button" value="Submit">
                       </form>  
                 </div>
                 <div id="editStudentContent" class="containerHidden actionCard">
@@ -284,9 +330,11 @@
                         <label class="formLabel" for="floor">Dorm Floor</label><br>
                         <input class="formInput formInput" type="text" list="editStudentFoundFloors" id="editStudentFloor" name="floor" placeholder="West 6" required disabled><br>
                         <datalist id="editStudentFoundFloors">
-                        </datalist><br>
+                        </datalist>
                         <label class="formLabel" for="cardid">Card ID</label><br>
                         <input class="formInput formInput" type="text" id="editStudentCardid" name="cardid" placeholder="1234567890" disabled><br>
+                        <label class="formLabel" for="image">Student Image (Optional)</label><br>
+                        <input class="formInput" type="file" id="editStudentImage" name="image" accept=".png" /><br>
                         <input class="formInput formSubmit" id="editStudentSubmit" type="button" value="Submit">
                       </form>
                 </div>

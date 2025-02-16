@@ -1,4 +1,5 @@
 from flask import *
+from flask_session_captcha import FlaskSessionCaptcha
 from cryptography.fernet import Fernet
 from msal import ConfidentialClientApplication
 from mysql.connector import *
@@ -15,6 +16,13 @@ app = Flask(__name__)
 
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+
+app.config['CAPTCHA_ENABLE'] = True
+app.config['CAPTCHA_LENGTH'] = 5
+app.config['CAPTCHA_WIDTH'] = 200
+app.config['CAPTCHA_HEIGHT'] = 45
+
+captcha = FlaskSessionCaptcha(app)
 
 encryption_key = Fernet.generate_key()
 fernet = Fernet(encryption_key)
@@ -120,7 +128,9 @@ def joinLocations(locationList):
 
 def ensureLoggedIn(session):
     try:
-        if session.get('login'):
+        sessionid = decrypt(str(session.get('sessionid')))
+        passkey = decrypt(str(session.get('passkey')))
+        if sessionStorage.verify(sessionid, passkey) != None:
             return True
         else:
             return False
@@ -212,6 +222,20 @@ def home():
     else:
         return render_template('signin.html')
     
+@app.route('/kiosk')
+def kiosk():
+    if 'klonkiosk' in request.headers.get('User-Agent'):
+        kioskEncToken = request.args.get('kioskToken')
+        kioskToken = decrypt(kioskEncToken)
+        kioskSession = kioskToken.split('-', 1)
+        session['sessionid'] = kioskSession[0]
+        session['passkey'] = kioskSession[1]
+        session['login'] = True
+        print(kioskSession)
+        return render_template('kiosk.html')
+    else:
+        return redirect('/')
+    
 @app.route('/signout')
 def signout():
     session.clear()
@@ -267,27 +291,30 @@ def microsoftLoginCallback():
     
 @app.route('/maintainerLoginCallback', methods=['POST'])
 def maintainerLoginCallback():
-    username = request.form['username']
-    password = request.form['password']
-        
-    passwordhash = generateSHA256(password)
-    
-    print(passwordhash)
-    
-    with dbConnect() as connection:
-        with connection.cursor() as dbcursor:
-            dbcursor.execute('SELECT oid FROM users WHERE name = %s AND password = %s', (username, passwordhash,))
-            result = dbcursor.fetchall()
-            
-    if len(result) > 0:
-        oid = result[0][0]
-        sessioninfo = sessionStorage.create(oid)
-        session['sessionid'] = str(encrypt(sessioninfo[0]))
-        session['passkey'] = str(encrypt(sessioninfo[1]))
-        session['login'] = True
-        return redirect('/passCatalogue')
+    if captcha.validate():
+        username = request.form['username']
+        password = request.form['password']
+
+        passwordhash = generateSHA256(password)
+
+        print(passwordhash)
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT oid FROM users WHERE name = %s AND password = %s', (username, passwordhash,))
+                result = dbcursor.fetchall()
+
+        if len(result) > 0:
+            oid = result[0][0]
+            sessioninfo = sessionStorage.create(oid)
+            session['sessionid'] = str(encrypt(sessioninfo[0]))
+            session['passkey'] = str(encrypt(sessioninfo[1]))
+            session['login'] = True
+            return redirect('/passCatalogue')
+        else:
+            return render_template('userNotRegistered.html', email = username)
     else:
-        return render_template('userNotRegistered.html', email = username)
+        return render_template('incorrectCaptcha.html')
     
 @app.route('/getLocationId', methods=['POST'])
 def getLocationId():
@@ -310,7 +337,33 @@ def getLocationId():
         retinfo = {}
         
         retinfo['status'] = 'error'
-        retinfo['errorinfo'] = 'notloggedin'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/generateKioskToken', methods=['POST'])
+def generateKioskToken():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        oid = getOidFromSession(session)
+        
+        sessioninfo = sessionStorage.create(oid)
+        sessionid = str(sessioninfo[0])
+        passskey = str(sessioninfo[1])
+        
+        kioskToken = encrypt(f'{sessionid}-{passskey}')
+        
+        retinfo['status'] = 'ok'
+        retinfo['kioskToken'] = kioskToken
+        
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
         
         return jsonify(retinfo)
     
@@ -454,6 +507,14 @@ def updatePass():
         
         return jsonify(retinfo)
     
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
 @app.route('/getStudents', methods=['POST'])
 def getStudents():
     if ensureLoggedIn(session):
@@ -562,6 +623,184 @@ def getStudents():
         dprint(dbcursorfetch)
         return jsonify(retinfo) 
     
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/addStudent', methods=['POST'])
+def addStudent():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        studentName = request.json.get('name')
+        studentGrade = request.json.get('grade')
+        studentFloor = request.json.get('floor')
+        studentCardid = request.json.get('cardid')
+        
+        print([studentName, studentGrade, studentFloor, studentCardid])
+        
+        if studentName == None or studentGrade == None or studentFloor == None or studentName == '' or studentGrade == '' or studentFloor == '':
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please fill in all of the required fields'
+            
+            return jsonify(retinfo)
+                
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM students WHERE name = %s', (studentName,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Name of student has already been taken'
+            
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM students WHERE cardid = %s', (studentCardid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Card ID has already been taken'
+            
+            return jsonify(retinfo)
+        
+        try: 
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT type, locationid FROM locations WHERE name = %s', (studentFloor,))
+                    dbcursorfetch = dbcursor.fetchall()
+                    
+            print(dbcursorfetch)
+
+            if len(dbcursorfetch) < 1:
+                print('de')
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Please enter a valid floor name'
+
+                return jsonify(retinfo)
+
+            if dbcursorfetch[0][0] != 2:
+                print('dl')
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Location selected is a destination'
+
+                return jsonify(retinfo)
+            
+            studentFloorId = dbcursorfetch[0][1]
+        except:
+            print('dd')
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid floor name'
+
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('INSERT INTO students (name, grade, floorid, cardid) VALUES (%s, %s, %s, %s)', (studentName, studentGrade, studentFloorId, studentCardid,))
+                dbcursor.execute('SELECT LAST_INSERT_ID()')
+                dbcursorfetch = dbcursor.fetchall()
+                
+        retinfo['status'] = 'ok'
+        retinfo['studentid'] = dbcursorfetch[0][0]
+        
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/editStudent', methods=['POST'])
+def editStudent():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        studentid = request.json.get('studentid')
+        studentName = request.json.get('name')
+        studentGrade = request.json.get('grade')
+        studentFloor = request.json.get('floor')
+        studentCardid = request.json.get('cardid')
+        
+        print([studentid, studentName, studentGrade, studentFloor, studentCardid])
+        
+        if studentName == None or studentGrade == None or studentFloor == None or studentName == '' or studentGrade == '' or studentFloor == '':
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please fill in all of the required fields'
+            
+            return jsonify(retinfo)
+                
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM students WHERE name = %s AND studentid != %s', (studentName, studentid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Name of student has already been taken'
+            
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM students WHERE cardid = %s AND studentid != %s', (studentCardid, studentid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Card ID has already been taken'
+            
+            return jsonify(retinfo)
+        
+        try: 
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT type FROM locations WHERE locationid = %s', (studentFloor,))
+                    dbcursorfetch = dbcursor.fetchall()
+
+            if len(dbcursorfetch) < 1:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Please enter a valid floor name'
+
+                return jsonify(retinfo)
+
+            if dbcursorfetch[0][0] != 2:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Location selected is a destination'
+
+                return jsonify(retinfo)
+        except:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid floor name'
+
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('UPDATE students SET name = %s, grade = %s, floorid = %s, cardid = %s WHERE studentid = %s', (studentName, studentGrade, studentFloor, studentCardid, studentid,))
+        
+        retinfo['status'] = 'ok'
+        
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+                
+    
 @app.route('/searchStudents', methods=['POST'])
 def searchStudents():
     if ensureLoggedIn(session):
@@ -634,6 +873,14 @@ def searchStudents():
 
         return jsonify(retinfo)   
     
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
 @app.route('/getLocationInfo', methods=['POST'])    
 def getLocationInfo():
     if ensureLoggedIn(session):
@@ -677,6 +924,14 @@ def getLocationInfo():
         
         return jsonify(retinfo)   
     
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
 @app.route('/updateUserLocation', methods=['POST'])
 def updateUserLocation():
     if ensureLoggedIn(session):
@@ -710,6 +965,14 @@ def updateUserLocation():
         retinfo['status'] = 'ok'
         
         return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
         
     
 @app.route('/getUserInfo', methods=['POST'])
@@ -727,6 +990,14 @@ def getUserInfo():
         
         retinfo["status"] = 'ok'
         retinfo["userinfo"] = listToJson(userinfo)
+        
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
         
         return jsonify(retinfo)
     
@@ -752,6 +1023,14 @@ def getStudentsInfo():
         
         retinfo['status'] = 'ok'
         retinfo['studentinfo'] = studentinfo
+        
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
         
         return jsonify(retinfo)
         
@@ -840,10 +1119,10 @@ def newPass():
         retinfo = {}
         
         retinfo['status'] = 'error'
-        retinfo['errorinfo'] = 'notloggedin'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
         
         return jsonify(retinfo)
-    
+        
 @app.route('/checkOid')
 def checkOid():
     oid = str(decrypt(session["oid"]))
@@ -872,6 +1151,37 @@ def passCatalogue():
     else:
         return redirect('/')
     
+@app.route('/getStudentImage', methods=['POST'])
+def getStudentImage():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        studentid = request.json.get('studentid')
+                        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT image FROM students WHERE studentid = %s', (studentid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'imgerr'
+            
+            return jsonify(retinfo)
+                
+        retinfo['status'] = 'ok'
+        retinfo['studentBase64Image'] = dbcursorfetch[0][0]
+        
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+        
 @app.route('/managePanel')
 def managePanel():
     if ensureLoggedIn(session):
@@ -880,4 +1190,4 @@ def managePanel():
         return redirect('/')
 
 if __name__ == '__main__':
-    app.run(port=8080, host="localhost")
+    app.run(port=8080, host="0.0.0.0")

@@ -173,6 +173,10 @@
             outline: none;
         }
 
+        .kiosk-button {
+            background-color: #00aaff;
+        }
+
         .alert {
             padding: 20px;
             background-color: #f7675a;
@@ -183,38 +187,38 @@
             z-index: 1000;
             margin: 5px;
             border-radius: 7.5px;
-          }
-
-          .alertContainer {
-            right: 0;
-            top: 0;
-            float: right;
-            max-width: 27%;
-            min-width: 27%;
-            position: absolute;
-            margin-right: 5px;
-          }
-          
-          .alert.success {background-color: #4bb885;}
-          .alert.info {background-color: #52a9f5;}
-          .alert.warning {background-color: #ffa946;}
-          
-          .closebtn {
-            margin-left: 15px;
-            color: white;
-            font-weight: bold;
-            float: right;
-            font-size: 22px;
-            line-height: 20px;
-            cursor: pointer;
-            transition: 0.3s;
-          }
-          
-          .closebtn:hover {
-            color: black;
-          }
+        }
+        .alertContainer {
+          right: 0;
+          top: 0;
+          float: right;
+          max-width: 27%;
+          min-width: 27%;
+          position: absolute;
+          margin-right: 5px;
+        }
+        
+        .alert.success {background-color: #4bb885;}
+        .alert.info {background-color: #52a9f5;}
+        .alert.warning {background-color: #ffa946;}
+        
+        .closebtn {
+          margin-left: 15px;
+          color: white;
+          font-weight: bold;
+          float: right;
+          font-size: 22px;
+          line-height: 20px;
+          cursor: pointer;
+          transition: 0.3s;
+        }
+        
+        .closebtn:hover {
+          color: black;
+        }
     </style>
     <script src="/static/js/passCatalogue.js"></script>
+<script src="/static/js/tamperDetect.js"></script>
 </head>
 <body id="body">
     <div class="alertContainer" id="alertContainer"></div>
@@ -224,6 +228,7 @@
             <button class="material-button" id="studentsNavButton">Students</button>
             <button class="material-button" id="manageNavButton">Manage</button>
             <button class="material-button" id="settingsNavButton">Settings</button>
+            <button class="material-button kiosk-button" id="kioskNavButton" onclick="startKioskMode()">KIOSK</button>
         </div>
         <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar"></span> | 
             <select name="location" class="locationSelector" id="locationSelector">

@@ -1,3 +1,19 @@
+console.log(`%c  _____ _______ ____  _____  
+ / ____|__   __/ __ \\|  __ \\ 
+| (___    | | | |  | | |__) |
+ \\___ \\   | | | |  | |  ___/ 
+ ____) |  | | | |__| | |     
+|_____/   |_|  \\____/|_|     
+                             
+DANGER ZONE
+注意：开发者区域
+
+This is a browser feature intended for developers. If someone told you to copy-paste something here to enable a feature or "hack" someone's account, it is a scam and will give them access to your account. By pasting anything here, you might be putting your account and database information at risk!
+If you don't understand what you are doing, please close this window.
+这是一个针对开发人员的浏览器特性。如果有人告诉你在这里复制粘贴一些东西来启用某个功能或“入侵”某人的账户，这是一个骗局，他们会获得你的账户。通过在这里粘贴任何内容，您可能会将您的帐户和数据库信息置于危险之中！
+如果您不明白自己在做什么，请关闭此窗口。
+`, 'color: red') 
+
 async function getLocationId(type) {
     try {
         const response = await fetch("/getLocationId", {
@@ -19,7 +35,7 @@ async function getLocationId(type) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(response.errorinfo)
+                createAlertPopup(5000, null, 'Error While Getting Location ID', response.errorinfo)
                 return 'error'
                 break;
             case "ok":
@@ -35,9 +51,9 @@ async function getLocationId(type) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
-        return 0
+        return 'error'
     }
 }
 
@@ -62,7 +78,7 @@ async function searchStudents(filters) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(response.errorinfo)
+                createAlertPopup(5000, null, 'Error While Searching For Students', response.errorinfo)
                 return 'error'
                 break;
             case "ok":
@@ -73,9 +89,88 @@ async function searchStudents(filters) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
-        return 0
+        return 'error'
+    }
+}
+
+async function addStudent(studentName, studentGrade, studentFloor, studentCardid) {
+    try {
+        const response = await fetch("/addStudent", {
+            method: 'POST',
+            body: JSON.stringify({
+                "name": studentName,
+                "grade": studentGrade,
+                "floor": studentFloor,
+                "cardid": studentCardid
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Adding Students', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return responseJson.studentid
+            default:
+                return None
+        }
+        
+    } catch (error) {
+        console.log('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
+async function editStudent(studentid, studentName, studentGrade, studentFloor, studentCardid) {
+    try {
+        const response = await fetch("/editStudent", {
+            method: 'POST',
+            body: JSON.stringify({
+                "studentid": studentid,
+                "name": studentName,
+                "grade": studentGrade,
+                "floor": studentFloor,
+                "cardid": studentCardid
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Editing Students', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return 0
+            default:
+                return None
+        }
+        
+    } catch (error) {
+        console.log('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
     }
 }
 
@@ -98,7 +193,7 @@ async function getUserInfo() {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Getting User Info', responseJson.errorinfo)
                 return 'error'
                 break;
             case "ok":
@@ -109,9 +204,9 @@ async function getUserInfo() {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
-        return 0
+        return 'error'
     }
 }
 
@@ -136,7 +231,7 @@ async function getLocationInfo(locationFilter) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Getting Location Info', responseJson.errorinfo)
                 return 'error'
                 break;
             case "ok":
@@ -147,9 +242,9 @@ async function getLocationInfo(locationFilter) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
-        return 0
+        return 'error'
     }
 }
 
@@ -174,7 +269,7 @@ async function getStudents(filters) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Getting Student Info', responseJson.errorinfo)
                 return 'error'
             case "ok":
                 return responseJson.students
@@ -183,9 +278,9 @@ async function getStudents(filters) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
-        return 0
+        return 'error'
     }
 }
 
@@ -210,7 +305,7 @@ async function getStudentInfo(studentid) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Getting Student Info', responseJson.errorinfo)
                 return 'error'
                 break;
             case "ok":
@@ -221,9 +316,9 @@ async function getStudentInfo(studentid) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
-        return 0
+        return 'error'
     }
 }
 
@@ -248,7 +343,7 @@ async function updateUserLocation(locationName) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
+                createAlertPopup(5000, null, 'Error While Updating User Location', responseJson.errorinfo)
                 return 'error'
                 break;
             case "ok":
@@ -259,9 +354,9 @@ async function updateUserLocation(locationName) {
         }
         
     } catch (error) {
-        console.error('Error:', error);
+        console.log('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
-        return 0
+        return 'error'
     }
 }
 
@@ -473,7 +568,23 @@ async function doEditStudentFloorDatalistUpdate(locationName) {
         for (let i = 0; i < locationList.length; i ++) {
             const option = document.createElement('option')
             option.value = locationList[i][1]
+            option.locationId = locationList[i][0]
             studentEditFloorDatalist.appendChild(option)
+            console.log('Added option:', option);
+        }
+    }
+}
+
+async function doAddStudentFloorDatalistUpdate(locationName) {
+    const studentAddFloorDatalist = document.getElementById('addStudentFoundFloors')
+    studentAddFloorDatalist.innerHTML = ''
+    var locationList = await getLocationInfo({'name': locationName})
+    if (locationList != [] && locationList != undefined && locationList != null) {
+        for (let i = 0; i < locationList.length; i ++) {
+            const option = document.createElement('option')
+            option.value = locationList[i][1]
+            option.locationId = locationList[i][0]
+            studentAddFloorDatalist.appendChild(option)
             console.log('Added option:', option);
         }
     }
@@ -510,6 +621,22 @@ async function loadStudentInfoEdit(name) {
         document.getElementById('editStudentFloor').value = ''
 
         setStudentEditDisable(true)
+    }
+}
+
+async function doStudentAdd() {
+    var studentName = document.getElementById('addStudentName').value
+    var studentGrade = document.getElementById('addStudentGrade').value
+    var studentFloor = document.getElementById('addStudentFloor').value
+    var studentCardid = document.getElementById('addStudentCardid').value
+
+    console.log('d')
+
+    var addResult = await addStudent(studentName, studentGrade, studentFloor, studentCardid)
+    if (addResult != 'error') {
+        createAlertPopup(5000, null, 'Success', `Student ${studentName} added successfully with an ID of ${addResult}`)
+    } else {
+        console.log('Error add student')
     }
 }
 
@@ -660,8 +787,37 @@ async function mainProcess() {
     const editStudentFloorDatalist = document.getElementById('editStudentFloor')
     editStudentFloorDatalist.oninput = function(){doEditStudentFloorDatalistUpdate(editStudentFloorDatalist.value)}
 
+    const addStudentFloorDatalist = document.getElementById('addStudentFloor')
+    addStudentFloorDatalist.oninput = function(){doAddStudentFloorDatalistUpdate(addStudentFloorDatalist.value)}
+
+    document.getElementById('usernameTopbar').onclick = function(event) {
+        var signoutNow = confirm('Do you want no signout now?')
+        if (signoutNow) {
+            window.location = '/signout'
+        }
+    }
+
+    const addStudentImageField = document.getElementById('addStudentImage')
+    const editStudentImageField = document.getElementById('editStudentImage')
+
+    addStudentImageField.onchange = function() {
+        if (this.files[0].size > 3145728) {
+           createAlertPopup(5000, 'warning', 'File Size Warning', 'File size too large. Please select a file smaller than 3MB')
+           this.value = ""
+        }
+    }
+
+    editStudentImageField.onchange = function() {
+        if (this.files[0].size > 3145728) {
+           createAlertPopup(5000, 'warning', 'File Size Warning', 'File size too large. Please select a file smaller than 3MB')
+           this.value = ""
+        }
+    }
+
+    const addStudentButtonSubmit = document.getElementById('addStudentButtonSubmit')
+    addStudentButtonSubmit.onclick = function(event) {doStudentAdd()}
+
     editStudentDatalist.value = ''
-    console.log('setting')
     loadStudentInfoEdit('')
 }
 
