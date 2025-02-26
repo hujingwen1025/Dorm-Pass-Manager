@@ -95,6 +95,46 @@ async function searchStudents(filters) {
     }
 }
 
+async function addUser(name, email, role, location, password = null) {
+    try {
+        const response = await fetch("/addUser", {
+            method: 'POST',
+            body: JSON.stringify({
+                "name": name,
+                "email": email,
+                "role": role,
+                "location": location,
+                "password": password
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Adding User', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return responseJson.userid
+            default:
+                return None
+        }
+        
+    } catch (error) {
+        console.log('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
 async function addStudent(studentName, studentGrade, studentFloor, studentCardid, studentImage) {
     try {
         const response = await fetch("/addStudent", {
@@ -638,6 +678,21 @@ function convertImageFileToBase64(file) {
     });
   }
 
+async function doUserAdd() {
+    var userName = document.getElementById('addUserName').value
+    var userEmail = document.getElementById('addUserEmail').value
+    var userRole = document.getElementById('addUserRole').value
+    var userLocation = document.getElementById('addUserLocation').value
+    var userPassword = document.getElementById('addUserPassword').value
+
+    var addResult = await addUser(userName, userEmail, userRole, userLocation, userPassword)
+    if (addResult != 'error') {
+        createAlertPopup(5000, 'success', 'Success', `User ${userName} added successfully with an ID of ${addResult}`)
+    } else {
+        console.log('Error add user')
+    }
+}
+
 async function doStudentAdd() {
     var studentImageFile = document.getElementById('addStudentImage').files[0]
 
@@ -650,13 +705,9 @@ async function doStudentAdd() {
         await convertImageFileToBase64(studentImageFile).then(base64 => studentImage = base64);
     }
 
-    console.log(studentImage)
-
-    console.log('d')
-
     var addResult = await addStudent(studentName, studentGrade, studentFloor, studentCardid, studentImage)
     if (addResult != 'error') {
-        createAlertPopup(5000, null, 'Success', `Student ${studentName} added successfully with an ID of ${addResult}`)
+        createAlertPopup(5000, 'success', 'Success', `Student ${studentName} added successfully with an ID of ${addResult}`)
     } else {
         console.log('Error add student')
     }
@@ -872,6 +923,9 @@ async function mainProcess() {
 
     const editStudentButtonSubmit = document.getElementById('editStudentButtonSubmit')
     editStudentButtonSubmit.onclick = function(event) {doStudentEdit()}
+
+    const addUserButtonSubmit = document.getElementById('addUserButtonSubmit')
+    addUserButtonSubmit.onclick = function(event) {doUserAdd()}
 
     editStudentDatalist.value = ''
     loadStudentInfoEdit('')

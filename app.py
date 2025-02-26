@@ -742,6 +742,96 @@ def addStudent():
         
         return jsonify(retinfo)
     
+@app.route('/addUser', methods=['POST'])
+def addUser():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        userName = request.json.get('name')
+        userEmail = request.json.get('email')
+        userRole = request.json.get('role')
+        userLocation = request.json.get('location')
+        userPassword = request.json.get('password')
+        
+        print([userName, userEmail, userRole, userLocation, userPassword])
+        
+        if userName == None or userEmail == None or userRole == None or userLocation == None or userPassword == None or userName == '' or userEmail == '' or userRole == '' or userLocation == '' or userPassword == '':
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please fill in all of the required fields'
+            
+            return jsonify(retinfo)
+                
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM users WHERE name = %s', (userName,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Name of user has already been taken'
+            
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM users WHERE email = %s', (userEmail,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Email of user has already been taken'
+            
+            return jsonify(retinfo)
+        
+        if userPassword == None or userPassword == '':
+            userPassword = None
+        else:
+            userPassword = generateSHA256(userPassword)
+
+        try:
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT type, locationid FROM locations WHERE name = %s', (userLocation,))
+                    dbcursorfetch = dbcursor.fetchall()
+            
+            userLocationId = dbcursorfetch[0][1]
+        except:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid location'
+            
+            return jsonify(retinfo)
+        
+        if userRole == 'admin':
+            userRoleId = 1
+        elif userRole == 'proctor':
+            userRoleId = 2
+        elif userRole == 'approver':
+            userRoleId = 3
+        else:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid role'
+            
+            return jsonify(retinfo)
+                
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('INSERT INTO users (name, email, role, locationid, password) VALUES (%s, %s, %s, %s, %s)', (userName, userEmail, userRoleId, userLocationId, userPassword,))
+                dbcursor.execute('SELECT LAST_INSERT_ID()')
+                dbcursorfetch = dbcursor.fetchall()    
+                
+        retinfo['status'] = 'ok'
+        retinfo['userid'] = dbcursorfetch[0][0]
+        
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
 @app.route('/editStudent', methods=['POST'])
 def editStudent():
     if ensureLoggedIn(session):
