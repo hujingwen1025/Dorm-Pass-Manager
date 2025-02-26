@@ -654,6 +654,10 @@ async function mainProcess() {
     window.lastfilterchoice = 'filterButtonRelated'
     window.exsistingAlert = {}
 
+    const urlParams = new URLSearchParams();
+
+    const firstLanding = urlParams.get('firstLanding')
+
     if (userinfo == 'error') {
         userinfo = null
         createAlertPopup(5000, null, 'Error', 'An error occured while getting user information')
@@ -740,6 +744,10 @@ async function mainProcess() {
         if (window.searchActivated == false) {
             setTimeout(() => {triggerDisplayUpdate()}, 1000);
         }
+    }
+
+    if (firstLanding) {
+        createAlertPopup(5000, type = 'success', 'Welcome', 'Welcome to the DPM Kiosk Management Panel')
     }
 
     triggerDisplayUpdate()

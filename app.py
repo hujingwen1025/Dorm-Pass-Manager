@@ -18,9 +18,11 @@ app.config['SECRET_KEY'] = os.urandom(24)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 app.config['CAPTCHA_ENABLE'] = True
-app.config['CAPTCHA_LENGTH'] = 5
+app.config['CAPTCHA_LENGTH'] = 7
 app.config['CAPTCHA_WIDTH'] = 200
 app.config['CAPTCHA_HEIGHT'] = 45
+app.config['CAPTCHA_INCLUDE_ALPHABET'] = False
+app.config['CAPTCHA_INCLUDE_NUMERIC'] = True
 
 captcha = FlaskSessionCaptcha(app)
 
@@ -640,6 +642,7 @@ def addStudent():
         studentGrade = request.json.get('grade')
         studentFloor = request.json.get('floor')
         studentCardid = request.json.get('cardid')
+        studentImage = request.json.get('image')
         
         print([studentName, studentGrade, studentFloor, studentCardid])
         
@@ -660,16 +663,35 @@ def addStudent():
             
             return jsonify(retinfo)
         
-        with dbConnect() as connection:
-            with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM students WHERE cardid = %s', (studentCardid,))
-                dbcursorfetch = dbcursor.fetchall()
-                
-        if len(dbcursorfetch) > 0:
-            retinfo['status'] = 'error'
-            retinfo['errorinfo'] = 'Card ID has already been taken'
+        if studentImage != None and studentImage != '':   
+            if not studentImage.startswith('data:image/png;base64,iVBORw0KGgo'):
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Please upload a valid image'
+
+                return jsonify(retinfo)
+
+            if len(studentImage) > 2100000:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Please upload an image that is less than 1.5MB'
+
+                return jsonify(retinfo)
             
-            return jsonify(retinfo)
+        else:
+            studentImage = None
+            
+        if studentCardid != None and studentCardid != '':
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT * FROM students WHERE cardid = %s', (studentCardid,))
+                    dbcursorfetch = dbcursor.fetchall()
+
+            if len(dbcursorfetch) > 0:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Card ID has already been taken'
+
+                return jsonify(retinfo)
+        else:
+            studentCardid = None
         
         try: 
             with dbConnect() as connection:
@@ -703,7 +725,7 @@ def addStudent():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('INSERT INTO students (name, grade, floorid, cardid) VALUES (%s, %s, %s, %s)', (studentName, studentGrade, studentFloorId, studentCardid,))
+                dbcursor.execute('INSERT INTO students (name, grade, floorid, cardid, image) VALUES (%s, %s, %s, %s, %s)', (studentName, studentGrade, studentFloorId, studentCardid, studentImage,))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
                 dbcursorfetch = dbcursor.fetchall()
                 
@@ -730,6 +752,7 @@ def editStudent():
         studentGrade = request.json.get('grade')
         studentFloor = request.json.get('floor')
         studentCardid = request.json.get('cardid')
+        studentImage = request.json.get('image')
         
         print([studentid, studentName, studentGrade, studentFloor, studentCardid])
         
@@ -750,35 +773,71 @@ def editStudent():
             
             return jsonify(retinfo)
         
-        with dbConnect() as connection:
-            with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM students WHERE cardid = %s AND studentid != %s', (studentCardid, studentid,))
-                dbcursorfetch = dbcursor.fetchall()
-                
-        if len(dbcursorfetch) > 0:
-            retinfo['status'] = 'error'
-            retinfo['errorinfo'] = 'Card ID has already been taken'
+        if studentImage != None and studentImage != '':   
+            if not studentImage.startswith('data:image/png;base64,iVBORw0KGgo'):
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Please upload a valid png image'
+
+                return jsonify(retinfo)
+
+            if len(studentImage) > 2100000:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Please upload an image that is less than 1.5MB'
+
+                return jsonify(retinfo)
             
-            return jsonify(retinfo)
+        else:
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT image FROM students WHERE studentid = %s', (studentid,))
+                    dbcursorfetch = dbcursor.fetchall()
+                    
+            studentImage = dbcursorfetch[0][0]
+            
+        if studentCardid != None and studentCardid != '':
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT studentid FROM students WHERE cardid = %s', (studentCardid,))
+                    dbcursorfetch = dbcursor.fetchall()
+
+            if len(dbcursorfetch) > 0 and dbcursorfetch[0][0] != studentid:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Card ID has already been taken'
+
+                return jsonify(retinfo)
+        else:
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT image FROM students WHERE studentid = %s', (studentid,))
+                    dbcursorfetch = dbcursor.fetchall()
+                    
+            studentCardid = dbcursorfetch[0][0]
         
         try: 
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
-                    dbcursor.execute('SELECT type FROM locations WHERE locationid = %s', (studentFloor,))
+                    dbcursor.execute('SELECT type, locationid FROM locations WHERE name = %s', (studentFloor,))
                     dbcursorfetch = dbcursor.fetchall()
+                    
+            print(dbcursorfetch)
 
             if len(dbcursorfetch) < 1:
+                print('de')
                 retinfo['status'] = 'error'
                 retinfo['errorinfo'] = 'Please enter a valid floor name'
 
                 return jsonify(retinfo)
 
             if dbcursorfetch[0][0] != 2:
+                print('dl')
                 retinfo['status'] = 'error'
                 retinfo['errorinfo'] = 'Location selected is a destination'
 
                 return jsonify(retinfo)
+            
+            studentFloorId = dbcursorfetch[0][1]
         except:
+            print('dd')
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Please enter a valid floor name'
 
@@ -786,7 +845,7 @@ def editStudent():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('UPDATE students SET name = %s, grade = %s, floorid = %s, cardid = %s WHERE studentid = %s', (studentName, studentGrade, studentFloor, studentCardid, studentid,))
+                dbcursor.execute('UPDATE students SET name = %s, grade = %s, floorid = %s, cardid = %s, image = %s WHERE studentid = %s', (studentName, studentGrade, studentFloorId, studentCardid, studentImage, studentid,))
         
         retinfo['status'] = 'ok'
         

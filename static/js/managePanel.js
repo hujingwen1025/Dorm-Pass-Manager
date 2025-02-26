@@ -95,7 +95,7 @@ async function searchStudents(filters) {
     }
 }
 
-async function addStudent(studentName, studentGrade, studentFloor, studentCardid) {
+async function addStudent(studentName, studentGrade, studentFloor, studentCardid, studentImage) {
     try {
         const response = await fetch("/addStudent", {
             method: 'POST',
@@ -103,7 +103,8 @@ async function addStudent(studentName, studentGrade, studentFloor, studentCardid
                 "name": studentName,
                 "grade": studentGrade,
                 "floor": studentFloor,
-                "cardid": studentCardid
+                "cardid": studentCardid,
+                "image": studentImage
             }),
             headers: {
                 Accept: 'application/json',
@@ -134,7 +135,7 @@ async function addStudent(studentName, studentGrade, studentFloor, studentCardid
     }
 }
 
-async function editStudent(studentid, studentName, studentGrade, studentFloor, studentCardid) {
+async function editStudent(studentid, studentName, studentGrade, studentFloor, studentCardid, studentImage) {
     try {
         const response = await fetch("/editStudent", {
             method: 'POST',
@@ -143,7 +144,8 @@ async function editStudent(studentid, studentName, studentGrade, studentFloor, s
                 "name": studentName,
                 "grade": studentGrade,
                 "floor": studentFloor,
-                "cardid": studentCardid
+                "cardid": studentCardid,
+                "image": studentImage
             }),
             headers: {
                 Accept: 'application/json',
@@ -601,6 +603,7 @@ async function loadStudentInfoEdit(name) {
     var studentList = await searchStudents({'strictname': name})
     if (studentList.length > 0) {
         console.log('found student, updating')
+        window.studentEditId = studentList[0][0]
         var nameInfo = studentList[0][1]
         var gradeInfo = studentList[0][2]
         var locationInfo = await getLocationInfo({'id': studentList[0][4]})
@@ -624,19 +627,63 @@ async function loadStudentInfoEdit(name) {
     }
 }
 
+function convertImageFileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+      
+      reader.readAsDataURL(file);
+    });
+  }
+
 async function doStudentAdd() {
+    var studentImageFile = document.getElementById('addStudentImage').files[0]
+
     var studentName = document.getElementById('addStudentName').value
     var studentGrade = document.getElementById('addStudentGrade').value
     var studentFloor = document.getElementById('addStudentFloor').value
     var studentCardid = document.getElementById('addStudentCardid').value
+    var studentImage = ''
+    if (studentImageFile != undefined && studentImageFile != null) {
+        await convertImageFileToBase64(studentImageFile).then(base64 => studentImage = base64);
+    }
+
+    console.log(studentImage)
 
     console.log('d')
 
-    var addResult = await addStudent(studentName, studentGrade, studentFloor, studentCardid)
+    var addResult = await addStudent(studentName, studentGrade, studentFloor, studentCardid, studentImage)
     if (addResult != 'error') {
         createAlertPopup(5000, null, 'Success', `Student ${studentName} added successfully with an ID of ${addResult}`)
     } else {
         console.log('Error add student')
+    }
+}
+
+async function doStudentEdit() {
+    var studentImageFile = document.getElementById('editStudentImage').files[0]
+
+    var studentName = document.getElementById('editStudentName').value
+    var studentGrade = document.getElementById('editStudentGrade').value
+    var studentFloor = document.getElementById('editStudentFloor').value
+    var studentCardid = document.getElementById('editStudentCardid').value
+    var studentImage = ''
+    if (studentImageFile != undefined && studentImageFile != null) {
+        await convertImageFileToBase64(studentImageFile).then(base64 => studentImage = base64);
+    }
+
+    if (window.studentEditId == undefined || window.studentEditId == null) {
+        createAlertPopup(5000, null, 'Error', 'No student selected for editing')
+        return 0
+    }
+
+    var editResult = await editStudent(window.studentEditId, studentName, studentGrade, studentFloor, studentCardid, studentImage)
+    if (editResult != 'error') {
+        createAlertPopup(5000, 'success', 'Success', `Student ${studentName} edited successfully`)
+    } else {
+        console.log('Error edit student')
     }
 }
 
@@ -800,22 +847,31 @@ async function mainProcess() {
     const addStudentImageField = document.getElementById('addStudentImage')
     const editStudentImageField = document.getElementById('editStudentImage')
 
+    const editStudentClearFileButton = document.getElementById('editStudentClearFileButton')
+
     addStudentImageField.onchange = function() {
-        if (this.files[0].size > 3145728) {
-           createAlertPopup(5000, 'warning', 'File Size Warning', 'File size too large. Please select a file smaller than 3MB')
+        if (this.files[0].size > 1600000) {
+           createAlertPopup(5000, 'warning', 'File Size Warning', 'File size too large. Please select a file smaller than 1.5MB')
            this.value = ""
         }
     }
 
     editStudentImageField.onchange = function() {
-        if (this.files[0].size > 3145728) {
-           createAlertPopup(5000, 'warning', 'File Size Warning', 'File size too large. Please select a file smaller than 3MB')
+        if (this.files[0].size > 1600000) {
+           createAlertPopup(5000, 'warning', 'File Size Warning', 'File size too large. Please select a file smaller than 1.5MB')
            this.value = ""
         }
     }
 
+    editStudentClearFileButton.onclick = function() {
+        editStudentImageField.value = ''
+    }
+
     const addStudentButtonSubmit = document.getElementById('addStudentButtonSubmit')
     addStudentButtonSubmit.onclick = function(event) {doStudentAdd()}
+
+    const editStudentButtonSubmit = document.getElementById('editStudentButtonSubmit')
+    editStudentButtonSubmit.onclick = function(event) {doStudentEdit()}
 
     editStudentDatalist.value = ''
     loadStudentInfoEdit('')
