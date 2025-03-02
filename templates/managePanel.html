@@ -224,6 +224,14 @@
               position: absolute;
               margin-right: 5px;
             }
+
+            .redAction {
+                background-color: #ff4d4d;
+            }
+
+            .redAction:hover {
+                background-color: #ff0000;
+            }
             
             .alert.success {background-color: #4bb885;}
             .alert.info {background-color: #52a9f5;}
@@ -244,9 +252,11 @@
               color: black;
             }
         </style>
+
         <script src="/static/js/managePanel.js"></script>
         <script src="/static/js/tamperDetect.js"></script>
     </head>
+
     <body id="body">
         <div class="alertContainer" id="alertContainer"></div>
         <div class="top-bar">
@@ -256,7 +266,7 @@
                 <button class="material-button" id="manageNavButton">Manage</button>
                 <button class="material-button" id="settingsNavButton">Settings</button>
             </div>
-            <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar"></span> | 
+            <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar">-</span> | 
                 <select name="location" class="locationSelector" id="locationSelector">
                 </select>
             </span>
@@ -301,7 +311,7 @@
                     </div>
                 </div>
                 <div id="addStudentContent" class="containerHidden actionCard">
-                    <form>
+                    
                         <label class="formLabel" for="name">Full Name</label><br>
                         <input class="formInput formInput" type="text" id="addStudentName" name="name" placeholder="Xiaoming John Li" required><br>
                         <label class="formLabel" for="grade">Grade Level</label><br>
@@ -315,10 +325,10 @@
                         <label class="formLabel" for="image">Student Image (Optional)</label><br>
                         <input class="formInput" type="file" id="addStudentImage" name="image" accept=".png" /><br>
                         <input class="formInput formSubmit" id="addStudentButtonSubmit" type="button" value="Submit">
-                      </form>  
+                        
                 </div>
                 <div id="editStudentContent" class="containerHidden actionCard">
-                    <form>
+                    
                         <label class="formLabel" for="studentChoose">Select Student</label>
                         <input class="formInput formInput" type="text" list="editStudentFoundStudents" id="editStudentChoose" name="studentChoose" placeholder="Start typing to search ...">
                         <datalist id="editStudentFoundStudents">
@@ -331,12 +341,13 @@
                         <input class="formInput formInput" type="text" list="editStudentFoundFloors" id="editStudentFloor" name="floor" placeholder="West 6" required disabled><br>
                         <datalist id="editStudentFoundFloors">
                         </datalist>
-                        <label class="formLabel" for="cardid">Card ID</label><br>
+                        <label class="formLabel" for="cardid">Card ID (Optional)</label><br>
                         <input class="formInput formInput" type="text" id="editStudentCardid" name="cardid" placeholder="1234567890" disabled><br>
                         <label class="formLabel" for="image" id="editStudentClearFileButton">Student Image (Optional)</label><br>
                         <input class="formInput" type="file" id="editStudentImage" name="image" accept=".png" /><br>
                         <input class="formInput formSubmit" id="editStudentButtonSubmit" type="button" value="Submit">
-                      </form>
+                        <input class="formInput formSubmit redAction" id="editStudentDeleteButton" type="button" value="Delete Student">
+                      
                 </div>
             </div>
             <div class="manageContainer containerHidden" id="usersContainer">
@@ -350,7 +361,7 @@
                     </div>
                 </div>
                 <div id="addUserContent" class="containerHidden actionCard">
-                    <form>
+                    
                         <label class="formLabel" for="name">Full Name</label><br>
                         <input class="formInput formInput" type="text" id="addUserName" name="name" placeholder="Xiaoming John Li" required><br>
                         <label class="formLabel" for="email">Email</label><br>
@@ -362,14 +373,39 @@
                             <option value="approver">Approver</option>
                         </select><br>
                         <label class="formLabel" for="location">Location</label><br>
-                        <input class="formInput formInput" type="text" id="addUserLocation" name="cardid" placeholder="West 6"><br>
+                        <input class="formInput formInput" type="text" id="addUserLocation" name="location" placeholder="West 6" list="addUserFoundLocations"><br>
+                        <datalist id="addUserFoundLocations">
+                        </datalist>
                         <label class="formLabel" for="password">Password (Optional)</label><br>
                         <input class="formInput formInput" type="password" id="addUserPassword" name="password" required><br>
                         <input class="formInput formSubmit" type="button" value="Submit" id="addUserButtonSubmit">
-                      </form>  
+                        
                 </div>
                 <div id="editUserContent" class="containerHidden actionCard">
-                    <p>Edit Placeholder</p>
+                    
+                        <label class="formLabel" for="userChoose">Select User</label>
+                        <input class="formInput formInput" type="text" list="editUserFoundUsers" id="editUserChoose" name="userChoose" placeholder="Start typing to search ...">
+                        <datalist id="editUserFoundUsers">
+                        </datalist><br><br>
+                        <label class="formLabel" for="name">Full Name</label><br>
+                        <input class="formInput formInput" type="text" id="editUserName" name="name" placeholder="Xiaoming John Li" required disabled><br>
+                        <label class="formLabel" for="email">Email</label><br>
+                        <input class="formInput formInput" type="email" id="editUserEmail" name="email" placeholder="" required disabled><br>
+                        <label class="formLabel" for="role">Role</label><br>
+                        <select name="role" id="editUserRole" class="formInput formSelect" disabled>
+                            <option value="admin">Admin</option>
+                            <option value="proctor">Proctor</option>
+                            <option value="approver">Approver</option>
+                        </select><br>
+                        <label class="formLabel" for="location">Location</label><br>
+                        <input class="formInput formInput" type="text" id="editUserLocation" name="location" placeholder="West 6" list="editUserFoundLocations" disabled><br>
+                        <datalist id="editUserFoundLocations">
+                        </datalist>
+                        <label class="formLabel" for="password">Password (Optional)</label><br>
+                        <input class="formInput formInput" type="password" id="editUserPassword" name="password" required disabled><br>
+                        <input class="formInput formSubmit" type="button" value="Submit" id="editUserButtonSubmit">
+                        <input class="formInput formSubmit redAction" type="button" value="Delete User" id="editUserDeleteButton">
+                    
                 </div>
             </div>
             <div class="manageContainer containerHidden" id="locationsContainer">
@@ -383,10 +419,33 @@
                     </div>
                 </div>
                 <div id="addLocationContent" class="containerHidden actionCard">
-                    <p>Add Placeholder</p>
+                    
+                        <label class="formLabel" for="name">Location Name</label><br>
+                        <input class="formInput formInput" type="text" id="addLocationName" name="name" placeholder="West 6" required><br>
+                        <label class="formLabel" for="type">Location Type</label><br>
+                        <select name="type" id="addLocationType" class="formInput formSelect">
+                            <option value="dorm">Dorm</option>
+                            <option value="destination">Destination</option>
+                        </select><br>
+                        <input class="formInput formSubmit" type="button" value="Submit" id="addLocationButtonSubmit">
+                    
                 </div>
                 <div id="editLocationContent" class="containerHidden actionCard">
-                    <p>Edit Placeholder</p>
+                    
+                        <label class="formLabel" for="locationChoose">Select Location</label>
+                        <input class="formInput formInput" type="text" list="editLocationFoundLocations" id="editLocationChoose" name="locationChoose" placeholder="Start typing to search ...">
+                        <datalist id="editLocationFoundLocations">
+                        </datalist><br><br>
+                        <label class="formLabel" for="name">Location Name</label><br>
+                        <input class="formInput formInput" type="text" id="editLocationName" name="name" placeholder="West 6" required disabled><br>
+                        <label class="formLabel" for="type">Location Type</label><br>
+                        <select name="type" id="editLocationType" class="formInput formSelect" disabled>
+                            <option value="dorm">Dorm</option>
+                            <option value="destination">Destination</option>
+                        </select><br>
+                        <input class="formInput formSubmit" type="button" value="Submit" id="editLocationButtonSubmit">
+                        <input class="formInput formSubmit redAction" type="button" value="Delete Location" id="editLocationDeleteButton">
+                    
                 </div>
             </div>
             <div class="manageContainer containerHidden" id="diagnosticsContainer">

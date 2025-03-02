@@ -14,6 +14,13 @@ If you don't understand what you are doing, please close this window.
 如果您不明白自己在做什么，请关闭此窗口。
 `, 'color: red') 
 
+window.debug = false
+function dlog(text) {
+    if (window.debug) {
+        console.log(text)
+    }
+}
+
 async function getLocationId(type) {
     try {
         const response = await fetch("/getLocationId", {
@@ -51,7 +58,7 @@ async function getLocationId(type) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 'error'
     }
@@ -89,7 +96,83 @@ async function searchStudents(filters) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
+async function searchUsers(filters) {
+    try {
+        const response = await fetch("/searchUsers", {
+            method: 'POST',
+            body: JSON.stringify({
+                "searchFilter": filters
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Searching For Users', response.errorinfo)
+                return 'error'
+                break;
+            case "ok":
+                return responseJson.users
+                break;
+            default:
+                return None
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
+async function searchLocations(filters) {
+    try {
+        const response = await fetch("/searchLocations", {
+            method: 'POST',
+            body: JSON.stringify({
+                "searchFilters": filters
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Searching For Locations', responseJson.errorinfo)
+                return 'error'
+                break;
+            case "ok":
+                return responseJson.locations
+                break;
+            default:
+                return None
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 'error'
     }
@@ -129,7 +212,7 @@ async function addUser(name, email, role, location, password = null) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 'error'
     }
@@ -169,7 +252,44 @@ async function addStudent(studentName, studentGrade, studentFloor, studentCardid
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
+async function addLocation(locationName, locationType) {
+    try {
+        const response = await fetch("/addLocation", {
+            method: 'POST',
+            body: JSON.stringify({
+                "name": locationName,
+                "type": locationType
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Adding Location', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return responseJson.locationid
+            default:
+                return None
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 'error'
     }
@@ -210,7 +330,85 @@ async function editStudent(studentid, studentName, studentGrade, studentFloor, s
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
+async function editUser(userid, userName, userEmail, userRole, userLocation) {
+    try {
+        const response = await fetch("/editUser", {
+            method: 'POST',
+            body: JSON.stringify({
+                "userid": userid,
+                "name": userName,
+                "email": userEmail,
+                "role": userRole,
+                "location": userLocation
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Editing User', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return 0
+            default:
+                return None
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
+async function editLocation(locationid, locationName, locationType) {
+    try {
+        const response = await fetch("/editLocation", {
+            method: 'POST',
+            body: JSON.stringify({
+                "locationid": locationid,
+                "name": locationName,
+                "type": locationType
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Editing Location', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return 0
+            default:
+                return None
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 'error'
     }
@@ -246,7 +444,7 @@ async function getUserInfo() {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 'error'
     }
@@ -284,7 +482,7 @@ async function getLocationInfo(locationFilter) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 'error'
     }
@@ -320,7 +518,7 @@ async function getStudents(filters) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 'error'
     }
@@ -358,7 +556,7 @@ async function getStudentInfo(studentid) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 'error'
     }
@@ -396,7 +594,7 @@ async function updateUserLocation(locationName) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 'error'
     }
@@ -408,7 +606,7 @@ function createAlertPopup(closetimeout, type = null, title, body, alertid = '') 
     let alertElement = document.createElement('div');
     alertElement.setAttribute('id', alertid)
     alertElement.classList.add('alert')
-    console.log(type)
+    dlog(type)
     if (type != null && type != undefined && type != '') {
         alertElement.classList.add(type)
     }
@@ -528,7 +726,7 @@ function doOptionUpdate(optionid = null) {
             backupOption.classList.remove('optionActivated')
             settingsOption.classList.remove('optionActivated')
         default:
-            console.log('Incorrect reference')
+            dlog('Incorrect reference')
             break;
     }
 }
@@ -538,7 +736,7 @@ function setSelectedCustomOption(alloptions, selectedOption, pinnedOption) {
         document.getElementById(alloptions[i]).classList.remove('buttonSelectorActivated')
     }
     if (selectedOption != null) {
-        console.log(alloptions[selectedOption])
+        dlog(alloptions[selectedOption])
         document.getElementById(alloptions[selectedOption]).classList.add('buttonSelectorActivated')
     }
     if (pinnedOption != null) {
@@ -584,7 +782,7 @@ function setSelectedOption(optionid) {
             settingsContainer.classList.remove('containerHidden')
             break;
         default:
-            console.log('Incorrect Reference')
+            dlog('Incorrect Reference')
             break;
     }
 }
@@ -602,6 +800,32 @@ async function doEditStudentDatalistUpdate(name) {
     }
 }
 
+async function doEditLocationDatalistUpdate(name) {
+    const locationEditDatalist = document.getElementById('editLocationFoundLocations')
+    locationEditDatalist.innerHTML = ''
+    var locationList = await searchLocations({'name': name})
+    if (locationList != [] && locationList != undefined && locationList != null) {
+        for (let i = 0; i < locationList.length; i ++) {
+            const option = document.createElement('option')
+            option.value = locationList[i][1]
+            locationEditDatalist.appendChild(option)
+        }
+    }
+}
+
+async function doEditUserDatalistUpdate(name) {
+    const userEditDatalist = document.getElementById('editUserFoundUsers')
+    userEditDatalist.innerHTML = ''
+    var userList = await searchUsers({'name': name})
+    if (userList != [] && userList != undefined && userList != null) {
+        for (let i = 0; i < userList.length; i ++) {
+            const option = document.createElement('option')
+            option.value = userList[i][1]
+            userEditDatalist.appendChild(option)
+        }
+    }
+}
+
 async function doEditStudentFloorDatalistUpdate(locationName) {
     const studentEditFloorDatalist = document.getElementById('editStudentFoundFloors')
     studentEditFloorDatalist.innerHTML = ''
@@ -612,7 +836,7 @@ async function doEditStudentFloorDatalistUpdate(locationName) {
             option.value = locationList[i][1]
             option.locationId = locationList[i][0]
             studentEditFloorDatalist.appendChild(option)
-            console.log('Added option:', option);
+            dlog('Added option:', option);
         }
     }
 }
@@ -627,7 +851,22 @@ async function doAddStudentFloorDatalistUpdate(locationName) {
             option.value = locationList[i][1]
             option.locationId = locationList[i][0]
             studentAddFloorDatalist.appendChild(option)
-            console.log('Added option:', option);
+            dlog('Added option:', option);
+        }
+    }
+}
+
+async function doAddUserLocationDatalistUpdate(locationName) {
+    const userAddLocationDatalist = document.getElementById('addUserFoundLocations')
+    userAddLocationDatalist.innerHTML = ''
+    var locationList = await getLocationInfo({'name': locationName})
+    if (locationList != [] && locationList != undefined && locationList != null) {
+        for (let i = 0; i < locationList.length; i ++) {
+            const option = document.createElement('option')
+            option.value = locationList[i][1]
+            option.locationId = locationList[i][0]
+            userAddLocationDatalist.appendChild(option)
+            dlog('Added option:', option);
         }
     }
 }
@@ -637,12 +876,26 @@ function setStudentEditDisable(status) {
     document.getElementById('editStudentGrade').disabled = status
     document.getElementById('editStudentCardid').disabled = status
     document.getElementById('editStudentFloor').disabled = status
+    document.getElementById('editStudentImage').disabled = status
+}
+
+function setUserEditDisable(status) {
+    document.getElementById('editUserName').disabled = status
+    document.getElementById('editUserEmail').disabled = status
+    document.getElementById('editUserRole').disabled = status
+    document.getElementById('editUserLocation').disabled = status
+    document.getElementById('editUserPassword').disabled = status
+}
+
+function setLocationEditDisable(status) {
+    document.getElementById('editLocationName').disabled = status
+    document.getElementById('editLocationType').disabled = status
 }
 
 async function loadStudentInfoEdit(name) {
     var studentList = await searchStudents({'strictname': name})
     if (studentList.length > 0) {
-        console.log('found student, updating')
+        dlog('found student, updating')
         window.studentEditId = studentList[0][0]
         var nameInfo = studentList[0][1]
         var gradeInfo = studentList[0][2]
@@ -657,13 +910,79 @@ async function loadStudentInfoEdit(name) {
         document.getElementById('editStudentCardid').value = cardidInfo
         document.getElementById('editStudentFloor').value = locationInfo
     } else {
-        console.log('student not found, clearing')
+        dlog('student not found, clearing')
         document.getElementById('editStudentName').value = ''
         document.getElementById('editStudentGrade').value = ''
         document.getElementById('editStudentCardid').value = ''
         document.getElementById('editStudentFloor').value = ''
 
         setStudentEditDisable(true)
+    }
+}
+
+async function loadUserInfoEdit(name) {
+    var userList = await searchUsers({'strictname': name})
+    if (userList.length > 0) {
+        dlog('found user, updating')
+        window.userEditId = userList[0][0]
+        var nameInfo = userList[0][1]
+        var emailInfo = userList[0][2]
+        var roleInfo = userList[0][3]
+        var locationInfo = await getLocationInfo({'id': userList[0][4]})
+        locationInfo = locationInfo[0][1]
+
+        setUserEditDisable(false)
+
+        document.getElementById('editUserName').value = nameInfo
+        document.getElementById('editUserEmail').value = emailInfo
+        document.getElementById('editUserLocation').value = locationInfo
+
+        switch (roleInfo) {
+            case 1:
+                document.getElementById('editUserRole').value = 'admin'
+                break;
+            case 2:
+                document.getElementById('editUserRole').value = 'proctor'
+                break;
+            case 3:
+                document.getElementById('editUserRole').value = 'approver'
+                break;
+            default:
+                createAlertPopup(5000, null, 'Error', 'Error while getting user role')
+                break;
+        }
+    } else {
+        dlog('user not found, clearing')
+        document.getElementById('editUserName').value = ''
+        document.getElementById('editUserEmail').value = ''
+        document.getElementById('editUserLocation').value = ''
+
+        setUserEditDisable(true)
+    }
+}
+
+async function loadLocationInfoEdit(name) {
+    var locationList = await searchLocations({'strictname': name})
+    if (locationList.length > 0) {
+        dlog('found location, updating')
+        window.locationEditId = locationList[0][0]
+        var nameInfo = locationList[0][1]
+        var typeInfo = locationList[0][2]
+
+        document.getElementById('editLocationName').value = nameInfo
+        if (typeInfo == 1) {
+            document.getElementById('editLocationType').value = 'destination'
+        } else if (typeInfo == 2) {
+            document.getElementById('editLocationType').value = 'dorm'
+        } else {
+            createAlertPopup(5000, null, 'Error', 'Error while getting location type')
+        }
+
+        setLocationEditDisable(false)
+    } else {
+        dlog('location not found, clearing')
+        document.getElementById('editLocationName').value = ''
+        setLocationEditDisable(true)
     }
 }
 
@@ -687,9 +1006,15 @@ async function doUserAdd() {
 
     var addResult = await addUser(userName, userEmail, userRole, userLocation, userPassword)
     if (addResult != 'error') {
+        document.getElementById('addUserName').value = ''
+        document.getElementById('addUserEmail').value = ''
+        document.getElementById('addUserRole').value = ''
+        document.getElementById('addUserLocation').value = ''
+        document.getElementById('addUserPassword').value = ''
+
         createAlertPopup(5000, 'success', 'Success', `User ${userName} added successfully with an ID of ${addResult}`)
     } else {
-        console.log('Error add user')
+        dlog('Error add user')
     }
 }
 
@@ -707,9 +1032,198 @@ async function doStudentAdd() {
 
     var addResult = await addStudent(studentName, studentGrade, studentFloor, studentCardid, studentImage)
     if (addResult != 'error') {
+        document.getElementById('addStudentName').value = ''
+        document.getElementById('addStudentGrade').value = ''
+        document.getElementById('addStudentFloor').value = ''
+        document.getElementById('addStudentCardid').value = ''
+        document.getElementById('addStudentImage').value = ''
         createAlertPopup(5000, 'success', 'Success', `Student ${studentName} added successfully with an ID of ${addResult}`)
     } else {
-        console.log('Error add student')
+        dlog('Error add student')
+    }
+}
+
+async function doLocationAdd() {
+    var locationName = document.getElementById('addLocationName').value
+    var locationType = document.getElementById('addLocationType').value
+
+    var addResult = await addLocation(locationName, locationType)
+    if (addResult != 'error') {
+        document.getElementById('addLocationName').value = ''
+        createAlertPopup(5000, 'success', 'Success', `Location ${locationName} added successfully with an ID of ${addResult}`)
+    } else {
+        dlog('Error add location')
+    }
+}
+
+async function deleteStudent(studentid) {
+    try {
+        const response = await fetch("/editStudent", {
+            method: 'POST',
+            body: JSON.stringify({
+                "studentid": studentid,
+                "delete": 'true'
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Deleting Student', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return studentid
+            default:
+                return None
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
+async function deleteUser(userid) {
+    try {
+        const response = await fetch("/editUser", {
+            method: 'POST',
+            body: JSON.stringify({
+                "userid": userid,
+                "delete": 'true'
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+    
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Deleting User', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return userid
+            default:
+                return None
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
+async function deleteLocation(locationid) {
+    try {
+        const response = await fetch("/editLocation", {
+            method: 'POST',
+            body: JSON.stringify({
+                "locationid": locationid,
+                "delete": 'true'
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Deleting Location', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return locationid
+            default:
+                return None
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
+async function doStudentDelete() {
+    confirmDelete = confirm('Do you want to delete the selected student?')
+    if (confirmDelete) {
+        if (window.studentEditId == undefined || window.studentEditId == null) {
+            createAlertPopup(5000, null, 'Error', 'No student selected for deletion')
+            return 0
+        }
+
+        var deleteResult = await deleteStudent(window.studentEditId)
+        if (deleteResult != 'error') {
+            createAlertPopup(5000, 'success', 'Success', `Student with id of ${window.studentEditId} deleted successfully`)
+        } else {
+            dlog('Error delete student')
+        }
+
+        document.getElementById('editStudentChoose').value = ''
+        loadStudentInfoEdit('')
+    }
+}
+
+async function doUserDelete() {
+    confirmDelete = confirm('Do you want to delete the selected user?')
+    if (confirmDelete) {
+        if (window.userEditId == undefined || window.userEditId == null) {
+            createAlertPopup(5000, null, 'Error', 'No user selected for deletion')
+            return 0
+        }
+
+        var deleteResult = await deleteUser(window.userEditId)
+        if (deleteResult != 'error') {
+            createAlertPopup(5000, 'success', 'Success', `User with id of ${window.userEditId} deleted successfully`)
+        } else {
+            dlog('Error delete user')
+        }
+
+        document.getElementById('editUserChoose').value = ''
+        loadUserInfoEdit('')
+    }
+}
+
+async function doLocationDelete() {
+    confirmDelete = confirm('Do you want to delete the selected location?')
+    if (confirmDelete) {
+        if (window.locationEditId == undefined || window.locationEditId == null) {
+            createAlertPopup(5000, null, 'Error', 'No location selected for deletion')
+            return 0
+        }
+
+        var deleteResult = await deleteLocation(window.locationEditId)
+        if (deleteResult != 'error') {
+            createAlertPopup(5000, 'success', 'Success', `Location with id of ${window.locationEditId} deleted successfully`)
+        } else {
+            dlog('Error delete location')
+        }
+
+        document.getElementById('editLocationChoose').value = ''
+        loadLocationInfoEdit('')
     }
 }
 
@@ -733,8 +1247,50 @@ async function doStudentEdit() {
     var editResult = await editStudent(window.studentEditId, studentName, studentGrade, studentFloor, studentCardid, studentImage)
     if (editResult != 'error') {
         createAlertPopup(5000, 'success', 'Success', `Student ${studentName} edited successfully`)
+        document.getElementById('editStudentChoose').value = ''
+        loadStudentInfoEdit('')
     } else {
-        console.log('Error edit student')
+        dlog('Error edit student')
+    }
+}
+
+async function doUserEdit() {
+    var userName = document.getElementById('editUserName').value
+    var userEmail = document.getElementById('editUserEmail').value
+    var userRole = document.getElementById('editUserRole').value
+    var userLocation = document.getElementById('editUserLocation').value
+
+    if (window.userEditId == undefined || window.userEditId == null) {
+        createAlertPopup(5000, null, 'Error', 'No user selected for editing')
+        return 0
+    }
+
+    var editResult = await editUser(window.userEditId, userName, userEmail, userRole, userLocation)
+    if (editResult != 'error') {
+        createAlertPopup(5000, 'success', 'Success', `User ${userName} edited successfully`)
+        document.getElementById('editUserChoose').value = ''
+        loadUserInfoEdit('')
+    } else {
+        dlog('Error edit user')
+    }
+}
+
+async function doLocationEdit() {
+    var locationName = document.getElementById('editLocationName').value
+    var locationType = document.getElementById('editLocationType').value
+
+    if (window.locationEditId == undefined || window.locationEditId == null) {
+        createAlertPopup(5000, null, 'Error', 'No location selected for editing')
+        return 0
+    }
+
+    var editResult = await editLocation(window.locationEditId, locationName, locationType)
+    if (editResult != 'error') {
+        createAlertPopup(5000, 'success', 'Success', `Location ${locationName} edited successfully`)
+        document.getElementById('editLocationChoose').value = ''
+        loadLocationInfoEdit('')
+    } else {
+        dlog('Error edit location')
     }
 }
 
@@ -742,12 +1298,19 @@ function setOptionContentVisibility(allContent, selectedContent) {
     for (let i = 0; i < allContent.length; i ++) {
         document.getElementById(allContent[i]).classList.add('containerHidden')
     }
-    console.log('unh')
-    console.log(allContent[selectedContent])
+    dlog('unh')
+    dlog(allContent[selectedContent])
     document.getElementById(allContent[selectedContent]).classList.remove('containerHidden')
 }
 
 async function mainProcess() {
+    document.getElementById('usernameTopbar').onclick = function(event) {
+        var signoutNow = confirm('Do you want to signout now?')
+        if (signoutNow) {
+            window.location = '/signout'
+        }
+    }
+
     var destinationIds = await getLocationId(1)
     var floorIds = await getLocationId(2)
     var userinfo = await getUserInfo()
@@ -879,8 +1442,20 @@ async function mainProcess() {
     const editStudentDatalist = document.getElementById('editStudentChoose')
     editStudentDatalist.oninput = function(){doEditStudentDatalistUpdate(editStudentDatalist.value)}
     editStudentDatalist.addEventListener('focusout', (event) => {
-            loadStudentInfoEdit(editStudentDatalist.value)
+        loadStudentInfoEdit(editStudentDatalist.value)
       });
+
+    const editUserDatalist = document.getElementById('editUserChoose')
+    editUserDatalist.oninput = function(){doEditUserDatalistUpdate(editUserDatalist.value)}
+    editUserDatalist.addEventListener('focusout', (event) => {
+        loadUserInfoEdit(editUserDatalist.value)
+    });
+
+    const editLocationDatalistDisplay = document.getElementById('editLocationChoose')
+    editLocationDatalistDisplay.oninput = function(){doEditLocationDatalistUpdate(editLocationDatalistDisplay.value)}
+    editLocationDatalistDisplay.addEventListener('focusout', (event) => {
+        loadLocationInfoEdit(editLocationDatalistDisplay.value)
+    });
 
     const editStudentFloorDatalist = document.getElementById('editStudentFloor')
     editStudentFloorDatalist.oninput = function(){doEditStudentFloorDatalistUpdate(editStudentFloorDatalist.value)}
@@ -888,17 +1463,19 @@ async function mainProcess() {
     const addStudentFloorDatalist = document.getElementById('addStudentFloor')
     addStudentFloorDatalist.oninput = function(){doAddStudentFloorDatalistUpdate(addStudentFloorDatalist.value)}
 
-    document.getElementById('usernameTopbar').onclick = function(event) {
-        var signoutNow = confirm('Do you want no signout now?')
-        if (signoutNow) {
-            window.location = '/signout'
-        }
-    }
+    const addUserLocationDatalist = document.getElementById('addUserLocation')
+    addUserLocationDatalist.oninput = function(){doAddUserLocationDatalistUpdate(addUserLocationDatalist.value)}
+
+    const editLocationDatalist = document.getElementById('editLocationChoose')
+    editLocationDatalist.oninput = function(){doEditLocationDatalistUpdate(editLocationDatalist.value)}
 
     const addStudentImageField = document.getElementById('addStudentImage')
     const editStudentImageField = document.getElementById('editStudentImage')
 
     const editStudentClearFileButton = document.getElementById('editStudentClearFileButton')
+
+    const addLocationButtonSubmit = document.getElementById('addLocationButtonSubmit')
+    addLocationButtonSubmit.onclick = function(event) {doLocationAdd()}
 
     addStudentImageField.onchange = function() {
         if (this.files[0].size > 1600000) {
@@ -918,11 +1495,26 @@ async function mainProcess() {
         editStudentImageField.value = ''
     }
 
+    const editStudentDeleteButton = document.getElementById('editStudentDeleteButton')
+    editStudentDeleteButton.onclick = function(event) {doStudentDelete()}
+
+    const editUserDeleteButton = document.getElementById('editUserDeleteButton')
+    editUserDeleteButton.onclick = function(event) {doUserDelete()}
+
+    const editLocationDeleteButton = document.getElementById('editLocationDeleteButton')
+    editLocationDeleteButton.onclick = function(event) {doLocationDelete()}
+
     const addStudentButtonSubmit = document.getElementById('addStudentButtonSubmit')
     addStudentButtonSubmit.onclick = function(event) {doStudentAdd()}
 
     const editStudentButtonSubmit = document.getElementById('editStudentButtonSubmit')
     editStudentButtonSubmit.onclick = function(event) {doStudentEdit()}
+
+    const editUserButtonSubmit = document.getElementById('editUserButtonSubmit')
+    editUserButtonSubmit.onclick = function(event) {doUserEdit()}
+
+    const editLocationButtonSubmit = document.getElementById('editLocationButtonSubmit')
+    editLocationButtonSubmit.onclick = function(event) {doLocationEdit()}
 
     const addUserButtonSubmit = document.getElementById('addUserButtonSubmit')
     addUserButtonSubmit.onclick = function(event) {doUserAdd()}

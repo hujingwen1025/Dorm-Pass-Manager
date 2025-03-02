@@ -43,7 +43,7 @@ SCOPE = ["User.Read"]  # Read basic user profile
 
 def dprint(text):
     if debug:
-        print(text)
+        dprint(text)
         
 def encrypt(data):
     encrypted_data = str(fernet.encrypt(data.encode()).decode('ascii'))
@@ -162,6 +162,8 @@ def getPassStatus(passid):
         return 2
     elif result[0][3] == None:
         return 3
+    else:
+        return None
     
 def calculateElapsedSeconds(timestamp):
     rawtime = currentDatetime() - timestamp
@@ -233,7 +235,7 @@ def kiosk():
         session['sessionid'] = kioskSession[0]
         session['passkey'] = kioskSession[1]
         session['login'] = True
-        print(kioskSession)
+        dprint(kioskSession)
         return render_template('kiosk.html')
     else:
         return redirect('/')
@@ -260,12 +262,15 @@ def microsoftLoginCallback():
         return 'Authorization code missing', 400
     msal_app = get_msal_app()
     result = msal_app.acquire_token_by_authorization_code(code, scopes=SCOPE, redirect_uri=REDIRECT_URI)
-    print(result)
+    dprint(result)
     if 'access_token' in result:
         msUserInfo = result.get('id_token_claims')
         oid = msUserInfo["oid"]
         email = msUserInfo["preferred_username"]
-        userInfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+        urin = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+        if urin == None:
+            return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
+        userInfo = urin
         dprint(userInfo)
         sessioninfo = sessionStorage.create(oid)
         session['sessionid'] = str(encrypt(sessioninfo[0]))
@@ -296,10 +301,13 @@ def maintainerLoginCallback():
     if captcha.validate():
         username = request.form['username']
         password = request.form['password']
+        
+        if username == '' or password == '' or username == None or password == None:
+            return render_template('userNotRegistered.html', email = 'Password or username is empty')
 
         passwordhash = generateSHA256(password)
 
-        print(passwordhash)
+        dprint(passwordhash)
 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
@@ -317,6 +325,138 @@ def maintainerLoginCallback():
             return render_template('userNotRegistered.html', email = username)
     else:
         return render_template('incorrectCaptcha.html')
+    
+@app.route('/searchLocations', methods=['POST'])
+def searchLocations():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        searchFilters = request.json.get('searchFilters')
+        
+        try:
+            locationStrictName = searchFilters['strictname']
+            
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT locationid, name, type FROM locations WHERE name = %s', (locationStrictName,))
+                    dbcursorfetch = dbcursor.fetchall()
+                                
+            retinfo['status'] = 'ok'
+            retinfo['locations'] = dbcursorfetch
+            
+            return jsonify(retinfo)
+        
+        except:
+            pass
+        
+        try:
+            locationName = searchFilters['name']
+            
+            namekeywords = locationName.split()
+            
+            sqlquery = 'SELECT locationid, name, type FROM locations WHERE 1 = 1 '
+            sqlqueryvar = []
+            
+            for keyword in namekeywords:
+                sqlquery += 'AND name LIKE %s '
+                sqlqueryvar.append(f'%{keyword}%')
+                
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute(sqlquery, sqlqueryvar)
+                    dbcursorfetch = dbcursor.fetchall()
+                                        
+            retinfo['status'] = 'ok'
+            retinfo['locations'] = dbcursorfetch
+            
+            return jsonify(retinfo)
+        
+        except:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Invalid search'
+            
+            return jsonify(retinfo)
+        
+@app.route('/editLocation', methods=['POST'])
+def editLocation():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        locationid = request.json.get('locationid')
+        
+        try:
+            deleteLocation = request.json.get('delete')
+            if deleteLocation == 'true':
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('SELECT * FROM locations WHERE locationid = %s', (locationid,))
+                        dbcursorfetch = dbcursor.fetchall()
+                        
+                if len(dbcursorfetch) < 1:
+                    retinfo['status'] = 'error'
+                    retinfo['errorinfo'] = 'Location does not exist'
+                    
+                    return jsonify(retinfo)
+                
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('DELETE FROM locations WHERE locationid = %s', (locationid,))
+                
+                retinfo['status'] = 'ok'
+                
+                return jsonify(retinfo)
+        except:
+            pass
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM locations WHERE locationid = %s', (locationid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Location does not exist'
+            
+            return jsonify(retinfo)
+        
+        locationName = request.json.get('name')
+        
+        if locationName == None or locationName == '':
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please fill in all of the required fields'
+            
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM locations WHERE name = %s', (locationName,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) > 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Name of location has already been taken'
+            
+            return jsonify(retinfo)
+        
+        locationType = request.json.get('type')
+        
+        if locationType == 'destination':
+            locationType = 1
+        elif locationType == 'dorm':
+            locationType = 2
+        else:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid location type'
+            
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('UPDATE locations SET name = %s, type = %s WHERE locationid = %s', (locationName, locationType, locationid,))
+                
+        retinfo['status'] = 'ok'
+        
+        return jsonify(retinfo)
     
 @app.route('/getLocationId', methods=['POST'])
 def getLocationId():
@@ -376,7 +516,13 @@ def updatePass():
         
         oid = getOidFromSession(session)
         
-        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+        urin = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+        if urin == None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            
+            return jsonify(retinfo)
+        userinfo = urin
         userid = userinfo[0]
         userlocation = userinfo[5]
         
@@ -446,6 +592,12 @@ def updatePass():
                     with connection.cursor() as dbcursor:
                         dbcursor.execute(f'UPDATE passes SET {timepositions[stampposition]} = "{timestamp}", {approvepositions[stampposition]} = %s WHERE passid = %s', (userid, passid,))
                         dprint(dbcursor.statement)
+                        
+            else:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Cannot approve a completed pass'
+                
+                return jsonify(retinfo)
                     
             retinfo["elapsedtimewarning"] = None
                     
@@ -524,7 +676,13 @@ def getStudents():
         
         oid = getOidFromSession(session)
         
-        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+        urin = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+        if urin == None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            
+            return jsonify(retinfo)
+        userinfo = urin
         userid = userinfo[0]
         userlocation = userinfo[5]
         userlocationtype = getLocationType(userlocation)
@@ -644,7 +802,7 @@ def addStudent():
         studentCardid = request.json.get('cardid')
         studentImage = request.json.get('image')
         
-        print([studentName, studentGrade, studentFloor, studentCardid])
+        dprint([studentName, studentGrade, studentFloor, studentCardid])
         
         if studentName == None or studentGrade == None or studentFloor == None or studentName == '' or studentGrade == '' or studentFloor == '':
             retinfo['status'] = 'error'
@@ -699,17 +857,17 @@ def addStudent():
                     dbcursor.execute('SELECT type, locationid FROM locations WHERE name = %s', (studentFloor,))
                     dbcursorfetch = dbcursor.fetchall()
                     
-            print(dbcursorfetch)
+            dprint(dbcursorfetch)
 
             if len(dbcursorfetch) < 1:
-                print('de')
+                dprint('de')
                 retinfo['status'] = 'error'
                 retinfo['errorinfo'] = 'Please enter a valid floor name'
 
                 return jsonify(retinfo)
 
             if dbcursorfetch[0][0] != 2:
-                print('dl')
+                dprint('dl')
                 retinfo['status'] = 'error'
                 retinfo['errorinfo'] = 'Location selected is a destination'
 
@@ -717,7 +875,7 @@ def addStudent():
             
             studentFloorId = dbcursorfetch[0][1]
         except:
-            print('dd')
+            dprint('dd')
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Please enter a valid floor name'
 
@@ -753,9 +911,9 @@ def addUser():
         userLocation = request.json.get('location')
         userPassword = request.json.get('password')
         
-        print([userName, userEmail, userRole, userLocation, userPassword])
+        dprint([userName, userEmail, userRole, userLocation, userPassword])
         
-        if userName == None or userEmail == None or userRole == None or userLocation == None or userPassword == None or userName == '' or userEmail == '' or userRole == '' or userLocation == '' or userPassword == '':
+        if userName == None or userEmail == None or userRole == None or userLocation == None or userName == '' or userEmail == '' or userRole == '' or userLocation == '':
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Please fill in all of the required fields'
             
@@ -812,10 +970,12 @@ def addUser():
             retinfo['errorinfo'] = 'Please enter a valid role'
             
             return jsonify(retinfo)
+        
+        userOid = 'usernopcoid' + userEmail + str(random.randint(100000, 999999))
                 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('INSERT INTO users (name, email, role, locationid, password) VALUES (%s, %s, %s, %s, %s)', (userName, userEmail, userRoleId, userLocationId, userPassword,))
+                dbcursor.execute('INSERT INTO users (name, email, role, locationid, password, oid) VALUES (%s, %s, %s, %s, %s, %s)', (userName, userEmail, userRoleId, userLocationId, userPassword, userOid,))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
                 dbcursorfetch = dbcursor.fetchall()    
                 
@@ -832,19 +992,103 @@ def addUser():
         
         return jsonify(retinfo)
     
+@app.route('/addLocation', methods=['POST'])
+def addLocation():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        locationName = request.json.get('name')
+        locationType = request.json.get('type')
+        
+        dprint([locationName, locationType])
+        
+        if locationName == None or locationType == None or locationName == '' or locationType == '':
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please fill in all of the required fields'
+            
+            return jsonify(retinfo)
+                
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM locations WHERE name = %s', (locationName,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Name of location has already been taken'
+            
+            return jsonify(retinfo)
+        
+        if locationType == 'dorm':
+            locationType = 2
+        elif locationType == 'destination':
+            locationType = 1
+        else:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid location type'
+            
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('INSERT INTO locations (name, type) VALUES (%s, %s)', (locationName, locationType,))
+                dbcursor.execute('SELECT LAST_INSERT_ID()')
+                dbcursorfetch = dbcursor.fetchall()
+                
+        retinfo['status'] = 'ok'
+        retinfo['locationid'] = dbcursorfetch[0][0]
+        
+        return jsonify(retinfo)
+    
 @app.route('/editStudent', methods=['POST'])
 def editStudent():
     if ensureLoggedIn(session):
         retinfo = {}
         
         studentid = request.json.get('studentid')
+        
+        try:
+            deleteStudent = request.json.get('delete')
+            if deleteStudent == 'true':
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('SELECT * FROM students WHERE studentid = %s', (studentid,))
+                        dbcursorfetch = dbcursor.fetchall()
+                        
+                if len(dbcursorfetch) < 1:
+                    retinfo['status'] = 'error'
+                    retinfo['errorinfo'] = 'Student does not exist'
+                    
+                    return jsonify(retinfo)
+                
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('DELETE FROM students WHERE studentid = %s', (studentid,))
+                
+                retinfo['status'] = 'ok'
+                
+                return jsonify(retinfo)
+        except:
+            pass
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM students WHERE studentid = %s', (studentid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Student does not exist'
+            
+            return jsonify(retinfo)
+        
         studentName = request.json.get('name')
         studentGrade = request.json.get('grade')
         studentFloor = request.json.get('floor')
         studentCardid = request.json.get('cardid')
         studentImage = request.json.get('image')
         
-        print([studentid, studentName, studentGrade, studentFloor, studentCardid])
+        dprint([studentid, studentName, studentGrade, studentFloor, studentCardid])
         
         if studentName == None or studentGrade == None or studentFloor == None or studentName == '' or studentGrade == '' or studentFloor == '':
             retinfo['status'] = 'error'
@@ -909,17 +1153,17 @@ def editStudent():
                     dbcursor.execute('SELECT type, locationid FROM locations WHERE name = %s', (studentFloor,))
                     dbcursorfetch = dbcursor.fetchall()
                     
-            print(dbcursorfetch)
+            dprint(dbcursorfetch)
 
             if len(dbcursorfetch) < 1:
-                print('de')
+                dprint('de')
                 retinfo['status'] = 'error'
                 retinfo['errorinfo'] = 'Please enter a valid floor name'
 
                 return jsonify(retinfo)
 
             if dbcursorfetch[0][0] != 2:
-                print('dl')
+                dprint('dl')
                 retinfo['status'] = 'error'
                 retinfo['errorinfo'] = 'Location selected is a destination'
 
@@ -927,7 +1171,7 @@ def editStudent():
             
             studentFloorId = dbcursorfetch[0][1]
         except:
-            print('dd')
+            dprint('dd')
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Please enter a valid floor name'
 
@@ -949,6 +1193,127 @@ def editStudent():
         
         return jsonify(retinfo)
                 
+@app.route('/editUser', methods=['POST'])
+def editUser():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        userid = request.json.get('userid')
+        
+        try:
+            deleteUser = request.json.get('delete')
+            if deleteUser == 'true':
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('SELECT * FROM users WHERE userid = %s', (userid,))
+                        dbcursorfetch = dbcursor.fetchall()
+                        
+                if len(dbcursorfetch) < 1:
+                    retinfo['status'] = 'error'
+                    retinfo['errorinfo'] = 'User does not exist'
+                    
+                    return jsonify(retinfo)
+                
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('DELETE FROM users WHERE userid = %s', (userid,))
+                
+                retinfo['status'] = 'ok'
+                
+                return jsonify(retinfo)
+        except:
+            pass
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM users WHERE userid = %s', (userid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'User does not exist'
+            
+            return jsonify(retinfo)
+        
+        userName = request.json.get('name')
+        userEmail = request.json.get('email')
+        userRole = request.json.get('role')
+        userLocation = request.json.get('location')
+        userPassword = request.json.get('password')
+        
+        dprint([userName, userEmail, userRole, userLocation, userPassword])
+        
+        if userName == None or userEmail == None or userRole == None or userLocation == None or userName == '' or userEmail == '' or userRole == '' or userLocation == '':
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please fill in all of the required fields'
+            
+            return jsonify(retinfo)
+                
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM users WHERE name = %s AND userid != %s', (userName, userid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Name of user has already been taken'
+            
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM users WHERE email = %s AND userid != %s', (userEmail, userid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Email of user has already been taken'
+            
+            return jsonify(retinfo)
+        
+        if userPassword == None or userPassword == '':
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT password FROM users WHERE userid = %s', (userid,))
+                    dbcursorfetch = dbcursor.fetchall()
+                    
+            userPassword = dbcursorfetch[0][0]
+            
+        else:
+            userPassword = generateSHA256(userPassword)
+            
+        try:
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT type, locationid FROM locations WHERE name = %s', (userLocation,))
+                    dbcursorfetch = dbcursor.fetchall()
+            
+            userLocationId = dbcursorfetch[0][1]
+        except:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid location'
+            
+            return jsonify(retinfo)
+        
+        if userRole == 'admin':
+            userRoleId = 1
+        elif userRole == 'proctor':
+            userRoleId = 2
+        elif userRole == 'approver':
+            userRoleId = 3
+        else:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid role'
+            
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('UPDATE users SET name = %s, email = %s, role = %s, locationid = %s, password = %s WHERE userid = %s', (userName, userEmail, userRoleId, userLocationId, userPassword, userid,))
+        
+        retinfo['status'] = 'ok'
+        
+        return jsonify(retinfo)
     
 @app.route('/searchStudents', methods=['POST'])
 def searchStudents():
@@ -1030,6 +1395,86 @@ def searchStudents():
         
         return jsonify(retinfo)
     
+@app.route('/searchUsers', methods=['POST'])
+def searchUsers():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        searchFilter = request.json.get('searchFilter')
+        
+        dprint(searchFilter)
+        
+        sqlquery = "SELECT userid, name, email, role, locationid FROM users WHERE 1 = 1 "
+        sqlqueryvar = []
+        
+        try:
+            nameFilter = str(searchFilter['name'])
+            nameKeywords = nameFilter.split()
+            dprint(nameKeywords)
+            for keyword in nameKeywords:
+                dprint(keyword)
+                sqlquery += 'AND name LIKE %s '
+                sqlqueryvar.append(f'%{keyword}%')
+        except KeyError:
+            pass
+        
+        try:
+            strictNameFilter = str(searchFilter['strictname'])
+            dprint(strictNameFilter)
+            sqlquery += 'AND name = %s '
+            sqlqueryvar.append(strictNameFilter)
+        except KeyError:
+            pass
+        
+        try:
+            emailFilter = str(searchFilter['email'])
+            dprint(emailFilter)
+            sqlquery += 'AND email = %s '
+            sqlqueryvar.append(emailFilter)
+        except KeyError:
+            pass
+        
+        try:
+            roleFilter = str(searchFilter['role'])
+            dprint(roleFilter)
+            sqlquery += 'AND role = %s '
+            sqlqueryvar.append(roleFilter)
+        except KeyError:
+            pass
+        
+        try:
+            locationFilter = str(searchFilter['location'])
+            dprint(locationFilter)
+            sqlquery += 'AND locationid = %s '
+            sqlqueryvar.append(locationFilter)
+        except KeyError:
+            pass
+        
+        dprint(sqlquery)
+        dprint(sqlqueryvar)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dprint(sqlquery)
+                dprint(sqlqueryvar)
+                dbcursor.execute(sqlquery, sqlqueryvar)
+                dprint('execed')
+                dprint(dbcursor.statement)
+                dbcursorfetch = dbcursor.fetchall()
+                
+        retinfo['status'] = 'ok'
+        retinfo['users'] = dbcursorfetch[:querySearchLimit]
+
+        return jsonify(retinfo)   
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
 @app.route('/getLocationInfo', methods=['POST'])    
 def getLocationInfo():
     if ensureLoggedIn(session):
@@ -1088,7 +1533,13 @@ def updateUserLocation():
         
         oid = getOidFromSession(session)
         
-        userid = checkUserInformation("userid", oid)[0]
+        urin = checkUserInformation("userid", oid)
+        if urin == None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            
+            return jsonify(retinfo)
+        userid = urin[0]
         
         locationName = str(request.json.get('location'))
         
@@ -1131,8 +1582,14 @@ def getUserInfo():
         
         oid = getOidFromSession(session)
         
+        urin = checkUserInformation("userid, name, email, locationid", oid) 
+        if urin == None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            
+            return jsonify(retinfo)
         userinfo = ["user"]
-        userinfo += checkUserInformation("userid, name, email, locationid", oid) 
+        userinfo += urin
         userinfo = [userinfo]
         
         dprint(userinfo)
@@ -1237,7 +1694,13 @@ def newPass():
         
         oid = getOidFromSession(session)
         
-        userinfo = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+        urin = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+        if urin == None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            
+            return jsonify(retinfo)
+        userinfo = urin
         userid = userinfo[0]
         userlocationid = userinfo[5]
         timestamp = currentDatetime()

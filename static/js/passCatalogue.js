@@ -14,6 +14,13 @@ If you don't understand what you are doing, please close this window.
 如果您不明白自己在做什么，请关闭此窗口。
 `, 'color: red') 
 
+window.debug = false
+function dlog(text) {
+    if (window.debug) {
+        console.log(text)
+    }
+}
+
 window.onbeforeunload = function(e) {
     return 'Are you sure you want to leave this page?  You will lose any unsaved data.';
   };
@@ -21,7 +28,6 @@ window.onbeforeunload = function(e) {
 function triggerDisplayUpdate() {
     document.getElementById(window.lastfilterchoice).click()
 }
-
 
 async function getLocationId(type) {
     try {
@@ -60,7 +66,7 @@ async function getLocationId(type) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -96,7 +102,7 @@ async function getUserInfo() {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -132,7 +138,7 @@ async function generateKioskToken() {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -181,7 +187,7 @@ async function getStudents(filters) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -220,7 +226,7 @@ async function addStudent(studentName, studentGrade, studentFloor, studentCardid
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -258,7 +264,7 @@ async function getStudentInfo(studentid) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -296,7 +302,7 @@ async function updateUserLocation(locationName) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -308,7 +314,7 @@ function createAlertPopup(closetimeout, type = null, title, body, alertid = '') 
     let alertElement = document.createElement('div');
     alertElement.setAttribute('id', alertid)
     alertElement.classList.add('alert')
-    console.log(type)
+    dlog(type)
     if (type != null && type != undefined && type != '') {
         alertElement.classList.add(type)
     }
@@ -379,7 +385,7 @@ async function createNewStudentPass(studentid, destinationid) {
                     var approveRightNow = confirm('Pass has been created but is not active. Do you also want to approve and activate the pass right now? (The student leaves now)')
                     if (approveRightNow) {
                         var updateResult = updateStudentPass({passid: responseJson.passid, approve: true})
-                        console.log(updateResult,)
+                        dlog(updateResult,)
                         if (updateResult != 'error') {
                             createAlertPopup(5000, type = 'success',' Approve Success', `${studentName} has been approved.`)
                         } else {
@@ -394,7 +400,7 @@ async function createNewStudentPass(studentid, destinationid) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -427,9 +433,9 @@ async function updateStudentPass(params) {
                 try {
                     document.getElementById(`${params['passid'].toString()}alert`).remove()
                 } catch (error) {
-                    console.log('No alert found to dismiss')
+                    dlog('No alert found to dismiss')
                 }
-                console.log(responseJson)
+                dlog(responseJson)
                 return responseJson
             default:
                 createAlertPopup(5000, null, 'Error', 'Server returned unreadable data')
@@ -437,7 +443,7 @@ async function updateStudentPass(params) {
         }
         
     } catch (error) {
-        console.log('Error:', error);
+        dlog('Error:', error);
         createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
         return 0
     }
@@ -521,7 +527,7 @@ async function setStudentIndex(studentsJson) {
                 if (updateResult != 'error') {
                     if (updateResult.elapsedtime != null || updateResult.elapsedtime != undefined) {
                         var elapsedstring = ''
-                        console.log(updateResult.elapsedtimewarning)
+                        dlog(updateResult.elapsedtimewarning)
                         if (updateResult.elapsedtimewarning == 'min') {
                             alertType = 'warning'
                             elapsedstring = 'The travel time of the student might be too short. Elapsed Time: '
@@ -536,8 +542,8 @@ async function setStudentIndex(studentsJson) {
                             alertType = 'success'
                         }
                         var updateResultET = updateResult.elapsedtime
-                        console.log('d')
-                        console.log(updateResultET)
+                        dlog('d')
+                        dlog(updateResultET)
                         if (updateResultET[0] != 0) {
                             if (updateResultET[0] == 1) {
                                 elapsedstring += '1 Hour '
@@ -647,6 +653,13 @@ function setFilterDisplay(text) {
 }
 
 async function mainProcess() {
+    document.getElementById('usernameTopbar').onclick = function(event) {
+        var signoutNow = confirm('Do you want to signout now?')
+        if (signoutNow) {
+            window.location = '/signout'
+        }
+    }
+
     var destinationIds = await getLocationId(1)
     var floorIds = await getLocationId(2)
     var userinfo = await getUserInfo()
@@ -725,13 +738,6 @@ async function mainProcess() {
         }
         }
     )
-
-    document.getElementById('usernameTopbar').onclick = function(event) {
-        var signoutNow = confirm('Do you want no signout now?')
-        if (signoutNow) {
-            window.location = '/signout'
-        }
-    }
 
     const locationSelector = window.document.getElementById('locationSelector')
 

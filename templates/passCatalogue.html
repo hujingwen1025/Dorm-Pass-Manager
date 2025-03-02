@@ -12,6 +12,7 @@
             -webkit-user-select: none; /* Safari */
             -ms-user-select: none; /* IE 10 and IE 11 */
             user-select: none; /* Standard syntax */
+            height: 100vh;
         }
         
         .top-bar {
@@ -216,10 +217,17 @@
         .closebtn:hover {
           color: black;
         }
+
+        .googleTranslateElement {
+            bottom: 0px;
+            position: absolute;
+        }
     </style>
+
     <script src="/static/js/passCatalogue.js"></script>
 <script src="/static/js/tamperDetect.js"></script>
 </head>
+
 <body id="body">
     <div class="alertContainer" id="alertContainer"></div>
     <div class="top-bar">
@@ -230,7 +238,7 @@
             <button class="material-button" id="settingsNavButton">Settings</button>
             <button class="material-button kiosk-button" id="kioskNavButton" onclick="startKioskMode()">KIOSK</button>
         </div>
-        <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar"></span> | 
+        <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar">-</span> | 
             <select name="location" class="locationSelector" id="locationSelector">
             </select>
         </span>
@@ -256,6 +264,7 @@
             </ul>
         </div>
     </div>
+    <div id="google_translate_element" class="googleTranslateElement"></div>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
