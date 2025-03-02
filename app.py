@@ -185,7 +185,7 @@ class sessionStorage:
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('INSERT INTO sessions (oid, passkey, expdate) VALUES (%s, %s, %s)', (oid, passkey, expdate))
+                dbcursor.execute('INSERT INTO sessions (oid, passkey, expdate, active) VALUES (%s, %s, %s, %s)', (oid, passkey, expdate, True))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
                 result = dbcursor.fetchall()
                                 
@@ -194,10 +194,15 @@ class sessionStorage:
     def verify(sessionid, passkey):
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT oid, expdate FROM sessions WHERE sessionid = %s AND passkey = %s', (sessionid, passkey))
+                dbcursor.execute('SELECT oid, expdate, active FROM sessions WHERE sessionid = %s AND passkey = %s', (sessionid, passkey))
                 result = dbcursor.fetchall()
         
         if len(result) < 1:
+            return None
+        
+        sessionActive = result[0][2]
+        
+        if not sessionActive:
             return None
 
         oid = result[0][0]
@@ -207,6 +212,13 @@ class sessionStorage:
             return None
         
         return oid
+    
+    def deactivate(sessionid, passkey):
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('UPDATE sessions SET active = FALSE WHERE sessionid = %s AND passkey = %s', (sessionid, passkey))
+                
+        return True
     
 def getOidFromSession(session):
     sessionid = decrypt(str(session.get('sessionid')))
@@ -242,8 +254,12 @@ def kiosk():
     
 @app.route('/signout')
 def signout():
-    session.clear()
-    return redirect('/')
+    deactivateResult = sessionStorage.deactivate(decrypt(str(session.get('sessionid'))), decrypt(str(session.get('passkey'))))
+    if deactivateResult:
+        session.clear()
+        return redirect('/')
+    else:
+        return 'Error signing out'
 
 @app.route('/maintainerSignin')
 def maintainerSignin():
@@ -326,7 +342,7 @@ def maintainerLoginCallback():
     else:
         return render_template('incorrectCaptcha.html')
     
-@app.route('/searchLocations', methods=['POST'])
+@app.route('/api/searchLocations', methods=['POST'])
 def searchLocations():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -377,7 +393,7 @@ def searchLocations():
             
             return jsonify(retinfo)
         
-@app.route('/editLocation', methods=['POST'])
+@app.route('/api/editLocation', methods=['POST'])
 def editLocation():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -458,7 +474,7 @@ def editLocation():
         
         return jsonify(retinfo)
     
-@app.route('/getLocationId', methods=['POST'])
+@app.route('/api/getLocationId', methods=['POST'])
 def getLocationId():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -483,7 +499,7 @@ def getLocationId():
         
         return jsonify(retinfo)
     
-@app.route('/generateKioskToken', methods=['POST'])
+@app.route('/api/generateKioskToken', methods=['POST'])
 def generateKioskToken():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -509,7 +525,7 @@ def generateKioskToken():
         
         return jsonify(retinfo)
     
-@app.route('/updatePass', methods=['POST'])
+@app.route('/api/updatePass', methods=['POST'])
 def updatePass():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -669,7 +685,7 @@ def updatePass():
         
         return jsonify(retinfo)
     
-@app.route('/getStudents', methods=['POST'])
+@app.route('/api/getStudents', methods=['POST'])
 def getStudents():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -791,7 +807,7 @@ def getStudents():
         
         return jsonify(retinfo)
     
-@app.route('/addStudent', methods=['POST'])
+@app.route('/api/addStudent', methods=['POST'])
 def addStudent():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -900,7 +916,7 @@ def addStudent():
         
         return jsonify(retinfo)
     
-@app.route('/addUser', methods=['POST'])
+@app.route('/api/addUser', methods=['POST'])
 def addUser():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -944,6 +960,18 @@ def addUser():
         if userPassword == None or userPassword == '':
             userPassword = None
         else:
+            if len(userPassword) < 8:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Password must be at least 8 characters long'
+                
+                return jsonify(retinfo)
+            
+            if len(userPassword) > 32:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Password must be less than 32 characters long'
+                
+                return jsonify(retinfo)
+            
             userPassword = generateSHA256(userPassword)
 
         try:
@@ -992,7 +1020,7 @@ def addUser():
         
         return jsonify(retinfo)
     
-@app.route('/addLocation', methods=['POST'])
+@app.route('/api/addLocation', methods=['POST'])
 def addLocation():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -1040,7 +1068,7 @@ def addLocation():
         
         return jsonify(retinfo)
     
-@app.route('/editStudent', methods=['POST'])
+@app.route('/api/editStudent', methods=['POST'])
 def editStudent():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -1193,7 +1221,7 @@ def editStudent():
         
         return jsonify(retinfo)
                 
-@app.route('/editUser', methods=['POST'])
+@app.route('/api/editUser', methods=['POST'])
 def editUser():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -1315,7 +1343,7 @@ def editUser():
         
         return jsonify(retinfo)
     
-@app.route('/searchStudents', methods=['POST'])
+@app.route('/api/searchStudents', methods=['POST'])
 def searchStudents():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -1395,7 +1423,7 @@ def searchStudents():
         
         return jsonify(retinfo)
     
-@app.route('/searchUsers', methods=['POST'])
+@app.route('/api/searchUsers', methods=['POST'])
 def searchUsers():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -1475,7 +1503,7 @@ def searchUsers():
         
         return jsonify(retinfo)
     
-@app.route('/getLocationInfo', methods=['POST'])    
+@app.route('/api/getLocationInfo', methods=['POST'])    
 def getLocationInfo():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -1526,7 +1554,7 @@ def getLocationInfo():
         
         return jsonify(retinfo)
     
-@app.route('/updateUserLocation', methods=['POST'])
+@app.route('/api/updateUserLocation', methods=['POST'])
 def updateUserLocation():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -1575,7 +1603,7 @@ def updateUserLocation():
         return jsonify(retinfo)
         
     
-@app.route('/getUserInfo', methods=['POST'])
+@app.route('/api/getUserInfo', methods=['POST'])
 def getUserInfo():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -1607,7 +1635,7 @@ def getUserInfo():
         
         return jsonify(retinfo)
     
-@app.route('/getStudentInfo', methods=['POST'])
+@app.route('/api/getStudentInfo', methods=['POST'])
 def getStudentsInfo():
     if ensureLoggedIn(session):
         retinfo = {}
@@ -1641,7 +1669,7 @@ def getStudentsInfo():
         return jsonify(retinfo)
         
     
-@app.route('/newPass', methods=['POST'])
+@app.route('/api/newPass', methods=['POST'])
 def newPass():
     if ensureLoggedIn(session): 
         retinfo = {}
@@ -1763,7 +1791,7 @@ def passCatalogue():
     else:
         return redirect('/')
     
-@app.route('/getStudentImage', methods=['POST'])
+@app.route('/api/getStudentImage', methods=['POST'])
 def getStudentImage():
     if ensureLoggedIn(session):
         retinfo = {}

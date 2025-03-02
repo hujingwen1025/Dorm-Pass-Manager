@@ -20,7 +20,7 @@ function getParameterByName(name) {
 
 async function getStudentImage(studentId) {
     try {
-        const response = await fetch("/getStudentImage", {
+        const response = await fetch("/api/getStudentImage", {
             method: 'POST',
             body: JSON.stringify({
                 "studentid": studentId

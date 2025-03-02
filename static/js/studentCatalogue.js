@@ -20,7 +20,7 @@ window.onbeforeunload = function(e) {
 
 async function getLocationId(type) {
     try {
-        const response = await fetch("/getLocationId", {
+        const response = await fetch("/api/getLocationId", {
             method: 'POST',
             body: JSON.stringify({
                 "type": type
@@ -63,7 +63,7 @@ async function getLocationId(type) {
 
 async function getUserInfo() {
     try {
-        const response = await fetch("/getUserInfo", {
+        const response = await fetch("/api/getUserInfo", {
             method: 'POST',
             body: JSON.stringify({}),
             headers: {
@@ -99,7 +99,7 @@ async function getUserInfo() {
 
 async function getStudents(filters) {
     try {
-        const response = await fetch("/getStudents", {
+        const response = await fetch("/api/getStudents", {
             method: 'POST',
             body: JSON.stringify({
                 "filter": filters
@@ -137,7 +137,7 @@ async function getStudents(filters) {
 
 async function getStudentInfo(studentid) {
     try {
-        const response = await fetch("/getStudentInfo", {
+        const response = await fetch("/api/getStudentInfo", {
             method: 'POST',
             body: JSON.stringify({
                 "studentid": studentid
@@ -175,7 +175,7 @@ async function getStudentInfo(studentid) {
 
 async function updateUserLocation(locationName) {
     try {
-        const response = await fetch("/updateUserLocation", {
+        const response = await fetch("/api/updateUserLocation", {
             method: 'POST',
             body: JSON.stringify({
                 "location": locationName
@@ -252,7 +252,7 @@ function createStudentInfoDisplayPopup() {
 
 async function createNewStudentPass(studentid, destinationid) {
     try {
-        const response = await fetch("/newPass", {
+        const response = await fetch("/api/newPass", {
             method: 'POST',
             body: JSON.stringify({
                 "studentid": studentid,
@@ -304,7 +304,7 @@ async function createNewStudentPass(studentid, destinationid) {
 
 async function updateStudentPass(params) {
     try {
-        const response = await fetch("/updatePass", {
+        const response = await fetch("/api/updatePass", {
             method: 'POST',
             body: JSON.stringify(params),
             headers: {

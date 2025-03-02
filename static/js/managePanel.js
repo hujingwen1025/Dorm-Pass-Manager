@@ -23,7 +23,7 @@ function dlog(text) {
 
 async function getLocationId(type) {
     try {
-        const response = await fetch("/getLocationId", {
+        const response = await fetch("/api/getLocationId", {
             method: 'POST',
             body: JSON.stringify({
                 "type": type
@@ -66,7 +66,7 @@ async function getLocationId(type) {
 
 async function searchStudents(filters) {
     try {
-        const response = await fetch("/searchStudents", {
+        const response = await fetch("/api/searchStudents", {
             method: 'POST',
             body: JSON.stringify({
                 "searchFilter": filters
@@ -104,7 +104,7 @@ async function searchStudents(filters) {
 
 async function searchUsers(filters) {
     try {
-        const response = await fetch("/searchUsers", {
+        const response = await fetch("/api/searchUsers", {
             method: 'POST',
             body: JSON.stringify({
                 "searchFilter": filters
@@ -142,7 +142,7 @@ async function searchUsers(filters) {
 
 async function searchLocations(filters) {
     try {
-        const response = await fetch("/searchLocations", {
+        const response = await fetch("/api/searchLocations", {
             method: 'POST',
             body: JSON.stringify({
                 "searchFilters": filters
@@ -180,7 +180,7 @@ async function searchLocations(filters) {
 
 async function addUser(name, email, role, location, password = null) {
     try {
-        const response = await fetch("/addUser", {
+        const response = await fetch("/api/addUser", {
             method: 'POST',
             body: JSON.stringify({
                 "name": name,
@@ -220,7 +220,7 @@ async function addUser(name, email, role, location, password = null) {
 
 async function addStudent(studentName, studentGrade, studentFloor, studentCardid, studentImage) {
     try {
-        const response = await fetch("/addStudent", {
+        const response = await fetch("/api/addStudent", {
             method: 'POST',
             body: JSON.stringify({
                 "name": studentName,
@@ -260,7 +260,7 @@ async function addStudent(studentName, studentGrade, studentFloor, studentCardid
 
 async function addLocation(locationName, locationType) {
     try {
-        const response = await fetch("/addLocation", {
+        const response = await fetch("/api/addLocation", {
             method: 'POST',
             body: JSON.stringify({
                 "name": locationName,
@@ -297,7 +297,7 @@ async function addLocation(locationName, locationType) {
 
 async function editStudent(studentid, studentName, studentGrade, studentFloor, studentCardid, studentImage) {
     try {
-        const response = await fetch("/editStudent", {
+        const response = await fetch("/api/editStudent", {
             method: 'POST',
             body: JSON.stringify({
                 "studentid": studentid,
@@ -338,7 +338,7 @@ async function editStudent(studentid, studentName, studentGrade, studentFloor, s
 
 async function editUser(userid, userName, userEmail, userRole, userLocation) {
     try {
-        const response = await fetch("/editUser", {
+        const response = await fetch("/api/editUser", {
             method: 'POST',
             body: JSON.stringify({
                 "userid": userid,
@@ -378,7 +378,7 @@ async function editUser(userid, userName, userEmail, userRole, userLocation) {
 
 async function editLocation(locationid, locationName, locationType) {
     try {
-        const response = await fetch("/editLocation", {
+        const response = await fetch("/api/editLocation", {
             method: 'POST',
             body: JSON.stringify({
                 "locationid": locationid,
@@ -416,7 +416,7 @@ async function editLocation(locationid, locationName, locationType) {
 
 async function getUserInfo() {
     try {
-        const response = await fetch("/getUserInfo", {
+        const response = await fetch("/api/getUserInfo", {
             method: 'POST',
             body: JSON.stringify({}),
             headers: {
@@ -452,7 +452,7 @@ async function getUserInfo() {
 
 async function getLocationInfo(locationFilter) {
     try {
-        const response = await fetch("/getLocationInfo", {
+        const response = await fetch("/api/getLocationInfo", {
             method: 'POST',
             body: JSON.stringify({
                 "filters": locationFilter
@@ -490,7 +490,7 @@ async function getLocationInfo(locationFilter) {
 
 async function getStudents(filters) {
     try {
-        const response = await fetch("/getStudents", {
+        const response = await fetch("/api/getStudents", {
             method: 'POST',
             body: JSON.stringify({
                 "filter": filters
@@ -526,7 +526,7 @@ async function getStudents(filters) {
 
 async function getStudentInfo(studentid) {
     try {
-        const response = await fetch("/getStudentInfo", {
+        const response = await fetch("/api/getStudentInfo", {
             method: 'POST',
             body: JSON.stringify({
                 "studentid": studentid
@@ -564,7 +564,7 @@ async function getStudentInfo(studentid) {
 
 async function updateUserLocation(locationName) {
     try {
-        const response = await fetch("/updateUserLocation", {
+        const response = await fetch("/api/updateUserLocation", {
             method: 'POST',
             body: JSON.stringify({
                 "location": locationName
@@ -1058,7 +1058,7 @@ async function doLocationAdd() {
 
 async function deleteStudent(studentid) {
     try {
-        const response = await fetch("/editStudent", {
+        const response = await fetch("/api/editStudent", {
             method: 'POST',
             body: JSON.stringify({
                 "studentid": studentid,
@@ -1095,7 +1095,7 @@ async function deleteStudent(studentid) {
 
 async function deleteUser(userid) {
     try {
-        const response = await fetch("/editUser", {
+        const response = await fetch("/api/editUser", {
             method: 'POST',
             body: JSON.stringify({
                 "userid": userid,
@@ -1132,7 +1132,7 @@ async function deleteUser(userid) {
 
 async function deleteLocation(locationid) {
     try {
-        const response = await fetch("/editLocation", {
+        const response = await fetch("/api/editLocation", {
             method: 'POST',
             body: JSON.stringify({
                 "locationid": locationid,
