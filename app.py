@@ -2038,15 +2038,25 @@ def requestPasswordReset():
 @app.route('/resetPassword')
 def resetPassword():
         token = request.args.get('token')
+        
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT userid FROM passwordreset WHERE token = %s AND expireTime > %s', (token, currentDatetime()))
                 result = dbcursor.fetchall()
-        
+
         if len(result) < 1:
             return 'Invalid or expired password reset link', 400
         
-        return render_template('newPassword.html', token=token)
+        userid = result[0][0]
+                        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT name FROM users WHERE userid = %s', (userid,))
+                result = dbcursor.fetchall()
+                
+        username = result[0][0]
+        
+        return render_template('newPassword.html', token=token, userName=username)
     
 @app.route('/api/resetNewPassword', methods=['POST'])
 def resetNewPassword():
