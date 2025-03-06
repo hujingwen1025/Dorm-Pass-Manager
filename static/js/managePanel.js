@@ -336,7 +336,7 @@ async function editStudent(studentid, studentName, studentGrade, studentFloor, s
     }
 }
 
-async function editUser(userid, userName, userEmail, userRole, userLocation) {
+async function editUser(userid, userName, userEmail, userRole, userLocation, userPassword) {
     try {
         const response = await fetch("/api/editUser", {
             method: 'POST',
@@ -345,7 +345,8 @@ async function editUser(userid, userName, userEmail, userRole, userLocation) {
                 "name": userName,
                 "email": userEmail,
                 "role": userRole,
-                "location": userLocation
+                "location": userLocation,
+                "password": userPassword
             }),
             headers: {
                 Accept: 'application/json',
@@ -620,7 +621,7 @@ function createAlertPopup(closetimeout, type = null, title, body, alertid = '') 
     titleText.textContent = title
 
     let bodyText = document.createElement('p')
-    bodyText.textContent = body
+    bodyText.innerHTML = body
 
     alertElement.appendChild(closeButton)
     alertElement.appendChild(titleText)
@@ -956,6 +957,7 @@ async function loadUserInfoEdit(name) {
         document.getElementById('editUserName').value = ''
         document.getElementById('editUserEmail').value = ''
         document.getElementById('editUserLocation').value = ''
+        document.getElementById('editUserPassword').value = ''
 
         setUserEditDisable(true)
     }
@@ -1259,13 +1261,14 @@ async function doUserEdit() {
     var userEmail = document.getElementById('editUserEmail').value
     var userRole = document.getElementById('editUserRole').value
     var userLocation = document.getElementById('editUserLocation').value
+    var userPassword = document.getElementById('editUserPassword').value
 
     if (window.userEditId == undefined || window.userEditId == null) {
         createAlertPopup(5000, null, 'Error', 'No user selected for editing')
         return 0
     }
 
-    var editResult = await editUser(window.userEditId, userName, userEmail, userRole, userLocation)
+    var editResult = await editUser(window.userEditId, userName, userEmail, userRole, userLocation, userPassword)
     if (editResult != 'error') {
         createAlertPopup(5000, 'success', 'Success', `User ${userName} edited successfully`)
         document.getElementById('editUserChoose').value = ''

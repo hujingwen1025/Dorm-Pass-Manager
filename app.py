@@ -11,11 +11,13 @@ import time
 import string
 import random
 import hashlib
+import smtplib
+from email.mime.text import MIMEText
 
 app = Flask(__name__)
 
 app.config['SECRET_KEY'] = os.urandom(24)
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 app.config['CAPTCHA_ENABLE'] = True
 app.config['CAPTCHA_LENGTH'] = 7
@@ -28,10 +30,6 @@ captcha = FlaskSessionCaptcha(app)
 
 encryption_key = Fernet.generate_key()
 fernet = Fernet(encryption_key)
-
-passkeylength = 32
-
-querySearchLimit = 20
 
 debug = False
 
@@ -178,8 +176,61 @@ def convertSecondsToTime(seconds):
      
     return [hour, minutes, seconds]
 
+def checkNameLength(name):
+    minNameLength = int(getSettingsValue('minNameLength'))
+    maxNameLength = int(getSettingsValue('maxNameLength'))
+    
+    if len(name) < minNameLength or len(name) > maxNameLength:
+        return False
+    else:
+        return True
+    
+def checkGrade(grade):
+    minGrade = int(getSettingsValue('minGrade'))
+    maxGrade = int(getSettingsValue('maxGrade'))
+    
+    if int(grade) < minGrade or int(grade) > maxGrade:
+        return False
+    else:
+        return True
+    
+def checkCardidLength(cardid):
+    minCardidLength = int(getSettingsValue('minCardidLength'))
+    maxCardidLength = int(getSettingsValue('maxCardidLength'))
+    
+    if len(cardid) < minCardidLength or len(cardid) > maxCardidLength:
+        return False
+    else:
+        return True
+    
+def checkEmailLength(email):
+    minEmailLength = int(getSettingsValue('minEmailLength'))
+    maxEmailLength = int(getSettingsValue('maxEmailLength'))
+    
+    if len(email) < minEmailLength or len(email) > maxEmailLength:
+        return False
+    else:
+        return True
+    
+def sendEmail(subject, body, recipient_email):
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = 'DPM - Exabyte Tech'
+    msg['To'] = recipient_email
+    
+    try:
+        with smtplib.SMTP_SSL(getSettingsValue('smtpServer'), 465) as smtp_server:
+            smtp_server.login(getSettingsValue('smtpEmail'), getSettingsValue('smtpPassword'))
+
+            smtp_server.sendmail(getSettingsValue('smtpEmail'), recipient_email, msg.as_string())
+
+            return True
+    except:
+        return False
+
 class sessionStorage:
-    def create(oid = None, keepstatedays = 7):
+    def create(oid, keepstatedays):
+        passkeylength = int(getSettingsValue('passkeyLength'))
         passkey = ''.join(random.choices(string.ascii_uppercase + string.digits, k=passkeylength))
         expdate = currentDatetime() + timedelta(days=keepstatedays)
         
@@ -261,9 +312,9 @@ def signout():
     else:
         return 'Error signing out'
 
-@app.route('/maintainerSignin')
-def maintainerSignin():
-    return render_template('maintainerLogin.html')
+@app.route('/userSignin')
+def userSignin():
+    return render_template('passwordLogin.html')
     
 @app.route('/mslogin')
 def login():
@@ -288,7 +339,8 @@ def microsoftLoginCallback():
             return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
         userInfo = urin
         dprint(userInfo)
-        sessioninfo = sessionStorage.create(oid)
+        keepSessionDays = int(getSettingsValue('keepSessionDays'))
+        sessioninfo = sessionStorage.create(oid, keepSessionDays)
         session['sessionid'] = str(encrypt(sessioninfo[0]))
         session['passkey'] = str(encrypt(sessioninfo[1]))
         if userInfo == None:
@@ -312,8 +364,8 @@ def microsoftLoginCallback():
     else:
         return f'Error: {result.get("error_description")}', 400
     
-@app.route('/maintainerLoginCallback', methods=['POST'])
-def maintainerLoginCallback():
+@app.route('/passwordLoginCallback', methods=['POST'])
+def passwordLoginCallback():
     if captcha.validate():
         username = request.form['username']
         password = request.form['password']
@@ -332,7 +384,8 @@ def maintainerLoginCallback():
 
         if len(result) > 0:
             oid = result[0][0]
-            sessioninfo = sessionStorage.create(oid)
+            keepSessionDays = int(getSettingsValue('keepSessionDays'))
+            sessioninfo = sessionStorage.create(oid, keepSessionDays)
             session['sessionid'] = str(encrypt(sessioninfo[0]))
             session['passkey'] = str(encrypt(sessioninfo[1]))
             session['login'] = True
@@ -506,7 +559,8 @@ def generateKioskToken():
         
         oid = getOidFromSession(session)
         
-        sessioninfo = sessionStorage.create(oid)
+        keepSessionDays = int(getSettingsValue('keepSessionDays'))
+        sessioninfo = sessionStorage.create(oid, keepSessionDays)
         sessionid = str(sessioninfo[0])
         passskey = str(sessioninfo[1])
         
@@ -703,6 +757,8 @@ def getStudents():
         userlocation = userinfo[5]
         userlocationtype = getLocationType(userlocation)
         
+        print(userlocation)
+        
         searchfilters = request.json.get('filter')
         
         sqlquery = "SELECT passid, studentid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged FROM passes WHERE 1 = 1 "
@@ -720,10 +776,10 @@ def getStudents():
             try:
                 if userlocationtype == 1:
                     sqlquery += "AND destinationid = %s "
-                    sqlqueryvar += str(userlocation)
+                    sqlqueryvar += [userlocation]
                 else:
                     sqlquery += "AND floorid = %s "
-                    sqlqueryvar += str(userlocation)
+                    sqlqueryvar += [userlocation]
             except KeyError:
                 pass            
             
@@ -755,8 +811,8 @@ def getStudents():
         except KeyError:
             pass
         
-        dprint(sqlquery)
-        dprint(sqlqueryvar)
+        print(sqlquery)
+        print(sqlqueryvar)
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
@@ -825,7 +881,25 @@ def addStudent():
             retinfo['errorinfo'] = 'Please fill in all of the required fields'
             
             return jsonify(retinfo)
-                
+        
+        if checkNameLength(studentName) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a name with a valid length'
+            
+            return jsonify(retinfo)
+        
+        if checkGrade(studentGrade) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid grade within a valid range'
+            
+            return jsonify(retinfo)
+        
+        if checkCardidLength(studentCardid) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a card ID with a valid length'
+            
+            return jsonify(retinfo)
+        
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM students WHERE name = %s', (studentName,))
@@ -934,6 +1008,18 @@ def addUser():
             retinfo['errorinfo'] = 'Please fill in all of the required fields'
             
             return jsonify(retinfo)
+        
+        if checkNameLength(userName) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a name with a valid length'
+            
+            return jsonify(retinfo)
+        
+        if checkEmailLength(userEmail) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter an email with a valid length'
+            
+            return jsonify(retinfo)
                 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
@@ -1028,6 +1114,12 @@ def addLocation():
         locationName = request.json.get('name')
         locationType = request.json.get('type')
         
+        if checkNameLength(locationName) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a name with a valid length'
+            
+            return jsonify(retinfo)
+        
         dprint([locationName, locationType])
         
         if locationName == None or locationType == None or locationName == '' or locationType == '':
@@ -1115,6 +1207,24 @@ def editStudent():
         studentFloor = request.json.get('floor')
         studentCardid = request.json.get('cardid')
         studentImage = request.json.get('image')
+        
+        if checkNameLength(studentName) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a name with a valid length'
+            
+            return jsonify(retinfo)
+        
+        if checkGrade(studentGrade) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid grade within a valid range'
+            
+            return jsonify(retinfo)
+        
+        if checkCardidLength(studentCardid) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a card ID with a valid length'
+            
+            return jsonify(retinfo)
         
         dprint([studentid, studentName, studentGrade, studentFloor, studentCardid])
         
@@ -1226,7 +1336,22 @@ def editUser():
     if ensureLoggedIn(session):
         retinfo = {}
         
-        userid = request.json.get('userid')
+        settingsEdit = request.json.get('settingsEdit')
+        if settingsEdit == 'true':
+            seTrue = True
+            
+            oid = getOidFromSession(session)
+            userid = checkUserInformation("userid", oid)[0]
+            
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT role FROM users WHERE userid = %s', (userid,))
+                    dbcursorfetch = dbcursor.fetchall()
+                    
+            userRoleId = dbcursorfetch[0][0]
+        else:
+            seTrue = False
+            userid = request.json.get('userid')
         
         try:
             deleteUser = request.json.get('delete')
@@ -1269,9 +1394,21 @@ def editUser():
         userLocation = request.json.get('location')
         userPassword = request.json.get('password')
         
+        if checkNameLength(userName) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a name with a valid length'
+            
+            return jsonify(retinfo)
+        
+        if checkEmailLength(userEmail) == False:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter an email with a valid length'
+            
+            return jsonify(retinfo)
+        
         dprint([userName, userEmail, userRole, userLocation, userPassword])
         
-        if userName == None or userEmail == None or userRole == None or userLocation == None or userName == '' or userEmail == '' or userRole == '' or userLocation == '':
+        if userName == None or userEmail == None or (userRole == None and seTrue != True) or userLocation == None or userName == '' or userEmail == '' or (userRole == '' and seTrue != True) or userLocation == '':
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Please fill in all of the required fields'
             
@@ -1323,17 +1460,18 @@ def editUser():
             
             return jsonify(retinfo)
         
-        if userRole == 'admin':
-            userRoleId = 1
-        elif userRole == 'proctor':
-            userRoleId = 2
-        elif userRole == 'approver':
-            userRoleId = 3
-        else:
-            retinfo['status'] = 'error'
-            retinfo['errorinfo'] = 'Please enter a valid role'
-            
-            return jsonify(retinfo)
+        if not seTrue:
+            if userRole == 'admin':
+                userRoleId = 1
+            elif userRole == 'proctor':
+                userRoleId = 2
+            elif userRole == 'approver':
+                userRoleId = 3
+            else:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Please enter a valid role'
+
+                return jsonify(retinfo)
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
@@ -1410,6 +1548,8 @@ def searchStudents():
                 dprint(dbcursor.statement)
                 dbcursorfetch = dbcursor.fetchall()
                 
+        querySearchLimit = int(getSettingsValue('querySearchLimit'))
+                
         retinfo['status'] = 'ok'
         retinfo['students'] = dbcursorfetch[:querySearchLimit]
 
@@ -1435,6 +1575,23 @@ def searchUsers():
         sqlquery = "SELECT userid, name, email, role, locationid FROM users WHERE 1 = 1 "
         sqlqueryvar = []
         
+        try:
+            settingsEdit = str(searchFilter['settingsEdit'])
+            if settingsEdit == 'true':
+                oid = getOidFromSession(session)
+                userid = checkUserInformation("userid", oid)[0]
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('SELECT userid, name, email, role, locationid FROM users WHERE userid = %s', (userid,))
+                        dbcursorfetch = dbcursor.fetchall()
+                        
+                retinfo['status'] = 'ok'
+                retinfo['users'] = dbcursorfetch[0]
+                
+                return jsonify(retinfo)
+        except KeyError:
+            pass
+                
         try:
             nameFilter = str(searchFilter['name'])
             nameKeywords = nameFilter.split()
@@ -1490,6 +1647,8 @@ def searchUsers():
                 dprint(dbcursor.statement)
                 dbcursorfetch = dbcursor.fetchall()
                 
+        querySearchLimit = int(getSettingsValue('querySearchLimit'))
+                
         retinfo['status'] = 'ok'
         retinfo['users'] = dbcursorfetch[:querySearchLimit]
 
@@ -1540,6 +1699,8 @@ def getLocationInfo():
             with connection.cursor() as dbcursor:
                 dbcursor.execute(sqlquery, sqlqueryvar)
                 dbcursorfetch = dbcursor.fetchall()
+                
+        querySearchLimit = int(getSettingsValue('querySearchLimit'))
                 
         retinfo['status'] = 'ok'
         retinfo['locationinfo'] = dbcursorfetch[:querySearchLimit]
@@ -1826,6 +1987,17 @@ def getStudentImage():
 def managePanel():
     if ensureLoggedIn(session):
         return render_template('managePanel.html')
+    else:
+        return redirect('/')
+    
+@app.route('/passwordReset')
+def passwordReset():
+    return render_template('passwordReset.html')
+    
+@app.route('/settingsPanel')
+def settingsPanel():
+    if ensureLoggedIn(session):
+        return render_template('settingsPanel.html')
     else:
         return redirect('/')
 

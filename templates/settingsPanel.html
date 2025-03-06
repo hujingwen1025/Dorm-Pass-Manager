@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPM - Pass Catalogue</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10 and IE 11 */
+            user-select: none; /* Standard syntax */
+        }
+        
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .text {
+            display: flex;
+        }
+
+        .material-button {
+            background-color: #0080ff;
+            border: none;
+            border-radius: 3px;
+            height: 30px;
+            width: 100px;
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            margin: 5px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .material-button:hover {
+            background-color:#003dcb;
+            transform: scale(1.04);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.65);
+        }
+
+        .userInfoTopbar {
+            border: solid;
+            border-width: 0.2px;
+            border-radius: 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            padding: 7px;
+        }
+
+        .usernameTopbar {
+            font-weight: 675;
+        }
+
+        .locationSelector {
+            font-size: 16px;
+            background-color: #f0f0f0;
+            border: none;
+            font-weight: 675;
+        }
+
+        .locationSelector:focus {
+            outline: none;
+        }
+
+        .card {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            padding-top: 5px;
+            border-radius: 7.5px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .options-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+
+        .option {
+            padding-top: 5px;
+            padding-bottom: 5px;
+            text-align: center;
+            width: 100px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            border-radius: 7.5px;
+        }
+
+        .optionActivated {
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .option-icon {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 10px;
+        }
+
+        .option p {
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .containerHidden {
+            display: none;
+        }
+
+        .manageContainer {
+            margin-top: 10px;
+            margin-left: 10px;
+        }
+
+        .actionSeparationLine {
+            margin: 15px;
+        }
+
+        hr {
+            border: 0;
+            height: 1.25px;
+            background: #2a2a2a;
+        }
+
+        .buttonSelector {
+            text-align: center;
+            width: 125px;
+            transition: all 0.2s ease;
+            border-radius: 5px;
+            margin-right: 10px;
+            float: left;
+        }
+
+        .buttonSelectorActivated {
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .buttonContainer {
+            height: 55px;
+        }
+
+        .formLabel {
+            padding: 10px;
+            font-weight: 750;
+        }
+
+        .formInput {
+            margin: 10px;
+        }
+
+        .formInput {
+            background-color: #ffffff;
+            width: 95%;
+            height: 25px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 2px;
+            padding-left: 5px;
+            padding-right: 0;
+            font-size: 15px;
+        }
+
+        .formSelect {
+            height: 30px;
+            width: 96%
+        }
+
+        .formSubmit {
+            display: block; 
+            margin: 0 auto;
+            width: 90%;
+            height: 35px;
+            background-color: #007bff;
+            border: none;
+            color: #ffffff;
+            border-radius: 5px;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .formSubmit:hover {
+            transform: scale(1.04);
+            background-color:#004cff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .formSubmit:active {
+            transform: scale(1.02);
+            background-color:#004cff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .actionCard {
+            margin-top: 10px;
+        }
+
+        .alert {
+            padding: 20px;
+            background-color: #f7675a;
+            color: white;
+            opacity: 1;
+            transition: opacity 0.6s;
+            margin-bottom: 15px;
+            z-index: 1000;
+            margin: 5px;
+            border-radius: 7.5px;
+        }
+        .alertContainer {
+          right: 0;
+          top: 0;
+          float: right;
+          max-width: 27%;
+          min-width: 27%;
+          position: absolute;
+          margin-right: 5px;
+        }
+
+        .redAction {
+            background-color: #ff4d4d;
+        }
+
+        .redAction:hover {
+            background-color: #ff0000;
+        }
+        
+        .alert.success {background-color: #4bb885;}
+        .alert.info {background-color: #52a9f5;}
+        .alert.warning {background-color: #ffa946;}
+        
+        .closebtn {
+          margin-left: 15px;
+          color: white;
+          font-weight: bold;
+          float: right;
+          font-size: 22px;
+          line-height: 20px;
+          cursor: pointer;
+          transition: 0.3s;
+        }
+        
+        .closebtn:hover {
+          color: black;
+        }
+    </style>
+
+    <script src="/static/js/settingsPanel.js"></script>
+<script src="/static/js/tamperDetect.js"></script>
+<body id="body">
+    <div class="alertContainer" id="alertContainer"></div>
+    <div class="top-bar">
+        <div class="text">
+            <button class="material-button" id="passesNavButton">Passes</button>
+            <button class="material-button" id="studentsNavButton">Students</button>
+            <button class="material-button" id="manageNavButton">Manage</button>
+            <button class="material-button" id="settingsNavButton">Settings</button>
+        </div>
+        <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar">-</span> | 
+            <select name="location" class="locationSelector" id="locationSelector">
+            </select>
+        </span>
+    </div>
+
+    <div class="card">
+        <h2>Settings Panel</h2>
+        <label class="formLabel" for="name">Full Name</label><br>
+        <input class="formInput formInput" type="text" id="editUserName" name="name" placeholder="Xiaoming John Li" required ><br>
+        <label class="formLabel" for="email">Email</label><br>
+        <input class="formInput formInput" type="email" id="editUserEmail" name="email" placeholder="" required ><br>
+        <label class="formLabel" for="location">Location</label><br>
+        <input class="formInput formInput" type="text" id="editUserLocation" name="location" placeholder="West 6" list="editUserFoundLocations" ><br>
+        <datalist id="editUserFoundLocations">
+        </datalist>
+        <label class="formLabel" for="password">Password (Optional)</label><br>
+        <input class="formInput formInput" type="password" id="editUserPassword" name="password" required ><br>
+        <input class="formInput formSubmit" type="button" value="Submit" id="editUserButtonSubmit"><br>
+        <center><p>For changing your role and deleting your own your account, please go to the Manage Panel.</p></center>
+    </div>
+</body>
+</html>

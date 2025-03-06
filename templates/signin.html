@@ -39,7 +39,7 @@
             border: none;
             background-color: rgba(0, 0, 0, 0)
         }
-        .maintainerbutton {
+        .passwordloginbutton {
             font-size: 12px;
             position: absolute;
             bottom: 0;
@@ -48,6 +48,11 @@
         .exabyteText {
             font-size: 15px;
             font-weight: bold;
+        }
+
+        .exabyteText a {
+            text-decoration: none;
+            color: inherit;
         }
 
         button {
@@ -100,8 +105,8 @@
         <div class="sign-in-options">
             <button class="microsoft-sign-in" onclick="renderLoader(); window.location.replace('/mslogin');"></button>
         </div>
-        <p class="exabyteText">POWERED BY EXABYTE</p>
+        <p class="exabyteText"><a href="https://google.com">POWERED BY EXABYTE</a></p>
     </div>
-    <p class="maintainerbutton"><a href="/maintainerSignin">Maintainer Sign In</a></p>
+    <p class="passwordloginbutton"><a href="/userSignin">Sign In With Password</a></p>
 </body>
 </html>
