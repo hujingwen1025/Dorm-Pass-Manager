@@ -212,6 +212,30 @@ def checkEmailLength(email):
     else:
         return True
     
+def checkPassword(password):
+    error_message = ""
+    
+    if len(password) < 8:
+        error_message += "Password is too short (minimum 8 characters)\n"
+    elif len(password) > 20:
+        error_message += "Password is too long (maximum 20 characters)\n"
+    
+    if not password.isalnum():
+        error_message += "Password contains special characters (only letters and numbers allowed)\n"
+    
+    if not any(char.isupper() for char in password):
+        error_message += "Password must contain at least one uppercase letter\n"
+    
+    if not any(char.islower() for char in password):
+        error_message += "Password must contain at least one lowercase letter\n"
+    
+    if not any(char.isdigit() for char in password):
+        error_message += "Password must contain at least one number\n"
+    
+    if error_message:
+        return False, error_message.strip()
+    return True, "Password is valid"
+    
 def sendEmail(subject, body, recipient_email):
     msg = MIMEText(body)
     msg['Subject'] = subject
@@ -2060,26 +2084,34 @@ def resetPassword():
     
 @app.route('/api/resetNewPassword', methods=['POST'])
 def resetNewPassword():
-        token = request.json.get('token')
-        newPassword = request.json.get('newPassword')
+    retinfo = {}
+    token = request.json.get('token')
+    newPassword = request.json.get('newPassword')
+    
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT userid FROM passwordreset WHERE token = %s AND expireTime > %s', (token, currentDatetime()))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        return jsonify({'status': 'error', 'errorinfo': 'Invalid or expired token'})
+    
+    checkPasswordResult = checkPassword(newPassword)
+    if checkPasswordResult[0] == False:
+        retinfo["status"] = 'error'
+        retinfo['errorinfo'] = checkPasswordResult[1]
         
-        with dbConnect() as connection:
-            with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT userid FROM passwordreset WHERE token = %s AND expireTime > %s', (token, currentDatetime()))
-                result = dbcursor.fetchall()
-        
-        if len(result) < 1:
-            return jsonify({'status': 'error', 'errorinfo': 'Invalid or expired token'})
-        
-        userid = result[0][0]
-        hashed_password = generateSHA256(newPassword)
-        
-        with dbConnect() as connection:
-            with connection.cursor() as dbcursor:
-                dbcursor.execute('UPDATE users SET password = %s WHERE userid = %s', (hashed_password, userid))
-                dbcursor.execute('DELETE FROM passwordreset WHERE token = %s', (token,))
-        
-        return jsonify({'status': 'ok'})
+        return jsonify(retinfo)
+    
+    userid = result[0][0]
+    hashed_password = generateSHA256(newPassword)
+    
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('UPDATE users SET password = %s WHERE userid = %s', (hashed_password, userid))
+            dbcursor.execute('DELETE FROM passwordreset WHERE token = %s', (token,))
+    
+    return jsonify({'status': 'ok'})
 
 if __name__ == '__main__':
     app.run(port=8080, host="0.0.0.0")
