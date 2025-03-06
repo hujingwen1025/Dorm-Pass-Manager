@@ -231,12 +231,14 @@ async function updateUserLocation(locationName) {
     }
 }
 
-function createAlertPopup(type, title, body) {
+function createAlertPopup(closetimeout, type = null, title, body, alertid = '') {
     let alertContainer = document.getElementById('alertContainer')
 
     let alertElement = document.createElement('div');
+    alertElement.setAttribute('id', alertid)
     alertElement.classList.add('alert')
-    if (alertElement != null) {
+    dlog(type)
+    if (type != null && type != undefined && type != '') {
         alertElement.classList.add(type)
     }
 
@@ -249,7 +251,7 @@ function createAlertPopup(type, title, body) {
     titleText.textContent = title
 
     let bodyText = document.createElement('p')
-    bodyText.textContent = body
+    bodyText.innerHTML = body
 
     alertElement.appendChild(closeButton)
     alertElement.appendChild(titleText)
@@ -257,7 +259,9 @@ function createAlertPopup(type, title, body) {
 
     alertContainer.appendChild(alertElement)
 
-    let closeTimout = setTimeout(function () {alertElement.remove()}, 5000);
+    if (closetimeout != null) {
+        let closeTimout = setTimeout(function () {alertElement.remove()}, closetimeout);
+    }
 }
 
 async function setLocationSelector(locationJson) {
@@ -299,6 +303,86 @@ async function loadUserInfoEdit() {
     }
 }
 
+async function loadLocationInfoEdit(name) {
+    var locationList = await searchLocations({'strictname': name})
+    if (locationList.length > 0) {
+        dlog('found location, updating')
+        window.locationEditId = locationList[0][0]
+        var nameInfo = locationList[0][1]
+        var typeInfo = locationList[0][2]
+
+        document.getElementById('editLocationName').value = nameInfo
+        if (typeInfo == 1) {
+            document.getElementById('editLocationType').value = 'destination'
+        } else if (typeInfo == 2) {
+            document.getElementById('editLocationType').value = 'dorm'
+        } else {
+            createAlertPopup(5000, null, 'Error', 'Error while getting location type')
+        }
+
+        setLocationEditDisable(false)
+    } else {
+        dlog('location not found, clearing')
+        document.getElementById('editLocationName').value = ''
+        setLocationEditDisable(true)
+    }
+}
+
+async function editUser(userName, userEmail, userLocation, userPassword) {
+    try {
+        const response = await fetch("/api/editUser", {
+            method: 'POST',
+            body: JSON.stringify({
+                "settingsEdit": 'true',
+                "name": userName,
+                "email": userEmail,
+                "location": userLocation,
+                "password": userPassword
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Saving Settings', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return 0
+            default:
+                return 'error'
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 'error'
+    }
+}
+
+async function doUserEdit() {
+    var userName = document.getElementById('editUserName').value
+    var userEmail = document.getElementById('editUserEmail').value
+    var userLocation = document.getElementById('editUserLocation').value
+    var userPassword = document.getElementById('editUserPassword').value
+
+    var editUserResult = await editUser(userName, userEmail, userLocation, userPassword)
+
+    if (editUserResult == 'error') {
+        dlog('Settings Save Error')
+    } else {
+        createAlertPopup(5000, 'success', 'Settings Saved', 'Settings has been successfully saved to the server')
+    }
+}
+
 async function searchUsers(filters) {
     try {
         const response = await fetch("/api/searchUsers", {
@@ -327,7 +411,7 @@ async function searchUsers(filters) {
                 return responseJson.users
                 break;
             default:
-                return None
+                return 'error'
         }
 
     } catch (error) {
@@ -394,6 +478,8 @@ async function mainProcess() {
         loadLocationInfoEdit(editLocationDatalistDisplay.value)
     });
 
+    const editUserButtonSubmit = document.getElementById('editUserButtonSubmit')
+    editUserButtonSubmit.onclick = function () {doUserEdit()}
 };
 
 document.addEventListener('DOMContentLoaded', () => {

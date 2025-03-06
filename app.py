@@ -2001,5 +2001,75 @@ def settingsPanel():
     else:
         return redirect('/')
 
+@app.route('/api/passwordReset', methods=['POST'])
+def requestPasswordReset():
+    email = request.json.get('email')
+    
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT userid FROM users WHERE email = %s', (email,))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        delaySeconds = random.randint(45, 65)
+        time.sleep(delaySeconds / 10)
+        return jsonify({'status': 'ok'})
+    
+    userid = result[0][0]
+    token = ''.join(random.choices(string.ascii_uppercase + string.digits, k=32))
+    expireTime = currentDatetime() + timedelta(hours=1)
+    
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('INSERT INTO passwordreset (userid, token, expireTime) VALUES (%s, %s, %s)', (userid, token, expireTime))
+    
+    reset_link = f"http://localhost:8080/resetPassword?token={token}"
+    email_body = f"Click the link to reset your password: {reset_link}"
+    
+    if sendEmail('Password Reset Request', email_body, email):
+        delaySeconds = random.randint(0, 20)
+        time.sleep(delaySeconds / 10)
+        return jsonify({'status': 'ok'})
+    else:
+        delaySeconds = random.randint(0, 20)
+        time.sleep(delaySeconds / 10)
+        return jsonify({'status': 'error', 'errorinfo': 'Failed to send email'})
+
+@app.route('/resetPassword')
+def resetPassword():
+        token = request.args.get('token')
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT userid FROM passwordreset WHERE token = %s AND expireTime > %s', (token, currentDatetime()))
+                result = dbcursor.fetchall()
+        
+        if len(result) < 1:
+            return 'Invalid or expired password reset link', 400
+        
+        return render_template('newPassword.html', token=token)
+    
+@app.route('/api/resetNewPassword', methods=['POST'])
+def resetNewPassword():
+        token = request.json.get('token')
+        newPassword = request.json.get('newPassword')
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT userid FROM passwordreset WHERE token = %s AND expireTime > %s', (token, currentDatetime()))
+                result = dbcursor.fetchall()
+        
+        if len(result) < 1:
+            return jsonify({'status': 'error', 'errorinfo': 'Invalid or expired token'})
+        
+        userid = result[0][0]
+        hashed_password = generateSHA256(newPassword)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('UPDATE users SET password = %s WHERE userid = %s', (hashed_password, userid))
+                dbcursor.execute('DELETE FROM passwordreset WHERE token = %s', (token,))
+        
+        return jsonify({'status': 'ok'})
+
 if __name__ == '__main__':
     app.run(port=8080, host="0.0.0.0")
