@@ -2047,7 +2047,8 @@ def requestPasswordReset():
         with connection.cursor() as dbcursor:
             dbcursor.execute('INSERT INTO passwordreset (userid, token, expireTime) VALUES (%s, %s, %s)', (userid, token, expireTime))
     
-    reset_link = f"http://localhost:8080/resetPassword?token={token}"
+    serverUrl = getSettingsValue('serverURL')
+    reset_link = f"{serverUrl}/resetPassword?token={token}"
     email_body = f"Click the link to reset your password: {reset_link}"
     
     if sendEmail('Password Reset Request', email_body, email):
@@ -2069,7 +2070,7 @@ def resetPassword():
                 result = dbcursor.fetchall()
 
         if len(result) < 1:
-            return 'Invalid or expired password reset link', 400
+            return render_template('expiredPassReset.html')
         
         userid = result[0][0]
                         
