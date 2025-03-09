@@ -781,7 +781,7 @@ def getStudents():
         userlocation = userinfo[5]
         userlocationtype = getLocationType(userlocation)
         
-        print(userlocation)
+        dprint(userlocation)
         
         searchfilters = request.json.get('filter')
         
@@ -835,8 +835,8 @@ def getStudents():
         except KeyError:
             pass
         
-        print(sqlquery)
-        print(sqlqueryvar)
+        dprint(sqlquery)
+        dprint(sqlqueryvar)
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
@@ -2028,6 +2028,7 @@ def settingsPanel():
 @app.route('/api/passwordReset', methods=['POST'])
 def requestPasswordReset():
     email = request.json.get('email')
+    retinfo = {}
     
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
@@ -2040,6 +2041,20 @@ def requestPasswordReset():
         return jsonify({'status': 'ok'})
     
     userid = result[0][0]
+    
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute("SELECT expireTime FROM passwordreset WHERE userid = %s", (userid,))
+            result = dbcursor.fetchall()
+            
+    for singleReset in result:
+        timeSinceLastReset = int((currentDatetime() - (singleReset[0] - timedelta(hours=1))).total_seconds())
+        if timeSinceLastReset < 60:
+            retinfo["status"] = 'error'
+            retinfo["errorinfo"] = f'Your requests are too frequent. Please wait for {60 - timeSinceLastReset} seconds then try again.'
+            
+            return jsonify(retinfo)
+    
     token = ''.join(random.choices(string.ascii_uppercase + string.digits, k=32))
     expireTime = currentDatetime() + timedelta(hours=1)
     
