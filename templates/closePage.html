@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Closing window</title>
+    <script>
+        const { ipcRenderer } = require('electron');
+        window.onload = function() {
+            setTimeout(function () {
+                ipcRenderer.send('close-app');
+            }, 1500);
+        }
+    </script>
+</head>
+<body>
+    <h1>Closing window</h1>
+</body>
+</html>

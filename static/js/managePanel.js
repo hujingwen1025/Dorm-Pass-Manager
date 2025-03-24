@@ -1306,6 +1306,13 @@ function setOptionContentVisibility(allContent, selectedContent) {
     document.getElementById(allContent[selectedContent]).classList.remove('containerHidden')
 }
 
+function getUrlParameter(name) {
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    const results = regex.exec(location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
+
 async function mainProcess() {
     document.getElementById('usernameTopbar').onclick = function(event) {
         var signoutNow = confirm('Do you want to signout now?')
@@ -1524,6 +1531,14 @@ async function mainProcess() {
 
     editStudentDatalist.value = ''
     loadStudentInfoEdit('')
+
+    const editStudentParam = getUrlParameter('editStudent');
+    if (editStudentParam) {
+        document.getElementById('editStudentChoose').value = editStudentParam;
+        document.getElementById('studentsOption').click();
+        document.getElementById('editStudentSelector').click();
+        loadStudentInfoEdit(editStudentParam);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

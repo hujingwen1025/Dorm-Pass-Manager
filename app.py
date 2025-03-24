@@ -35,9 +35,9 @@ debug = False
 
 CLIENT_ID = '64141594-9d10-4ae2-82c7-43a73eef5e20'
 CLIENT_SECRET = 'xca8Q~AGugkyWFFgihOw-nBwYV1hnrSilLrFXaF5'
-AUTHORITY = 'https://login.microsoftonline.com/common'  # "common" allows users from any organization
+AUTHORITY = 'https://login.microsoftonline.com/common'
 REDIRECT_URI = 'http://localhost:8080/microsoftLoginCallback'
-SCOPE = ["User.Read"]  # Read basic user profile
+SCOPE = ["User.Read"]
 
 def dprint(text):
     if debug:
@@ -299,6 +299,8 @@ def getOidFromSession(session):
     sessionid = decrypt(str(session.get('sessionid')))
     passkey = decrypt(str(session.get('passkey')))
     
+    print((sessionid, passkey))
+    
     dprint('gofsi')
     dprint([sessionid, passkey])
     
@@ -312,29 +314,43 @@ def home():
         return redirect('/passCatalogue')
     else:
         return render_template('signin.html')
+   
+@app.route('/west6')
+def west6():
+    return 'Best floor in Keystone!'
     
 @app.route('/kiosk')
 def kiosk():
+    print(request.headers.get('User-Agent'))
     if 'klonkiosk' in request.headers.get('User-Agent'):
         kioskEncToken = request.args.get('kioskToken')
         kioskToken = decrypt(kioskEncToken)
         kioskSession = kioskToken.split('-', 1)
-        session['sessionid'] = kioskSession[0]
-        session['passkey'] = kioskSession[1]
+        sessionid = kioskSession[0]
+        passkey = kioskSession[1]
+        if sessionStorage.verify(sessionid, passkey) == None:
+            return render_template('errorPage.html', errorTitle = 'Error While Launching KIOSK', errorText = 'KIOSK token provided is invalid', errorDesc = 'Please try starting the KIOSK again', errorLink = '/closePage')
+        print(kioskSession)
+        session['sessionid'] = sessionid
+        session['passkey'] = passkey
         session['login'] = True
         dprint(kioskSession)
-        return render_template('kiosk.html')
+        return render_template('passCatalogue.html')
     else:
         return redirect('/')
     
 @app.route('/signout')
 def signout():
-    deactivateResult = sessionStorage.deactivate(decrypt(str(session.get('sessionid'))), decrypt(str(session.get('passkey'))))
+    try:
+        deactivateResult = sessionStorage.deactivate(decrypt(str(session.get('sessionid'))), decrypt(str(session.get('passkey'))))
+    except:
+        return redirect('/')
+        
     if deactivateResult:
         session.clear()
         return redirect('/')
     else:
-        return 'Error signing out'
+        return render_template('errorPage.html', errorTitle = 'Error Signing Out', errorText = 'Sever encountered an error while deactivating your session', errorDesc = 'Please try again later', errorLink = '/passCatalogue')
 
 @app.route('/userSignin')
 def userSignin():
@@ -350,7 +366,7 @@ def login():
 def microsoftLoginCallback():
     code = request.args.get('code')
     if not code:
-        return 'Authorization code missing', 400
+        return render_template('errorPage.html', errorTitle = 'Microsoft Signin Error', errorText = 'Error in auth token', errorDesc = 'Please try signing in again', errorLink = '/'), 400
     msal_app = get_msal_app()
     result = msal_app.acquire_token_by_authorization_code(code, scopes=SCOPE, redirect_uri=REDIRECT_URI)
     dprint(result)
@@ -360,28 +376,29 @@ def microsoftLoginCallback():
         email = msUserInfo["preferred_username"]
         urin = checkUserInformation("userid, name, oid, email, role, locationid", oid)
         if urin == None:
-            return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
-        userInfo = urin
-        dprint(userInfo)
-        keepSessionDays = int(getSettingsValue('keepSessionDays'))
-        sessioninfo = sessionStorage.create(oid, keepSessionDays)
-        session['sessionid'] = str(encrypt(sessioninfo[0]))
-        session['passkey'] = str(encrypt(sessioninfo[1]))
-        if userInfo == None:
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT * FROM users WHERE email = %s', (email,))
                     result = dbcursor.fetchall()
-                    
+
             if len(result) > 0:
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
                         dbcursor.execute('UPDATE users SET oid = %s WHERE email = %s', (oid, email,))   
                 session['login'] = True
+                keepSessionDays = int(getSettingsValue('keepSessionDays'))
+                sessioninfo = sessionStorage.create(oid, keepSessionDays)
+                session['sessionid'] = str(encrypt(sessioninfo[0]))
+                session['passkey'] = str(encrypt(sessioninfo[1]))                    
                 return render_template('firstLanding.html')
             else:
                 return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
-                        
+        userInfo = urin
+        dprint(userInfo)
+        keepSessionDays = int(getSettingsValue('keepSessionDays'))
+        sessioninfo = sessionStorage.create(oid, keepSessionDays)
+        session['sessionid'] = str(encrypt(sessioninfo[0]))
+        session['passkey'] = str(encrypt(sessioninfo[1]))                    
             
         session['login'] = True
         return redirect('/passCatalogue')
@@ -790,13 +807,31 @@ def getStudents():
         
         allfilter = False
         
+        dftrue = False
+        
         try:
             if searchfilters['all']:
                 allfilter = True
         except KeyError:
             pass
         
-        if not allfilter:
+        try:
+            destinationfilter = searchfilters['destination']
+            sqlquery += "AND destinationid = %s "
+            sqlqueryvar += [destinationfilter]
+            dftrue = True
+        except:
+            pass
+        
+        try:
+            floorfilter = searchfilters['floor']
+            sqlquery += "AND floorid = %s "
+            sqlqueryvar += [floorfilter]
+            dftrue = True
+        except:
+            pass
+        
+        if not allfilter and not dftrue:
             try:
                 if userlocationtype == 1:
                     sqlquery += "AND destinationid = %s "
@@ -1512,7 +1547,7 @@ def searchStudents():
         
         searchFilter = request.json.get('searchFilter')
         
-        dprint(searchFilter)
+        print(searchFilter)
         
         sqlquery = "SELECT studentid, name, grade, cardid, floorid, disabledlocations FROM students WHERE 1 = 1 "
         sqlqueryvar = []
@@ -1527,6 +1562,8 @@ def searchStudents():
                 sqlqueryvar.append(f'%{keyword}%')
         except KeyError:
             pass
+        except TypeError:
+            pass
         
         try:
             strictNameFilter = str(searchFilter['strictname'])
@@ -1534,6 +1571,8 @@ def searchStudents():
             sqlquery += 'AND name = %s '
             sqlqueryvar.append(strictNameFilter)
         except KeyError:
+            pass    
+        except TypeError:
             pass
         
         try:
@@ -1543,6 +1582,8 @@ def searchStudents():
             sqlqueryvar.append(gradeFilter)
         except KeyError:
             pass
+        except TypeError:
+            pass
         
         try:
             cardidFilter = str(searchFilter['cardid'])
@@ -1551,6 +1592,8 @@ def searchStudents():
             sqlqueryvar.append(cardidFilter)
         except KeyError:
             pass
+        except TypeError:
+            pass
         
         try:
             flooridFilter = str(searchFilter['floorid'])
@@ -1558,6 +1601,8 @@ def searchStudents():
             sqlquery += 'AND floorid = %s '
             sqlqueryvar.append(flooridFilter)
         except KeyError:
+            pass
+        except TypeError:
             pass
         
         dprint(sqlquery)
@@ -1837,8 +1882,13 @@ def getStudentsInfo():
             retinfo['errorinfo'] = 'nostudent'
             
             return jsonify(retinfo)
-        
-        studentinfo = dbcursorfetch[0]
+        try:
+            studentinfo = dbcursorfetch[0]
+        except IndexError:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'nostudent'
+            
+            return jsonify(retinfo)
         
         retinfo['status'] = 'ok'
         retinfo['studentinfo'] = studentinfo
@@ -1907,21 +1957,25 @@ def newPass():
         
         oid = getOidFromSession(session)
         
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT floorid FROM students WHERE studentid = %s", (studentid,))
+                dbcursorfetch = dbcursor.fetchall()
+                
+        floorid = dbcursorfetch[0][0]
+        
         urin = checkUserInformation("userid, name, oid, email, role, locationid", oid)
         if urin == None:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Not authorized to perform this action'
             
             return jsonify(retinfo)
-        userinfo = urin
-        userid = userinfo[0]
-        userlocationid = userinfo[5]
         timestamp = currentDatetime()
                 
         try:
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
-                    dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid, creationtime) VALUES (%s, %s, %s, %s)', (studentid, userlocationid, destinationid, timestamp,))
+                    dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid, creationtime) VALUES (%s, %s, %s, %s)', (studentid, floorid, destinationid, timestamp,))
                                         
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
@@ -1973,6 +2027,13 @@ def webSerialTest():
 def passCatalogue():
     if ensureLoggedIn(session):
         return render_template('passCatalogue.html')
+    else:
+        return redirect('/')
+    
+@app.route('/studentCatalogue')
+def studentCatalogue():
+    if ensureLoggedIn(session):
+        return render_template('studentCatalogue.html')
     else:
         return redirect('/')
     
@@ -2128,6 +2189,17 @@ def resetNewPassword():
             dbcursor.execute('DELETE FROM passwordreset WHERE token = %s', (token,))
     
     return jsonify({'status': 'ok'})
+
+@app.route('/newPassEdit')
+def newPassEdit():
+    if ensureLoggedIn(session):
+        return render_template('newPass.html')
+    else:
+        return redirect('/')
+
+@app.route('/closePage')
+def closePage():
+    return render_template('closePage.html')
 
 if __name__ == '__main__':
     app.run(port=8080, host="0.0.0.0")

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Pass Creator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            text-align: center;
+            width: 100%;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .alert {
+            padding: 20px;
+            background-color: #f7675a;
+            color: white;
+            opacity: 1;
+            transition: opacity 0.6s;
+            margin-bottom: 15px;
+            z-index: 1000;
+            margin: 5px;
+            border-radius: 7.5px;
+        }
+
+        .alert.success {background-color: #4bb885;}
+        .alert.info {background-color: #52a9f5;}
+        .alert.warning {background-color: #ffa946;}
+
+        .closebtn {
+            margin-left: 15px;
+            color: white;
+            font-weight: bold;
+            float: right;
+            font-size: 22px;
+            line-height: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .closebtn:hover {
+            color: black;
+        }
+
+        .student-image {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            margin-bottom: 20px;
+        }
+
+        .student-info {
+            display: flex;
+            justify-content: space-between; 
+            margin-bottom: 10px;
+        }
+
+        .student-info label {
+            width: 40%;
+            text-align: left;
+        }
+
+        .student-info span {
+            width: 60%;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Create New Pass</h2>
+        <div id="studentInfo">
+            <div class="student-info">
+                <label><strong>Student Name:</strong></label>
+                <span id="studentName"></span>
+            </div>
+            <div class="student-info">
+                <label><strong>Grade:</strong></label>
+                <span id="studentGrade"></span>
+            </div>
+            <div class="student-info">
+                <label><strong>Dorm Floor:</strong></label>
+                <span id="studentFloor"></span>
+            </div>
+        </div>
+        <img id="studentImage" class="student-image" src="" alt="Student Image">
+        <div class="form-group">
+            <label for="destination">Destination</label>
+            <select id="destination" name="destination">
+                <option value="">Select Destination</option>
+            </select>
+        </div>
+        <button id="createPassButton">Create Pass</button>
+    </div>
+    <div class="alertContainer" id="alertContainer"></div>
+    <script src="/static/js/newPass.js"></script>
+</body>
+</html>

@@ -512,14 +512,14 @@ async function setStudentIndex(studentsJson) {
         studentApproveButton.innerHTML = 'Approve'
         studentFlagButton.innerHTML = 'Flag'
 
-        studentActionButton.setAttribute('id', `actions-${curstudent[0]}`)
-        studentApproveButton.setAttribute('id', `approve-${curstudent[0]}`)
-        studentFlagButton.setAttribute('id', `flag-${curstudent[0]}`)
+        studentActionButton.setAttribute('id', `actions-${curstudent[0]}-${passid}`)
+        studentApproveButton.setAttribute('id', `approve-${curstudent[0]}-${passid}`)
+        studentFlagButton.setAttribute('id', `flag-${curstudent[0]}-${passid}`)
 
-        document.getElementById(`actions-${curstudent[0]}`).onclick = function(event){
+        document.getElementById(`actions-${curstudent[0]}-${passid}`).onclick = function(event){
             alert(event.target.parentNode.id);
         }
-        document.getElementById(`approve-${curstudent[0]}`).onclick = async function(event){
+        document.getElementById(`approve-${curstudent[0]}-${passid}`).onclick = async function(event){
             var confirmApprove = confirm(`APPROVE ${curstudent[0]} ?`)
             if (confirmApprove) {
                 var updateResult = await updateStudentPass({'passid': passid,'approve': true})
@@ -576,7 +576,7 @@ async function setStudentIndex(studentsJson) {
                 setTimeout(function () {triggerDisplayUpdate()}, 1500)
             }
         }
-        document.getElementById(`flag-${curstudent[0]}`).onclick = function(event){
+        document.getElementById(`flag-${curstudent[0]}-${passid}`).onclick = function(event){
             var confirmApprove = confirm(`FLAG ${curstudent[0]} ?`)
             if (confirmApprove) {
                 var updateResult = updateStudentPass({'passid': passid,'flag': true})
@@ -593,9 +593,10 @@ async function setStudentIndex(studentsJson) {
 
 async function setStudents(filters) {
     if (window.destinationLocationJson == null) {
-        window.destinationLocationJson = getLocationId(1)
-    } else if (window.floorLocationJson == null) {
-        window.floorLocationJson = getLocationId(2)
+        window.destinationLocationJson = await getLocationId(1)
+    }
+    if (window.floorLocationJson == null) {
+        window.floorLocationJson = await getLocationId(2)
     }
     var studentsInformation = await getStudents(filters)
     if (studentsInformation == 'error') {
@@ -752,13 +753,28 @@ async function mainProcess() {
         }
     }
 
-    if (firstLanding) {
+    if (firstLanding == 'true') {
         createAlertPopup(5000, type = 'success', 'Welcome', 'Welcome to the DPM Kiosk Management Panel')
     }
+
+    overlayCloseBtn.addEventListener('click', () => {
+        toggleOverlay(false)
+    });
 
     triggerDisplayUpdate()
 
     window.searchActivated = false
+}
+
+function toggleOverlay(status) {
+    var overlayCloseBtn = document.getElementById('overlayCloseBtn');
+    var overlay = document.getElementById('popupOverlay');
+    
+    if (status == true) {
+        overlay.style.display = 'flex'
+    } else {
+        overlay.style.display = 'none'
+    }
 }
 
 function updateDisplay() {
@@ -770,5 +786,6 @@ function updateDisplay() {
 
 document.addEventListener('DOMContentLoaded', () => {
     mainProcess()
+    toggleOverlay(false)
     updateDisplay()   
 });

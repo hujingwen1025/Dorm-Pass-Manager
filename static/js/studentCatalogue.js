@@ -1,253 +1,9 @@
-console.log(`%c  _____ _______ ____  _____  
- / ____|__   __/ __ \\|  __ \\ 
-| (___    | | | |  | | |__) |
- \\___ \\   | | | |  | |  ___/ 
- ____) |  | | | |__| | |     
-|_____/   |_|  \\____/|_|     
-                             
-DANGER ZONE
-注意：开发者区域
+window.debug = false;
 
-This is a browser feature intended for developers. If someone told you to copy-paste something here to enable a feature or "hack" someone's account, it is a scam and will give them access to your account. By pasting anything here, you might be putting your account and database information at risk!
-If you don't understand what you are doing, please close this window.
-这是一个针对开发人员的浏览器特性。如果有人告诉你在这里复制粘贴一些东西来启用某个功能或“入侵”某人的账户，这是一个骗局，他们会获得你的账户。通过在这里粘贴任何内容，您可能会将您的帐户和数据库信息置于危险之中！
-如果您不明白自己在做什么，请关闭此窗口。
-`, 'color: red') 
-
-window.onbeforeunload = function(e) {
-    return 'Are you sure you want to leave this page?  You will lose any unsaved data.';
-  };
-
-async function getLocationId(type) {
-    try {
-        const response = await fetch("/api/getLocationId", {
-            method: 'POST',
-            body: JSON.stringify({
-                "type": type
-            }),
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
-        const responseJson = await response.json();
-
-        switch (responseJson.status) {
-            case "error":
-                console.error(response.errorinfo)
-                return 'error'
-                break;
-            case "ok":
-                if (type == 1) {
-                    window.destinationLocationJson = responseJson.locationJson
-                } else if (type == 2) {
-                    window.floorLocationJson = responseJson.locationJson
-                }
-                return responseJson.locationJson
-                break;
-            default:
-                return None
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
-        return 0
+function dlog(text) {
+    if (window.debug) {
+        console.log(text);
     }
-}
-
-async function getUserInfo() {
-    try {
-        const response = await fetch("/api/getUserInfo", {
-            method: 'POST',
-            body: JSON.stringify({}),
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
-        const responseJson = await response.json();
-
-        switch (responseJson.status) {
-            case "error":
-                console.error(responseJson.errorinfo)
-                return 'error'
-                break;
-            case "ok":
-                return responseJson.userinfo
-                break;
-            default:
-                return None
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
-        return 0
-    }
-}
-
-async function getStudents(filters) {
-    try {
-        const response = await fetch("/api/getStudents", {
-            method: 'POST',
-            body: JSON.stringify({
-                "filter": filters
-            }),
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
-        const responseJson = await response.json();
-
-        switch (responseJson.status) {
-            case "error":
-                console.error(responseJson.errorinfo)
-                return 'error'
-                break;
-            case "ok":
-                return responseJson.students
-                break;
-            default:
-                return None
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
-        return 0
-    }
-}
-
-async function getStudentInfo(studentid) {
-    try {
-        const response = await fetch("/api/getStudentInfo", {
-            method: 'POST',
-            body: JSON.stringify({
-                "studentid": studentid
-            }),
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
-        const responseJson = await response.json();
-
-        switch (responseJson.status) {
-            case "error":
-                console.error(responseJson.errorinfo)
-                return 'error'
-                break;
-            case "ok":
-                return responseJson.studentinfo
-                break;
-            default:
-                return None
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
-        return 0
-    }
-}
-
-async function updateUserLocation(locationName) {
-    try {
-        const response = await fetch("/api/updateUserLocation", {
-            method: 'POST',
-            body: JSON.stringify({
-                "location": locationName
-            }),
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
-        const responseJson = await response.json();
-
-        switch (responseJson.status) {
-            case "error":
-                console.error(responseJson.errorinfo)
-                return 'error'
-                break;
-            case "ok":
-                return 0
-                break;
-            default:
-                return None
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
-        return 0
-    }
-}
-
-function createAlertPopup(type, title, body) {
-    let alertContainer = document.getElementById('alertContainer')
-
-    let alertElement = document.createElement('div');
-    alertElement.classList.add('alert')
-    if (alertElement != null) {
-        alertElement.classList.add(type)
-    }
-
-    let closeButton = document.createElement('span');
-    closeButton.classList.add('closebtn')
-    closeButton.setAttribute('onclick', "this.parentElement.remove()")
-    closeButton.innerHTML = '&times;'
-
-    let titleText = document.createElement('strong')
-    titleText.textContent = title
-
-    let bodyText = document.createElement('p')
-    bodyText.textContent = body
-
-    alertElement.appendChild(closeButton)
-    alertElement.appendChild(titleText)
-    alertElement.appendChild(bodyText)
-
-    alertContainer.appendChild(alertElement)
-
-    let closeTimout = setTimeout(function () {alertElement.remove()}, 5000);
-}
-
-function createDestinationChooserPopup(studentName, studentInfo, studentImage, destinationButtonJson) {
-    let params = `scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no,width=0,height=0,left=-1000,top=-1000`
-    open(`/studentDestinationChooser?studentName=${studentName}&studentInfo=${studentInfo}&studentImage=${studentImage}&destinationButtonJson=${destinationButtonJson}`, "Choose Student Destination", params)
-}
-
-function createStudentInfoDisplayPopup() {
-    let params = `scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no,width=0,height=0,left=-1000,top=-1000`
-    open("/studentInfoDisplay", "Student Status Display", params)
 }
 
 async function createNewStudentPass(studentid, destinationid) {
@@ -272,33 +28,18 @@ async function createNewStudentPass(studentid, destinationid) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
-                return 'error'
+                createAlertPopup(5000, null, 'Error Creating Pass', responseJson.errorinfo);
+                return 'error';
             case "ok":
-                var studentName = await getStudentInfo(studentid)
-                studentName = studentName[0]
-                createAlertPopup('success', 'Pass Created', `A new pass has been created for ${studentName}`)
-                setTimeout(function () {
-                    var approveRightNow = confirm('Pass has been created but is not active. Do you also want to approve and activate the pass right now? (The student leaves now)')
-                    if (approveRightNow) {
-                        updateStudentPass({passid: responseJson.passid, approve: true})
-                        if (updateStudentPass != 'error') {
-                            createAlertPopup('success',' Approve Success', `${studentName} has been approved.`)
-                        } else {
-                            createAlertPopup(null, 'Error', 'Error while updating student pass')
-                        }
-                    }
-                }, 200)
-                return 0
+                return responseJson.passid;
             default:
-                createAlertPopup(null, 'Error', 'Server returned unreadable data')
-                return 0
+                return 'error';
         }
-        
+
     } catch (error) {
-        console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
-        return 0
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
     }
 }
 
@@ -321,36 +62,128 @@ async function updateStudentPass(params) {
 
         switch (responseJson.status) {
             case "error":
-                console.error(responseJson.errorinfo)
-                return 'error'
+                createAlertPopup(5000, null, 'Error Updating Pass', responseJson.errorinfo);
+                return 'error';
             case "ok":
-                console.log(responseJson)
-                return responseJson
+                return responseJson;
             default:
-                createAlertPopup(null, 'Error', 'Server returned unreadable data')
-                return 0
+                return 'error';
         }
-        
+
     } catch (error) {
-        console.error('Error:', error);
-        createAlertPopup(null, 'Error', 'Error while sending data to server')
-        return 0
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
     }
 }
 
-async function setLocationSelector(locationJson) {
-    const optionSlot = document.getElementById("locationSelector")
-    var locations = []
-    var locationJson = await locationJson
-    for (i = 0; i < Object.keys(locationJson).length; i ++) {
-        locations[i] = locationJson[Object.keys(locationJson)[i]]
+async function getStudents(filters) {
+    try {
+        const response = await fetch("/api/getStudents", {
+            method: 'POST',
+            body: JSON.stringify({
+                "filter": filters
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Fetching Students', responseJson.errorinfo);
+                return 'error';
+            case "ok":
+                return responseJson.students;
+            default:
+                return 'error';
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
     }
-    locations.forEach(curlocation => {
-      const option = document.createElement('option');
-      option.text = curlocation;
-      optionSlot.appendChild(option);
-    });
-  }
+}
+
+async function searchStudents(filters) {
+    try {
+        const response = await fetch("/api/searchStudents", {
+            method: 'POST',
+            body: JSON.stringify({
+                "searchFilter": filters
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Fetching Students', responseJson.errorinfo);
+                return 'error';
+            case "ok":
+                return responseJson.students;
+            default:
+                return 'error';
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
+    }
+}
+
+async function searchFilters(filters) {
+    try {
+        const response = await fetch("/api/searchFilters", {
+            method: 'POST',
+            body: JSON.stringify({
+                "filter": filters
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Fetching Students', responseJson.errorinfo);
+                return 'error';
+            case "ok":
+                return responseJson.students;
+            default:
+                return 'error';
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
+    }
+}
 
 async function setStudentIndex(studentsJson) {
     const studentListSlot = document.getElementById("studentList")
@@ -372,141 +205,194 @@ async function setStudentIndex(studentsJson) {
         var studentNameDiv = document.createElement('div')
         var studentInfoDiv = document.createElement('div')
         var studentActionButton = document.createElement('button')
-        var studentApproveButton = document.createElement('button')
-        var studentFlagButton = document.createElement('button')
-
-        var passid = curstudent[3]
-        var flagged = curstudent[4]
+        var studentCreatePassButton = document.createElement('button')
+        var studentEditButton = document.createElement('button')
         
         studentli.appendChild(studentNameDiv);
         studentli.appendChild(studentInfoDiv);
         studentli.appendChild(studentActionButton);
-        studentli.appendChild(studentApproveButton);
-        studentli.appendChild(studentFlagButton);
+        studentli.appendChild(studentCreatePassButton);
+        studentli.appendChild(studentEditButton);
 
         studentNameDiv.classList.add('studentNameDiv')
         studentInfoDiv.classList.add('studentInfoDiv')
         studentActionButton.classList.add('studentActionButton')
-        studentApproveButton.classList.add('studentActionButton')
-        studentFlagButton.classList.add('studentActionButton')
+        studentCreatePassButton.classList.add('studentActionButton')
+        studentEditButton.classList.add('studentActionButton')
 
-        console.log(curstudent)
-        if (flagged == 1) {
-            studentNameDiv.innerHTML = `🔴 ${curstudent[0]}`
-        } else {
-            studentNameDiv.innerHTML = `🟢 ${curstudent[0]}`
-        }
+        studentNameDiv.innerHTML = curstudent[0]
 
         studentInfoDiv.innerHTML = curstudent[1]
         studentActionButton.innerHTML = 'Actions'
-        studentApproveButton.innerHTML = 'Approve'
-        studentFlagButton.innerHTML = 'Flag'
+        studentCreatePassButton.innerHTML = 'Add Pass'
+        studentEditButton.innerHTML = 'Edit'
 
         studentActionButton.setAttribute('id', `actions-${curstudent[0]}`)
-        studentApproveButton.setAttribute('id', `approve-${curstudent[0]}`)
-        studentFlagButton.setAttribute('id', `flag-${curstudent[0]}`)
-
+        studentCreatePassButton.setAttribute('id', `addpass-${curstudent[0]}`)
+        studentEditButton.setAttribute('id', `edit-${curstudent[0]}`)
+                                                                                                                                                                                                                                    
         document.getElementById(`actions-${curstudent[0]}`).onclick = function(event){
             alert(event.target.parentNode.id);
         }
-        document.getElementById(`approve-${curstudent[0]}`).onclick = async function(event){
-            var confirmApprove = confirm(`APPROVE ${curstudent[0]} ?`)
-            if (confirmApprove) {
-                var updateResult = await updateStudentPass({'passid': passid,'approve': true})
-                if (updateResult != 'error') {
-                    if (updateResult.elapsedtime != null) {
-                        var elapsedstring = 'Elapsed Time: '
-                        var updateResultET = updateResult.elapsedtime
-                        console.log('d')
-                        console.log(updateResultET)
-                        if (updateResultET[0] != 0) {
-                            if (updateResultET[0] == 1) {
-                                elapsedstring += '1 Hour '
-                            } else {
-                                elapsedstring += `${updateResultET[0]} Hours `
-                            }
-                        }
-                        if (updateResultET[1] != 0) {
-                            if (updateResultET[1] == 1) {
-                                elapsedstring += '1 Minute '
-                            } else {
-                                elapsedstring += `${updateResultET[1]} Minutes `
-                            }
-                        }
-                        if (updateResultET[2] != 0) {
-                            if (updateResultET[2] == 1) {
-                                elapsedstring += '1 Second '
-                            } else {
-                                elapsedstring += `${updateResultET[2]} Seconds `
-                            }
-                        }
-                    }
-                    createAlertPopup('success',' Approve Success', `${curstudent[0]} has been approved. ${elapsedstring}`)
-                } else {
-                    createAlertPopup(null, 'Error', 'Error while updating student pass')
-                    return 0
-                }
-                setTimeout(function () {document.getElementById(window.lastfilterchoice).click()}, 1500)
-            }
+
+        document.getElementById(`addpass-${curstudent[0]}`).onclick = function(event){
+            renderCreateNewPassPopup(curstudent[3])
         }
-        document.getElementById(`flag-${curstudent[0]}`).onclick = function(event){
-            var confirmApprove = confirm(`FLAG ${curstudent[0]} ?`)
-            if (confirmApprove) {
-                var updateResult = updateStudentPass({'passid': passid,'flag': true})
-                if (updateResult != 'error') {
-                    createAlertPopup('success', 'Flag Success', `${curstudent[0]} has been flagged`)
-                } else {
-                    createAlertPopup(null, 'Error', 'Error while updating student pass')
-                    return 0
-                }
-                document.getElementById(window.lastfilterchoice).click()
-            }
+
+        document.getElementById(`edit-${curstudent[0]}`).onclick = function(event){
+            window.location = `/managePanel?editStudent=${curstudent[2]}`
         }
     })
 }
 
-async function setStudents(filters) {
+async function setStudents(studentList) {
     if (window.destinationLocationJson == null) {
-        window.destinationLocationJson = getLocationId(1)
-    } else if (window.floorLocationJson == null) {
-        window.floorLocationJson = getLocationId(2)
+        window.destinationLocationJson = await getLocationId(1)
     }
-    var studentsInformation = await getStudents(filters)
+    if (window.floorLocationJson == null) {
+        window.floorLocationJson = await getLocationId(2)
+    }
+    var studentsInformation = await studentList
     if (studentsInformation == 'error') {
-        createAlertPopup(null, 'Error', 'Error while getting student information')
         return 0
     }
-    window.opo = studentsInformation
+    //window.opo = studentsInformation
     let studentsJson = {}
     for (l = 0; l < studentsInformation.length; l ++) {
-        let studentInfo  = await getStudentInfo(studentsInformation[l][1])
+        let studentInfo  = await getStudentInfo(studentsInformation[l][0])
         let floorName = window.floorLocationJson[studentInfo[2]]
         let studentGrade = studentInfo[1]
         let studentName = studentInfo[0]
         let passid = studentsInformation[l][0]
         let flagged = studentsInformation[l][8]
-        let passStatus = ''
 
         if (studentInfo == 'error') {
-            createAlertPopup(null, 'Error', 'Error while getting student info')
+            createAlertPopup(5000, null, 'Error', 'Error while getting student info')
             return 0
         }
 
-        if (studentsInformation[l][4] == null) {
-            passStatus = '◽️🏢◽️'
-        } else if (studentsInformation[l][5] == null) {
-            passStatus = '🏢➡️⛳️'
-        } else if (studentsInformation[l][6] == null) {
-            passStatus = '◽️⛳️◽️'
-        } else if (studentsInformation[l][7] == null) {
-            passStatus = '⛳️➡️🏢'
-        } else {
-            passStatus = '◽️🏢✅'
-        }
-
-        studentsJson[l] = [studentName, `Grade ${studentGrade} ${floorName} - ${passStatus}`, studentsInformation[l][1], passid, flagged]
+        studentsJson[l] = [studentName, `Grade ${studentGrade} ${floorName}`, studentsInformation[l][1], passid, flagged]
     }
     setStudentIndex(studentsJson)
+}
+
+async function getLocationIdFromName(locationName) {
+    try {
+        const response = await fetch("/api/searchLocations", {
+            method: 'POST',
+            body: JSON.stringify({
+                "searchFilters": {'strictname': locationName}
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Fetching Location Info', responseJson.errorinfo);
+                return 'error';
+            case "ok":
+                return responseJson.locations[0][0];
+            default:
+                return 'error';
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
+    }
+}
+
+async function setLocationFilter(option, locationJson) {
+    var optionSlot = document.getElementById(option)
+    var locations = []
+    var locationJson = await locationJson
+    for (i = 0; i < Object.keys(locationJson).length; i ++) {
+        locations[i] = locationJson[Object.keys(locationJson)[i]]
+    }
+    locations.forEach(curlocation => {
+        const option = document.createElement('option');
+        option.text = curlocation;
+        optionSlot.appendChild(option);
+    });
+}
+
+async function getStudentInfo(studentid) {
+    try {
+        const response = await fetch("/api/getStudentInfo", {
+            method: 'POST',
+            body: JSON.stringify({
+                "studentid": studentid
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Fetching Student Info', responseJson.errorinfo);
+                return 'error';
+            case "ok":
+                return responseJson.studentinfo;
+            default:
+                return 'error';
+        }
+
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
+    }
+}
+
+function createAlertPopup(closetimeout, type = null, title, body, alertid = '') {
+    let alertContainer = document.getElementById('alertContainer');
+
+    let alertElement = document.createElement('div');
+    alertElement.setAttribute('id', alertid);
+    alertElement.classList.add('alert');
+    dlog(type);
+    if (type != null && type != undefined && type != '') {
+        alertElement.classList.add(type);
+    }
+
+    let closeButton = document.createElement('span');
+    closeButton.classList.add('closebtn');
+    closeButton.setAttribute('onclick', "this.parentElement.remove()");
+    closeButton.innerHTML = '&times;';
+
+    let titleText = document.createElement('strong');
+    titleText.textContent = title;
+
+    let bodyText = document.createElement('p');
+    bodyText.innerHTML = body;
+
+    alertElement.appendChild(closeButton);
+    alertElement.appendChild(titleText);
+    alertElement.appendChild(bodyText);
+
+    alertContainer.appendChild(alertElement);
+
+    if (closetimeout != null) {
+        let closeTimout = setTimeout(function () { alertElement.remove() }, closetimeout);
+    }
 }
 
 async function setUsernameTopbar(username) {
@@ -514,102 +400,247 @@ async function setUsernameTopbar(username) {
     usernameTopbarDispaly.textContent = username
 }
 
-function setFilterDisplay(text) {
-    const filterDisplay = document.getElementById('filterDisplay')
-    filterDisplay.textContent = text
+async function getUserInfo() {
+    try {
+        const response = await fetch("/api/getUserInfo", {
+            method: 'POST',
+            body: JSON.stringify({}),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Getting User Info', responseJson.errorinfo)
+                return 'error'
+                break;
+            case "ok":
+                return responseJson.userinfo
+                break;
+            default:
+                return None
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return 0
+    }
+}
+
+async function getLocationId(type) {
+    try {
+        const response = await fetch("/api/getLocationId", {
+            method: 'POST',
+            body: JSON.stringify({
+                "type": type
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Getting Location Info', responseJson.errorinfo)
+                return 'error';
+            case "ok":
+                return responseJson.locationJson;
+            default:
+                return null;
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
+    }
+}
+
+async function setLocationSelector(locationJson) {
+    const optionSlot = document.getElementById("locationSelector");
+    var locations = [];
+    var locationJson = await locationJson;
+    for (i = 0; i < Object.keys(locationJson).length; i++) {
+        locations[i] = locationJson[Object.keys(locationJson)[i]];
+    }
+    locations.forEach(curlocation => {
+        const option = document.createElement('option');
+        option.text = curlocation;
+        optionSlot.appendChild(option);
+    });
+}
+
+async function updateUserLocation(locationName) {
+    try {
+        const response = await fetch("/api/updateUserLocation", {
+            method: 'POST',
+            body: JSON.stringify({
+                "location": locationName
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        })
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Updating User Location', responseJson.errorinfo);
+                return 'error';
+            case "ok":
+                return 'ok';
+            default:
+                return 'error';
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
+    }
+}
+
+async function doFloorSearch() {
+    const filterFloor = document.getElementById('filterFloor')
+    const filterLocation = document.getElementById('filterLocation')
+
+    filterLocation.value = 'Current Location'
+    floorId = await getLocationIdFromName(filterFloor.value)
+
+    var floorIds = searchStudents({'floorid': floorId})
+
+    console.log(floorIds)
+    setStudents(floorIds)
+}
+
+async function doLocationSearch() {
+    const filterFloor = document.getElementById('filterFloor')
+    const filterLocation = document.getElementById('filterLocation')
+
+    filterFloor.value = 'Dorm Floor'
+    locationId = await getLocationIdFromName(filterLocation.value)
+
+    var destinationIds = getStudents({'destination': locationId})
+    var floorIds = getStudents({'floorid': locationId})
+
+    var locationIds = {...destinationIds, ...floorIds}
+
+    setStudents(locationIds)
+}
+
+function toggleOverlay(status) {
+    var overlayCloseBtn = document.getElementById('overlayCloseBtn');
+    var overlay = document.getElementById('popupOverlay');
+    
+    if (status == true) {
+        overlay.style.display = 'flex'
+    } else {
+        overlay.style.display = 'none'
+    }
+}
+
+async function renderCreateNewPassPopup(studentid) {
+    var overlayContent = document.getElementById('overlayContent')
+    overlayContent.innerHTML = ''
+
+    var createPassIframe = document.createElement('iframe')
+    createPassIframe.src = `/newPassEdit?studentid=${studentid}`
+    createPassIframe.style.width = '600px'
+    createPassIframe.style.height = '550px'
+    createPassIframe.style.border = 'none'
+
+    overlayContent.appendChild(createPassIframe)
+    toggleOverlay(true)
 }
 
 async function mainProcess() {
-    var destinationIds = await getLocationId(1)
-    var floorIds = await getLocationId(2)
+    const filterFloorOptions = document.getElementById('filterFloor')
+    const filterLocationOptions = document.getElementById('filterLocation')
+
+    document.getElementById('usernameTopbar').onclick = function(event) {
+        var signoutNow = confirm('Do you want to signout now?')
+        if (signoutNow) {
+            window.location = '/signout'
+        }
+    }
+
     var userinfo = await getUserInfo()
     var username = userinfo['user'][1]
-    window.lastfilterchoice = 'filterButtonRelated'
 
     if (userinfo == 'error') {
         userinfo = null
-        createAlertPopup(null, 'Error', 'An error occured while getting user information')
+        createAlertPopup(5000, null, 'Error', 'An error occured while getting user information')
         return 0
     }
 
     setUsernameTopbar(username)
 
-    console.log(destinationIds)
-    setLocationSelector(destinationIds);  
-    console.log(floorIds)
-    setLocationSelector(floorIds);  
-    
-    document.getElementById('filterButtonAll').onclick = function(event) {
-        window.lastfilterchoice = 'filterButtonAll'
-        setStudents({'all': true})
-        setFilterDisplay('All')
+    var destinationIds = await getLocationId(1);
+    var floorIds = await getLocationId(2);
+
+    setLocationFilter('filterLocation', {...destinationIds, ...floorIds});
+    setLocationFilter('filterFloor', floorIds);
+
+    setLocationSelector(destinationIds)
+    setLocationSelector(floorIds)
+
+    document.getElementById('passesNavButton').onclick = function(event) {
+        window.location.href = '/passCatalogue'
     }
-    document.getElementById('filterButtonRelated').onclick = function(event) {
-        window.lastfilterchoice = 'filterButtonRelated'
-        setStudents({})
-        setFilterDisplay('Related')
+    document.getElementById('studentsNavButton').onclick = function(event) {
+        window.location.href = '/studentCatalogue'
     }
-    document.getElementById('filterButtonArriving').onclick = function(event) {
-        window.lastfilterchoice = 'filterButtonArriving'
-        setStudents({'status': 1})
-        setFilterDisplay('Arriving')
+    document.getElementById('manageNavButton').onclick = function(event) {
+        window.location.href = '/managePanel'
     }
-    document.getElementById('filterButtonLeaving').onclick = function(event) {
-        window.lastfilterchoice = 'filterButtonLeaving'
-        setStudents({'status': 3})
-        setFilterDisplay('Leaving')
-    }
-    document.getElementById('filterButtonFlagged').onclick = function(event) {
-        window.lastfilterchoice = 'filterButtonFlagged'
-        setStudents({'flag': true})
-        setFilterDisplay('Flagged')
-    }
-    document.getElementById('filterButtonPresent').onclick = function(event) {
-        window.lastfilterchoice = 'filterButtonPresent'
-        setStudents({'status': 2})
-        setFilterDisplay('Present')
+    document.getElementById('settingsNavButton').onclick = function(event) {
+        window.location.href = '/settingsPanel'
     }
 
-    const filterSearchInput = document.getElementById("filterSearchInput")
-    filterSearchInput.addEventListener("input", function(event) {
-        if (filterSearchInput.value != '') {
-            window.searchActivated = true
-            setStudents({'search':filterSearchInput.value})
-            setFilterDisplay(`Search - ${filterSearchInput.value}`)
-        } else {
-            window.searchActivated = false
-            document.getElementById(window.lastfilterchoice).click()
-        }
-        }
-    )
-
-    const locationSelector = window.document.getElementById('locationSelector')
-
-    locationSelector.onchange = (event) => {
-        updateUserLocation(locationSelector.value)
-        if (updateUserLocation == 'error') {
-            createAlertPopup(null, 'Error', 'Error while updating user location data')
-            return 0
-        }
-        if (window.searchActivated == false) {
-            setTimeout(() => {document.getElementById(window.lastfilterchoice).click()}, 1000);
+    const locationSelector = document.getElementById('locationSelector');
+    locationSelector.onchange = async (event) => {
+        const updateResult = await updateUserLocation(locationSelector.value);
+        if (updateResult == 'error') {
+            createAlertPopup(5000, null, 'Error', 'Error while updating user location data');
+            return 0;
         }
     }
 
-    document.getElementById(window.lastfilterchoice).click()
+    filterFloorOptions.value = 'Dorm Floor'
+    filterLocationOptions.value = 'Current Location'
 
-    window.searchActivated = false
-}
+    filterFloorOptions.onchange = function () {doFloorSearch()}
+    filterLocationOptions.onchange = function () {doLocationSearch()}
 
-function updateDisplay() {
-    console.log('Updating info...')
-    if (window.searchActivated == false) {
-        document.getElementById(window.lastfilterchoice).click()
-    }
-    setTimeout(updateDisplay, 15000);
+    overlayCloseBtn.addEventListener('click', () => {
+        toggleOverlay(false)
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     mainProcess()
-    updateDisplay()   
+    toggleOverlay(false)
 });
+

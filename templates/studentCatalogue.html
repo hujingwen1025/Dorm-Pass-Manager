@@ -55,6 +55,7 @@
             transition: all 0.2s ease;
             margin: 5px;
             font-weight: bold;
+            max-width: 155px;
         }
 
         .customFilterButton {
@@ -272,7 +273,7 @@
         }
     </style>
 
-    <script src="/static/js/passCatalogue.js"></script>
+    <script src="/static/js/studentCatalogue.js"></script>
 <script src="/static/js/tamperDetect.js"></script>
 </head>
 
@@ -293,15 +294,18 @@
     </div>
 
     <div class="card">
-        <h2>Pass Catalogue</h2>
+        <h2>Student Catalogue</h2>
         <p><b>Filter: </b><span id="filterDisplay"></span></p>
         <div class="button-container">
             <button class="filterButton" id="filterButtonAll">All</button>
             <button class="filterButton" id="filterButtonRelated">Related</button>
-            <button class="filterButton" id="filterButtonArriving">Arriving</button>
-            <button class="filterButton" id="filterButtonLeaving">Leaving</button>
             <button class="filterButton" id="filterButtonFlagged">Flagged</button>
-            <button class="filterButton" id="filterButtonPresent">Present</button>
+            <select name="filterFloor" class="filterButton" id="filterFloor">
+                <option disabled>Dorm Floor</option>
+            </select>
+            <select name="filterLocation" class="filterButton" id="filterLocation">
+                <option disabled>Current Location</option>
+            </select>
             <button class="filterButton customFilterButton">Custom</button>
         </div>
 
@@ -312,13 +316,13 @@
             </ul>
         </div>
     </div>
+    <div id="google_translate_element" class="googleTranslateElement"></div>
     <div class="overlay" id="popupOverlay">
         <div class="popup">
             <button class="overlayCloseBtn" id="overlayCloseBtn">×</button>
             <div id="overlayContent"></div>
         </div>
     </div>
-    <div id="google_translate_element" class="googleTranslateElement"></div>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
