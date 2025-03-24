@@ -568,12 +568,19 @@ async function renderCreateNewPassPopup(studentid) {
     var createPassIframe = document.createElement('iframe')
     createPassIframe.src = `/newPassEdit?studentid=${studentid}`
     createPassIframe.style.width = '600px'
-    createPassIframe.style.height = '550px'
+    createPassIframe.style.height = '650px'
     createPassIframe.style.border = 'none'
 
     overlayContent.appendChild(createPassIframe)
     toggleOverlay(true)
 }
+
+window.addEventListener('message', (event) => {
+    if (event.data.message === 'close') {
+        toggleOverlay(false);
+        createAlertPopup(5000, 'success', 'Pass Created', `Pass ID: ${event.data.passId} has been created successfully.`);
+    }
+});
 
 async function mainProcess() {
     const filterFloorOptions = document.getElementById('filterFloor')

@@ -870,6 +870,8 @@ def getStudents():
         except KeyError:
             pass
         
+        sqlquery += 'AND farrivetime IS NULL '
+        
         dprint(sqlquery)
         dprint(sqlqueryvar)
         
@@ -1949,11 +1951,15 @@ def newPass():
             
             return jsonify(retinfo)
         
-        if str(destinationid) in dbcursorfetch[0][5].split():
-            retinfo['status'] = 'error'
-            retinfo['errorinfo'] = 'locationdisabled'
+        try:
+            if str(destinationid) in dbcursorfetch[0][5].split():
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'locationdisabled'
             
-            return jsonify(retinfo)
+                return jsonify(retinfo)
+            
+        except AttributeError:
+            pass
         
         oid = getOidFromSession(session)
         
