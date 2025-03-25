@@ -297,16 +297,20 @@
         <h2>Student Catalogue</h2>
         <p><b>Filter: </b><span id="filterDisplay"></span></p>
         <div class="button-container">
-            <button class="filterButton" id="filterButtonAll">All</button>
             <button class="filterButton" id="filterButtonRelated">Related</button>
-            <button class="filterButton" id="filterButtonFlagged">Flagged</button>
             <select name="filterFloor" class="filterButton" id="filterFloor">
                 <option disabled>Dorm Floor</option>
             </select>
             <select name="filterLocation" class="filterButton" id="filterLocation">
                 <option disabled>Current Location</option>
             </select>
-            <button class="filterButton customFilterButton">Custom</button>
+            <select name="filterGrade" class="filterButton" id="filterGrade">
+                <option disabled selected>Grade</option>
+                <option value="9">Grade 9</option>
+                <option value="10">Grade 10</option>
+                <option value="11">Grade 11</option>
+                <option value="12">Grade 12</option>
+            </select>
         </div>
 
         <input class="filterSearchInput" id="filterSearchInput" placeholder="Search">

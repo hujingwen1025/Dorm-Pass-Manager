@@ -1051,6 +1051,48 @@ def addStudent():
         
         return jsonify(retinfo)
     
+@app.route('/api/getUserLocation', methods=['POST'])
+def getUserLocation():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        oid = getOidFromSession(session)
+        
+        urin = checkUserInformation("locationid", oid)
+        if urin == None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            
+            return jsonify(retinfo)
+        
+        locationid = urin[0]
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (locationid,))
+                result = dbcursor.fetchall()
+                
+        if len(result) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Location not found'
+            
+            return jsonify(retinfo)
+        
+        locationName = result[0][0]
+        
+        retinfo['status'] = 'ok'
+        retinfo['location'] = locationName
+        
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
 @app.route('/api/addUser', methods=['POST'])
 def addUser():
     if ensureLoggedIn(session):
@@ -1555,6 +1597,16 @@ def searchStudents():
         sqlqueryvar = []
         
         try:
+            studentIdFilter = int(searchFilter['studentid'])
+            dprint(studentIdFilter)
+            sqlquery += 'AND studentid = %s '
+            sqlqueryvar.append(studentIdFilter)
+        except KeyError:
+            pass
+        except TypeError:
+            pass
+        
+        try:
             nameFilter = str(searchFilter['name'])
             nameKeywords = nameFilter.split()
             dprint(nameKeywords)
@@ -1924,7 +1976,7 @@ def newPass():
         
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
-            retinfo['errorinfo'] = 'passactive'
+            retinfo['errorinfo'] = 'A pass associated with this student is already active'
             retinfo['passid'] = dbcursorfetch[0][0]
             
             return jsonify(retinfo)

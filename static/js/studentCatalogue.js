@@ -326,6 +326,40 @@ async function setLocationFilter(option, locationJson) {
     });
 }
 
+async function getUserLocation() {
+    try {
+        const response = await fetch("/api/getUserLocation", {
+            method: 'POST',
+            body: JSON.stringify({}),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Getting User Location', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return responseJson.location
+            default:
+                return null
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return null
+    }
+}
+
 async function getStudentInfo(studentid) {
     try {
         const response = await fetch("/api/getStudentInfo", {
@@ -527,11 +561,11 @@ async function doFloorSearch() {
     const filterLocation = document.getElementById('filterLocation')
 
     filterLocation.value = 'Current Location'
+    setFilterDisplay(filterFloor.value)
     floorId = await getLocationIdFromName(filterFloor.value)
 
-    var floorIds = searchStudents({'floorid': floorId})
+    var floorIds = await searchStudents({'floorid': floorId})
 
-    console.log(floorIds)
     setStudents(floorIds)
 }
 
@@ -542,12 +576,55 @@ async function doLocationSearch() {
     filterFloor.value = 'Dorm Floor'
     locationId = await getLocationIdFromName(filterLocation.value)
 
-    var destinationIds = getStudents({'destination': locationId})
-    var floorIds = getStudents({'floorid': locationId})
+    var destinationIds = await getStudents({'destination': locationId})
 
-    var locationIds = {...destinationIds, ...floorIds}
+    var allIds = []
 
-    setStudents(locationIds)
+    for (i = 0; i < Object.keys(destinationIds).length; i ++) {
+        var convertedStuInfo = await searchStudents({'studentid': destinationIds[i][0][1]})
+        console.log(convertedStuInfo[0])
+        allIds[Object.keys(allIds).length + i] = convertedStuInfo[0]
+    }
+    
+    setStudents(allIds)
+}
+
+async function doNameSearch() {
+    const searchTextBox = document.getElementById('filterSearchInput');
+    const searchName = searchTextBox.value;
+
+    if (searchName.trim() === '') {
+        setStudentIndex({});
+        return;
+    }
+
+    var foundStudents = await searchStudents({'name': searchName});
+
+    if (foundStudents == 'error') {
+        createAlertPopup(5000, null, 'Error', 'Error while searching for students');
+        return;
+    }
+
+    setStudents(foundStudents);
+}
+
+async function doGradeSearch() {
+    const filterGrade = document.getElementById('filterGrade');
+    const grade = filterGrade.value;
+
+    if (grade.trim() === '') {
+        setStudentIndex({});
+        return;
+    }
+
+    var foundStudents = await searchStudents({'grade': grade});
+
+    if (foundStudents == 'error') {
+        createAlertPopup(5000, null, 'Error', 'Error while searching for students');
+        return;
+    }
+
+    setStudents(foundStudents);
 }
 
 function toggleOverlay(status) {
@@ -582,6 +659,11 @@ window.addEventListener('message', (event) => {
     }
 });
 
+function setFilterDisplay(text) {
+    const filterDisplay = document.getElementById('filterDisplay');
+    filterDisplay.textContent = text;
+}
+
 async function mainProcess() {
     const filterFloorOptions = document.getElementById('filterFloor')
     const filterLocationOptions = document.getElementById('filterLocation')
@@ -607,7 +689,7 @@ async function mainProcess() {
     var destinationIds = await getLocationId(1);
     var floorIds = await getLocationId(2);
 
-    setLocationFilter('filterLocation', {...destinationIds, ...floorIds});
+    setLocationFilter('filterLocation', {...destinationIds});
     setLocationFilter('filterFloor', floorIds);
 
     setLocationSelector(destinationIds)
@@ -635,11 +717,22 @@ async function mainProcess() {
         }
     }
 
+    var userLocation = await getUserLocation()
+    if (userLocation != 'error' && userLocation != null) {
+        document.getElementById('locationSelector').value = userLocation
+    }
+
     filterFloorOptions.value = 'Dorm Floor'
     filterLocationOptions.value = 'Current Location'
 
     filterFloorOptions.onchange = function () {doFloorSearch()}
     filterLocationOptions.onchange = function () {doLocationSearch()}
+
+    const searchTextBox = document.getElementById('filterSearchInput');
+    searchTextBox.oninput = function () { doNameSearch() };
+
+    const filterGradeOptions = document.getElementById('filterGrade');
+    filterGradeOptions.onchange = function () { doGradeSearch() };
 
     overlayCloseBtn.addEventListener('click', () => {
         toggleOverlay(false)
@@ -650,4 +743,3 @@ document.addEventListener('DOMContentLoaded', () => {
     mainProcess()
     toggleOverlay(false)
 });
-

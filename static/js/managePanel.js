@@ -1313,6 +1313,41 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 
+async function getUserLocation() {
+    try {
+        const response = await fetch("/api/getUserLocation", {
+            method: 'POST',
+            body: JSON.stringify({}),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Getting User Location', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return responseJson.location
+            default:
+                return null
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return null
+    }
+}
+
+
 async function mainProcess() {
     document.getElementById('usernameTopbar').onclick = function(event) {
         var signoutNow = confirm('Do you want to signout now?')
@@ -1503,6 +1538,11 @@ async function mainProcess() {
 
     editStudentClearFileButton.onclick = function() {
         editStudentImageField.value = ''
+    }
+    
+    var userLocation = await getUserLocation()
+    if (userLocation != 'error' && userLocation != null) {
+        document.getElementById('locationSelector').value = userLocation
     }
 
     const editStudentDeleteButton = document.getElementById('editStudentDeleteButton')
