@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (destinationid) {
             const result = await createNewStudentPass(studentid, floorid, destinationid);
             if (result !== 'error') {
-                window.parent.postMessage({ message: 'close', passId: result }, '*');
+                window.parent.postMessage({ message: 'createnewpassclose', passId: result }, '*');
             }
         } else {
             createAlertPopup(5000, null, 'Error', 'Please select a destination');

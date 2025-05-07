@@ -299,7 +299,7 @@ def getOidFromSession(session):
     sessionid = decrypt(str(session.get('sessionid')))
     passkey = decrypt(str(session.get('passkey')))
     
-    print((sessionid, passkey))
+    dprint((sessionid, passkey))
     
     dprint('gofsi')
     dprint([sessionid, passkey])
@@ -321,7 +321,7 @@ def west6():
     
 @app.route('/kiosk')
 def kiosk():
-    print(request.headers.get('User-Agent'))
+    dprint(request.headers.get('User-Agent'))
     if 'klonkiosk' in request.headers.get('User-Agent'):
         kioskEncToken = request.args.get('kioskToken')
         kioskToken = decrypt(kioskEncToken)
@@ -330,7 +330,7 @@ def kiosk():
         passkey = kioskSession[1]
         if sessionStorage.verify(sessionid, passkey) == None:
             return render_template('errorPage.html', errorTitle = 'Error While Launching KIOSK', errorText = 'KIOSK token provided is invalid', errorDesc = 'Please try starting the KIOSK again', errorLink = '/closePage')
-        print(kioskSession)
+        dprint(kioskSession)
         session['sessionid'] = sessionid
         session['passkey'] = passkey
         session['login'] = True
@@ -638,7 +638,28 @@ def updatePass():
         userlocation = userinfo[5]
         
         passid = request.json.get('passid')
-                
+        
+        try:
+            delete = request.json.get('delete')
+            if delete == 'true':
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('SELECT * FROM passes WHERE passid = %s', (passid,))
+                        result = dbcursor.fetchall()
+
+                        if len(result) < 1:
+                            retinfo['status'] = 'error'
+                            retinfo['errorinfo'] = 'Pass does not exist'
+                            return jsonify(retinfo)
+
+                        dbcursor.execute('DELETE FROM passes WHERE passid = %s', (passid,))
+
+                retinfo['status'] = 'ok'
+                retinfo['message'] = 'Pass deleted successfully'
+                return jsonify(retinfo)
+        except KeyError:
+            pass
+        
         retinfo["elapsedtime"] = None
         
         with dbConnect() as connection:
@@ -816,6 +837,14 @@ def getStudents():
             pass
         
         try:
+            studentfilter = searchfilters['studentid']
+            sqlquery += "AND studentid = %s "
+            sqlqueryvar += [studentfilter]
+            dftrue = True
+        except KeyError:
+            pass
+        
+        try:
             destinationfilter = searchfilters['destination']
             sqlquery += "AND destinationid = %s "
             sqlqueryvar += [destinationfilter]
@@ -870,7 +899,12 @@ def getStudents():
         except KeyError:
             pass
         
-        sqlquery += 'AND farrivetime IS NULL '
+        try:
+            includeCompletedPasses = searchfilters['includeCompletedPasses']
+            if not includeCompletedPasses:
+                sqlquery += 'AND farrivetime IS NULL '
+        except KeyError:
+            sqlquery += 'AND farrivetime IS NULL '
         
         dprint(sqlquery)
         dprint(sqlqueryvar)
@@ -1591,7 +1625,7 @@ def searchStudents():
         
         searchFilter = request.json.get('searchFilter')
         
-        print(searchFilter)
+        dprint(searchFilter)
         
         sqlquery = "SELECT studentid, name, grade, cardid, floorid, disabledlocations FROM students WHERE 1 = 1 "
         sqlqueryvar = []
@@ -1664,8 +1698,8 @@ def searchStudents():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dprint(sqlquery)
-                dprint(sqlqueryvar)
+                print(sqlquery)
+                print(sqlqueryvar)
                 dbcursor.execute(sqlquery, sqlqueryvar)
                 dprint('execed')
                 dprint(dbcursor.statement)
@@ -1928,7 +1962,7 @@ def getStudentsInfo():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT name, grade, floorid, disabledlocations FROM students WHERE studentid = %s", (studentid,))
+                dbcursor.execute("SELECT name, grade, floorid, disabledlocations, cardid FROM students WHERE studentid = %s", (studentid,))
                 dbcursorfetch = dbcursor.fetchall()
                 
         if len(dbcursorfetch) < 0:
@@ -2125,6 +2159,53 @@ def getStudentImage():
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
         return jsonify(retinfo)
+    
+@app.route('/api/getPassInfo', methods=['POST'])
+def getPassInfo():
+    if ensureLoggedIn(session):
+        retinfo = {}
+        
+        data = request.json
+        passid = data.get('passid')
+        
+        if not passid:
+            return jsonify({'status': 'error', 'errorinfo': 'Pass ID is missing'})
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('''
+                    SELECT studentid, floorid, destinationid, flagged, fleavetime, darrivetime, dleavetime, farrivetime FROM passes WHERE passid = %s ''', (passid,))
+                passinfo = dbcursor.fetchone()
+                
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT name, grade, cardid, image FROM students WHERE studentid = %s', (passinfo[0],))
+                studentinfo = dbcursor.fetchone()
+                
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (passinfo[1],))
+                floorinfo = dbcursor.fetchone()
+                
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (passinfo[2],))
+                destinationinfo = dbcursor.fetchone()
+        if passinfo == None or studentinfo == None or floorinfo == None or destinationinfo == None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Pass does not exist with correct information'
+            
+            return jsonify(retinfo)
+        
+        retinfo['status'] = 'ok'
+        retinfo['passinfo'] = passinfo
+        retinfo['studentinfo'] = studentinfo
+        retinfo['floorinfo'] = floorinfo
+        retinfo['destinationinfo'] = destinationinfo
+        return jsonify(retinfo)
+    
+    else:
+        return jsonify({'status': 'error', 'errorinfo': 'Not authorized to perform this action'})
         
 @app.route('/managePanel')
 def managePanel():
@@ -2252,6 +2333,20 @@ def resetNewPassword():
 def newPassEdit():
     if ensureLoggedIn(session):
         return render_template('newPass.html')
+    else:
+        return redirect('/')
+    
+@app.route('/studentInfo')
+def studentInfo():
+    if ensureLoggedIn(session):
+        return render_template('studentInfo.html')
+    else:
+        return redirect('/')
+    
+@app.route('/passInfo')
+def passInfo():
+    if ensureLoggedIn(session):
+        return render_template('passInfo.html')
     else:
         return redirect('/')
 

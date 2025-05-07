@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Info</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            text-align: center;
+            width: 100%;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .student-info {
+            display: flex;
+            justify-content: space-between; 
+            margin-bottom: 10px;
+        }
+
+        .student-info label {
+            width: 40%;
+            text-align: left;
+        }
+
+        .student-info span {
+            width: 60%;
+            text-align: left;
+        }
+
+        .student-image {
+            width: 150px;
+            height: 220px;
+            border-radius: 5%;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .alert {
+            padding: 20px;
+            background-color: #f7675a;
+            color: white;
+            opacity: 1;
+            transition: opacity 0.6s;
+            margin-bottom: 15px;
+            z-index: 1000;
+            margin: 5px;
+            border-radius: 7.5px;
+        }
+
+        .alert.success {background-color: #4bb885;}
+        .alert.info {background-color: #52a9f5;}
+        .alert.warning {background-color: #ffa946;}
+
+        .red {background-color: #f7675a;}
+        .green {background-color: #4bb885;}
+        .blue {background-color: #52a9f5;}
+        .orange {background-color: #ffa946;}
+
+        .red:hover {background-color: #f44336;}
+        .green:hover {background-color: #388e3c;}
+        .blue:hover {background-color: #1976d2;}
+        .orange:hover {background-color: #f57c00;}
+
+        .closebtn {
+            margin-left: 15px;
+            color: white;
+            font-weight: bold;
+            float: right;
+            font-size: 22px;
+            line-height: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .closebtn:hover {
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Student Information</h2>
+        <div id="studentInfo">
+            <div class="student-info">
+                <label><strong>Student Name:</strong></label>
+                <span id="studentName"></span>
+            </div>
+            <div class="student-info">
+                <label><strong>Grade:</strong></label>
+                <span id="studentGrade"></span>
+            </div>
+            <div class="student-info">
+                <label><strong>Dorm Floor:</strong></label>
+                <span id="studentFloor"></span>
+            </div>
+            <div class="student-info">
+                <label><strong>Current Location:</strong></label>
+                <span id="studentLocation"></span>
+            </div>
+            <div class="student-info">
+                <label><strong>Pass Status:</strong></label>
+                <span id="passStatus"></span>
+            </div>
+            <div class="student-info">
+                <label><strong>Card ID:</strong></label>
+                <span id="studentCardId"></span>
+            </div>
+        </div>
+        <img id="studentImage" class="student-image" src="" alt="Student Image">
+        <button id="createPassButton" class="green">Create New Pass</button>
+        <button id="editStudentButton">Edit Student</button>
+    </div>
+    <div class="alertContainer" id="alertContainer"></div>
+    <script src="/static/js/studentInfo.js"></script>
+</body>
+</html>

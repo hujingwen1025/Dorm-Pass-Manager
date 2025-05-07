@@ -1,9 +1,45 @@
+console.log(`%c  _____ _______ ____  _____  
+ / ____|__   __/ __ \\|  __ \\ 
+| (___    | | | |  | | |__) |
+ \\___ \\   | | | |  | |  ___/ 
+ ____) |  | | | |__| | |     
+|_____/   |_|  \\____/|_|     
+                             
+DANGER ZONE
+注意：开发者区域
+
+This is a browser feature intended for developers. If someone told you to copy-paste something here to enable a feature or "hack" someone's account, it is a scam and will give them access to your account. By pasting anything here, you might be putting your account and database information at risk!
+If you don't understand what you are doing, please close this window.
+这是一个针对开发人员的浏览器特性。如果有人告诉你在这里复制粘贴一些东西来启用某个功能或“入侵”某人的账户，这是一个骗局，他们会获得你的账户。通过在这里粘贴任何内容，您可能会将您的帐户和数据库信息置于危险之中！
+如果您不明白自己在做什么，请关闭此窗口。
+`, 'color: red') 
+
 window.debug = false;
 
 function dlog(text) {
     if (window.debug) {
         console.log(text);
     }
+}
+
+function intersectLists(list1, list2, list3) {
+    const activeLists = [];
+    for (const lst of [list1, list2, list3]) {
+        if (JSON.stringify(lst) !== JSON.stringify(['nonefound'])) {
+            activeLists.push(lst);
+        }
+    }
+    
+    if (activeLists.length === 0) {
+        return [];
+    }
+    
+    let result = activeLists[0];
+    for (let i = 1; i < activeLists.length; i++) {
+        result = result.filter(element => activeLists[i].includes(element));
+    }
+    
+    return result;
 }
 
 async function createNewStudentPass(studentid, destinationid) {
@@ -113,12 +149,12 @@ async function getStudents(filters) {
     }
 }
 
-async function searchStudents(filters) {
+async function searchStudents(searchFilters) {
     try {
         const response = await fetch("/api/searchStudents", {
             method: 'POST',
             body: JSON.stringify({
-                "searchFilter": filters
+                "searchFilter": searchFilters
             }),
             headers: {
                 Accept: 'application/json',
@@ -149,12 +185,12 @@ async function searchStudents(filters) {
     }
 }
 
-async function searchFilters(filters) {
+async function searchFilters(searchFilters) {
     try {
         const response = await fetch("/api/searchFilters", {
             method: 'POST',
             body: JSON.stringify({
-                "filter": filters
+                "filter": searchFilters
             }),
             headers: {
                 Accept: 'application/json',
@@ -232,7 +268,7 @@ async function setStudentIndex(studentsJson) {
         studentEditButton.setAttribute('id', `edit-${curstudent[0]}`)
                                                                                                                                                                                                                                     
         document.getElementById(`actions-${curstudent[0]}`).onclick = function(event){
-            alert(event.target.parentNode.id);
+            renderStudentInfoPopup(curstudent[3]); // Pass the student ID to render the student info popup
         }
 
         document.getElementById(`addpass-${curstudent[0]}`).onclick = function(event){
@@ -556,24 +592,60 @@ async function updateUserLocation(locationName) {
     }
 }
 
+async function doStudentSearch() {
+    const floorOption = document.getElementById('filterFloor')
+    const locationOption = document.getElementById('filterLocation')
+    const gradeOption = document.getElementById('filterGrade')
+
+    var filterDisplayText = ''
+
+    if (floorOption.value != 'Dorm Floor') {
+        var floorStudents = await doFloorSearch()
+        filterDisplayText = floorOption.value + ', '
+    } else {
+        var floorStudents = ['nonefound']
+    }
+
+    if (locationOption.value != 'Pass Location') {
+        var locationStudents = await doLocationSearch()
+        filterDisplayText += locationOption.value + ', '
+    } else {
+        var locationStudents = ['nonefound']
+    }
+
+    if (gradeOption.value != 'Grade') {
+        var gradeStudents = await doGradeSearch()
+        filterDisplayText += 'Grade ' + gradeOption.value + ', '
+    } else {
+        var gradeStudents = ['nonefound']
+    }
+    
+    if (filterDisplayText == '') {
+        filterDisplayText = 'No Filters Active'
+    } else {
+        filterDisplayText = filterDisplayText.slice(0, -2)
+    }
+
+    setFilterDisplay(filterDisplayText)
+
+    var allStudents = intersectLists(floorStudents, locationStudents, gradeStudents)
+
+    setStudents(allStudents)
+}
+
 async function doFloorSearch() {
     const filterFloor = document.getElementById('filterFloor')
-    const filterLocation = document.getElementById('filterLocation')
 
-    filterLocation.value = 'Current Location'
-    setFilterDisplay(filterFloor.value)
     floorId = await getLocationIdFromName(filterFloor.value)
 
     var floorIds = await searchStudents({'floorid': floorId})
 
-    setStudents(floorIds)
+    return floorIds
 }
 
 async function doLocationSearch() {
-    const filterFloor = document.getElementById('filterFloor')
     const filterLocation = document.getElementById('filterLocation')
 
-    filterFloor.value = 'Dorm Floor'
     locationId = await getLocationIdFromName(filterLocation.value)
 
     var destinationIds = await getStudents({'destination': locationId})
@@ -581,12 +653,11 @@ async function doLocationSearch() {
     var allIds = []
 
     for (i = 0; i < Object.keys(destinationIds).length; i ++) {
-        var convertedStuInfo = await searchStudents({'studentid': destinationIds[i][0][1]})
-        console.log(convertedStuInfo[0])
+        var convertedStuInfo = await searchStudents({'studentid': destinationIds[i][1]})
         allIds[Object.keys(allIds).length + i] = convertedStuInfo[0]
     }
     
-    setStudents(allIds)
+    return allIds
 }
 
 async function doNameSearch() {
@@ -624,7 +695,7 @@ async function doGradeSearch() {
         return;
     }
 
-    setStudents(foundStudents);
+    return foundStudents
 }
 
 function toggleOverlay(status) {
@@ -652,10 +723,31 @@ async function renderCreateNewPassPopup(studentid) {
     toggleOverlay(true)
 }
 
+async function renderStudentInfoPopup(studentid) {
+    var overlayContent = document.getElementById('overlayContent');
+    overlayContent.innerHTML = '';
+
+    var studentInfoIframe = document.createElement('iframe');
+    studentInfoIframe.src = `/studentInfo?studentid=${studentid}`;
+    studentInfoIframe.style.width = '600px';
+    studentInfoIframe.style.height = '700px';
+    studentInfoIframe.style.border = 'none';
+
+    overlayContent.appendChild(studentInfoIframe);
+    toggleOverlay(true);
+}
+
 window.addEventListener('message', (event) => {
-    if (event.data.message === 'close') {
+    if (event.data.message === 'createnewpassclose') {
         toggleOverlay(false);
         createAlertPopup(5000, 'success', 'Pass Created', `Pass ID: ${event.data.passId} has been created successfully.`);
+    }
+});
+
+window.addEventListener('message', (event) => {
+    if (event.data.message === 'redirect') {
+        toggleOverlay(false);
+        window.location = event.data.redirectUrl;
     }
 });
 
@@ -717,22 +809,24 @@ async function mainProcess() {
         }
     }
 
+    setFilterDisplay('No Filter Active')
+
     var userLocation = await getUserLocation()
     if (userLocation != 'error' && userLocation != null) {
         document.getElementById('locationSelector').value = userLocation
     }
 
     filterFloorOptions.value = 'Dorm Floor'
-    filterLocationOptions.value = 'Current Location'
+    filterLocationOptions.value = 'Pass Location'
 
-    filterFloorOptions.onchange = function () {doFloorSearch()}
-    filterLocationOptions.onchange = function () {doLocationSearch()}
+    filterFloorOptions.onchange = function () {doStudentSearch()}
+    filterLocationOptions.onchange = function () {doStudentSearch()}
 
     const searchTextBox = document.getElementById('filterSearchInput');
     searchTextBox.oninput = function () { doNameSearch() };
 
     const filterGradeOptions = document.getElementById('filterGrade');
-    filterGradeOptions.onchange = function () { doGradeSearch() };
+    filterGradeOptions.onchange = function () { doStudentSearch() };
 
     overlayCloseBtn.addEventListener('click', () => {
         toggleOverlay(false)

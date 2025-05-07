@@ -517,7 +517,7 @@ async function setStudentIndex(studentsJson) {
         studentFlagButton.setAttribute('id', `flag-${curstudent[0]}-${passid}`)
 
         document.getElementById(`actions-${curstudent[0]}-${passid}`).onclick = function(event){
-            alert(event.target.parentNode.id);
+            renderPassInfoPopup(passid); // Open passInfo overlay
         }
         document.getElementById(`approve-${curstudent[0]}-${passid}`).onclick = async function(event){
             var confirmApprove = confirm(`APPROVE ${curstudent[0]} ?`)
@@ -801,21 +801,65 @@ async function mainProcess() {
         toggleOverlay(false)
     });
 
+    window.addEventListener('message', (event) => {
+        if (event.data.message === 'closeOverlay') {
+            toggleOverlay(false);
+        }
+    });
+
     triggerDisplayUpdate()
 
     window.searchActivated = false
 }
 
 function toggleOverlay(status) {
-    var overlayCloseBtn = document.getElementById('overlayCloseBtn');
-    var overlay = document.getElementById('popupOverlay');
-    
-    if (status == true) {
-        overlay.style.display = 'flex'
+    const overlay = document.getElementById('popupOverlay');
+    if (status) {
+        overlay.style.display = 'flex';
     } else {
-        overlay.style.display = 'none'
+        overlay.style.display = 'none';
     }
 }
+
+async function renderPassInfoPopup(passid) {
+    const overlayContent = document.getElementById('overlayContent');
+    overlayContent.innerHTML = '';
+
+    const passInfoIframe = document.createElement('iframe');
+    passInfoIframe.src = `/passInfo?passid=${passid}`;
+    passInfoIframe.style.width = '600px';
+    passInfoIframe.style.height = '675px';
+    passInfoIframe.style.border = 'none';
+
+    overlayContent.appendChild(passInfoIframe);
+    toggleOverlay(true);
+}
+
+window.addEventListener('message', (event) => {
+    if (event.data.message === 'redirect') {
+        toggleOverlay(false);
+        window.location = event.data.redirectUrl;
+    }
+});
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    mainProcess()
+    toggleOverlay(false)
+    updateDisplay()   
+    const overlayCloseBtn = document.getElementById('overlayCloseBtn');
+    overlayCloseBtn.addEventListener('click', () => {
+        toggleOverlay(false);
+    });
+
+    const viewPassButton = document.getElementById('viewPassButton');
+    if (viewPassButton) {
+        viewPassButton.onclick = () => {
+            const passid = viewPassButton.getAttribute('data-passid');
+            renderPassInfoPopup(passid);
+        };
+    }
+});
 
 function updateDisplay() {
     if (window.searchActivated == false) {
@@ -823,9 +867,3 @@ function updateDisplay() {
     }
     setTimeout(updateDisplay, 15000);
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    mainProcess()
-    toggleOverlay(false)
-    updateDisplay()   
-});

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pass Information</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            text-align: center;
+            width: 100%;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .info-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .info-column {
+            flex: 1;
+            min-width: 45%;
+        }
+
+        .info-group {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .info-group label {
+            width: 45%;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .info-group span {
+            width: 50%;
+            text-align: left;
+        }
+
+        .student-image {
+            width: 150px;
+            height: 220px;
+            border-radius: 5%;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .alert {
+            padding: 20px;
+            background-color: #f7675a;
+            color: white;
+            opacity: 1;
+            transition: opacity 0.6s;
+            margin-bottom: 15px;
+            z-index: 1000;
+            margin: 5px;
+            border-radius: 7.5px;
+        }
+
+        .alert.success {background-color: #4bb885;}
+        .alert.info {background-color: #52a9f5;}
+        .alert.warning {background-color: #ffa946;}
+
+
+        .red {background-color: #f7675a;}
+        .green {background-color: #4bb885;}
+        .blue {background-color: #52a9f5;}
+        .orange {background-color: #ffa946;}
+
+        .red:hover {background-color: #f44336;}
+        .green:hover {background-color: #388e3c;}
+        .blue:hover {background-color: #1976d2;}
+        .orange:hover {background-color: #f57c00;}
+
+        .time-text {
+            font-size: 13px;
+        }
+
+        .closebtn {
+            margin-left: 15px;
+            color: white;
+            font-weight: bold;
+            float: right;
+            font-size: 22px;
+            line-height: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .closebtn:hover {
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Pass Information</h2>
+        <img id="studentImage" class="student-image" src="" alt="Student Image">
+        <div id="passInfo" class="info-container">
+            <div class="info-column">
+                <div class="info-group">
+                    <label><strong>Student Name:</strong></label>
+                    <span id="studentName"></span>
+                </div>
+                <div class="info-group">
+                    <label><strong>Grade:</strong></label>
+                    <span id="studentGrade"></span>
+                </div>
+                <div class="info-group">
+                    <label><strong>Dorm Floor:</strong></label>
+                    <span id="studentFloor"></span>
+                </div>
+                <div class="info-group">
+                    <label><strong>Destination:</strong></label>
+                    <span id="destination"></span>
+                </div>
+                <div class="info-group">
+                    <label><strong>Flagged:</strong></label>
+                    <span id="flagged"></span>
+                </div>
+            </div>
+            <div class="info-column">
+                <div class="info-group time-text">
+                    <label><strong>Leave Time - (Dorm):</strong></label>
+                    <span id="fleavetime"></span>
+                </div>
+                <div class="info-group time-text">
+                    <label><strong>Arrive Time - (Destination):</strong></label>
+                    <span id="darrivetime"></span>
+                </div>
+                <div class="info-group time-text">
+                    <label><strong>Leave Time - (Destination):</strong></label>
+                    <span id="dleavetime"></span>
+                </div>
+                <div class="info-group time-text">
+                    <label><strong>Arrive Time - (Dorm):</strong></label>
+                    <span id="farrivetime"></span>
+                </div>
+            </div>
+        </div>
+        <div class="info-container">
+            <div class="info-column">
+                <button id="flagPassButton" class="orange">Flag Pass</button>
+                <button id="approvePassButton" class="green">Approve Pass</button>
+            </div>
+            <div class="info-column">
+                <button id="deletePassButton" class="red">Delete Pass</button>
+                <button id="viewStudentInfoButton">View Student Info</button>
+            </div>
+        </div>
+        <p id="reloadPass">Reload Pass Details</p>
+    </div>
+    <div class="alertContainer" id="alertContainer"></div>
+    <script src="/static/js/passInfo.js"></script>
+</body>
+</html>

@@ -1,33 +1,50 @@
-var isSelf = 0;
-const __Reflect_apply = Reflect.apply
-const hook = (_class, blacklist, callback) => {
-  Object.getOwnPropertyNames(_class).forEach(funcName => {
-    if (!blacklist.includes(funcName) && typeof _class[funcName] === 'function') {
-      try {
-        _class[funcName] = new Proxy(_class[funcName], {
-          apply(target, _this, args) {
-            if(isSelf === 1) 
-              return __Reflect_apply(target, _this, args);
-
-            let stackarr = new Error().stack.split("at ").slice(2);
-            if (stackarr.some(stackEntry => stackEntry.includes("dhdgffkkebhmkfjojejmpbldmpobfkfo/userscript.html"))) { 
-              callback(target.name)
-            }
-
-            isSelf = 1;
-            const ret = __Reflect_apply(target, _this, args);
-            isSelf = 0;
-            return ret;
+setTimeout(() => {(function() {
+  function detectTampermonkeyByScriptInjection() {
+      const scripts = document.getElementsByTagName('script');
+      for (let script of scripts) {
+          if (script.src.includes('tampermonkey')) {
+              return true;
           }
-        });
-      } catch {}
-    }
-  });
-};
+      }
+      return false;
+  }
 
-hook(window, ["alert"], tamperCallback)
+  function detectTampermonkeyByElement() {
+      return document.querySelector('#tampermonkey-specific-element') !== null;
+  }
 
-function tamperCallback(name) {
-  console.log("[monkey-detect] " + name + " was called by a tampermonkey script")
-  document.body.innerHTML = "<div style=\"text-align: center;\"><h1>Access Blocked</h1><br><h3>You were blocked by our tamper saftey check. Your browser contains extensions, injections or redirect engines which might put our database at risk. You might need to disable some extensions to regain access (maybe Tampermonkey, Redirecter, Javascript Blocker). If you are unsure, please contact with the chatbox on the bottom right corner.</h3></div>";
-}
+  function detectTampermonkeyByMutation() {
+      const targetNode = document.body;
+      const config = { childList: true, subtree: true };
+      let detected = false;
+
+      const callback = function(mutationsList, observer) {
+          for (let mutation of mutationsList) {
+              if (mutation.type === 'childList') {
+                  mutation.addedNodes.forEach(node => {
+                      if (node.nodeType === 1 && node.id === 'tampermonkey-specific-element') {
+                          detected = true;
+                          observer.disconnect();
+                      }
+                  });
+              }
+          }
+      };
+
+      const observer = new MutationObserver(callback);
+      observer.observe(targetNode, config);
+
+      setTimeout(() => observer.disconnect(), 5000);
+      return detected;
+  }
+
+  if (detectTampermonkeyByScriptInjection()) {
+      console.log('Tampermonkey is active (script injection detected)');
+  } else if (detectTampermonkeyByElement()) {
+      console.log('Tampermonkey is active (specific element detected)');
+  } else if (detectTampermonkeyByMutation()) {
+      console.log('Tampermonkey is active (mutation detected)');
+  } else {
+      console.log('Tampermonkey is not active');
+  }
+})();}, 2500);

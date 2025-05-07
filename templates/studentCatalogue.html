@@ -34,7 +34,7 @@
             padding: 20px;
             padding-top: 5px;
             border-radius: 7.5px;
-            background-color: white;
+            background-color: rgb(255, 255, 255);
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
         
@@ -55,7 +55,7 @@
             transition: all 0.2s ease;
             margin: 5px;
             font-weight: bold;
-            max-width: 155px;
+            width: 175px;
         }
 
         .customFilterButton {
@@ -175,10 +175,6 @@
             outline: none;
         }
 
-        .kiosk-button {
-            background-color: #00aaff;
-        }
-
         .alert {
             padding: 20px;
             background-color: #f7675a;
@@ -285,7 +281,6 @@
             <button class="material-button" id="studentsNavButton">Students</button>
             <button class="material-button" id="manageNavButton">Manage</button>
             <button class="material-button" id="settingsNavButton">Settings</button>
-            <button class="material-button kiosk-button" id="kioskNavButton" onclick="startKioskMode()">KIOSK</button>
         </div>
         <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar">-</span> | 
             <select name="location" class="locationSelector" id="locationSelector">
@@ -297,15 +292,14 @@
         <h2>Student Catalogue</h2>
         <p><b>Filter: </b><span id="filterDisplay"></span></p>
         <div class="button-container">
-            <button class="filterButton" id="filterButtonRelated">Related</button>
             <select name="filterFloor" class="filterButton" id="filterFloor">
-                <option disabled>Dorm Floor</option>
+                <option selected>Dorm Floor</option>
             </select>
             <select name="filterLocation" class="filterButton" id="filterLocation">
-                <option disabled>Current Location</option>
+                <option selected>Pass Location</option>
             </select>
             <select name="filterGrade" class="filterButton" id="filterGrade">
-                <option disabled selected>Grade</option>
+                <option selected>Grade</option>
                 <option value="9">Grade 9</option>
                 <option value="10">Grade 10</option>
                 <option value="11">Grade 11</option>
