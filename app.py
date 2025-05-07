@@ -237,7 +237,7 @@ def checkPassword(password):
     return True, "Password is valid"
     
 def sendEmail(subject, body, recipient_email):
-    msg = MIMEText(body)
+    msg = MIMEText(body, 'html')
     msg['Subject'] = subject
     msg['From'] = 'DPM - Exabyte Tech'
     msg['To'] = recipient_email
@@ -2264,7 +2264,8 @@ def requestPasswordReset():
     
     serverUrl = getSettingsValue('serverURL')
     reset_link = f"{serverUrl}/resetPassword?token={token}"
-    email_body = f"Click the link to reset your password: {reset_link}"
+    email_body = "<html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body{font-family:Arial,sans-serif;margin:0;padding:20px;background-color:#f0f2f5;min-height:100vh;display:flex;justify-content:center;align-items:center}.container{max-width:400px;width:100%;background-color:white;padding:30px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center}h1{text-align:center;color:#1877f2;margin-bottom:25px}h2{text-align:center;color:#1877f2;margin-bottom:25px}p{line-height:1.6;color:#444;margin-bottom:25px}.reset-link{display:inline-block;color:#1877f2;text-decoration:none;font-weight:500;padding:10px 15px;border-radius:5px;transition:all 0.2s ease;margin:0 auto}.reset-link:hover{background-color:#f0f2f5;transform:translateY(-1px)}</style></head><body><div class='container'><h1>Exabyte Tech</h1><h2>DPM Password Reset</h2><p>Click the link below to reset your password:</p><a href='resetplaceholder' class='reset-link'>Reset Password</a></div></body></html>"
+    email_body = email_body.replace('resetplaceholder', reset_link)
     
     if sendEmail('Password Reset Request', email_body, email):
         delaySeconds = random.randint(0, 20)
