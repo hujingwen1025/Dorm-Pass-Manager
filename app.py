@@ -33,8 +33,8 @@ fernet = Fernet(encryption_key)
 
 debug = False
 
-CLIENT_ID = '64141594-9d10-4ae2-82c7-43a73eef5e20'
-CLIENT_SECRET = 'xca8Q~AGugkyWFFgihOw-nBwYV1hnrSilLrFXaF5'
+CLIENT_ID = 'b15b7118-5315-48dc-bac7-9f34fc878c03'
+CLIENT_SECRET = '~Ia8Q~jsZv1GL-zKDMKbzSPYW7sxDb8pFA7Wmae_'
 AUTHORITY = 'https://login.microsoftonline.com/common'
 REDIRECT_URI = 'http://localhost:8080/microsoftLoginCallback'
 SCOPE = ["User.Read"]
@@ -126,11 +126,13 @@ def joinLocations(locationList):
     joinedString = joinedString[:-1]
     return joinedString
 
-def ensureLoggedIn(session):
+def ensureLoggedIn(session, allowedroles = 3):
     try:
         sessionid = decrypt(str(session.get('sessionid')))
         passkey = decrypt(str(session.get('passkey')))
-        if sessionStorage.verify(sessionid, passkey) != None:
+        userinfo = sessionStorage.verify(sessionid, passkey)
+        print(userinfo)
+        if userinfo != None and userinfo[1] <= allowedroles:
             return True
         else:
             return False
@@ -253,14 +255,14 @@ def sendEmail(subject, body, recipient_email):
         return False
 
 class sessionStorage:
-    def create(oid, keepstatedays):
+    def create(oid, keepstatedays, isstudent = False):
         passkeylength = int(getSettingsValue('passkeyLength'))
         passkey = ''.join(random.choices(string.ascii_uppercase + string.digits, k=passkeylength))
         expdate = currentDatetime() + timedelta(days=keepstatedays)
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('INSERT INTO sessions (oid, passkey, expdate, active) VALUES (%s, %s, %s, %s)', (oid, passkey, expdate, True))
+                dbcursor.execute('INSERT INTO sessions (oid, passkey, expdate, active, isstudent) VALUES (%s, %s, %s, %s, %s)', (oid, passkey, expdate, True, isstudent))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
                 result = dbcursor.fetchall()
                                 
@@ -269,24 +271,27 @@ class sessionStorage:
     def verify(sessionid, passkey):
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT oid, expdate, active FROM sessions WHERE sessionid = %s AND passkey = %s', (sessionid, passkey))
+                dbcursor.execute('SELECT oid, expdate, active FROM sessions WHERE sessionid = %s AND passkey = %s AND active = true', (sessionid, passkey))
                 result = dbcursor.fetchall()
         
         if len(result) < 1:
-            return None
-        
-        sessionActive = result[0][2]
-        
-        if not sessionActive:
             return None
 
         oid = result[0][0]
         expdate = result[0][1]
         
         if expdate < currentDatetime():
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('UPDATE sessions SET active = false WHERE sessionid = %s AND passkey = %s', (sessionid, passkey))
             return None
         
-        return oid
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT role FROM users WHERE oid = %s', (oid,))
+                userrole = dbcursor.fetchall()[0][0]
+
+        return [oid, userrole]
     
     def deactivate(sessionid, passkey):
         with dbConnect() as connection:
@@ -304,14 +309,16 @@ def getOidFromSession(session):
     dprint('gofsi')
     dprint([sessionid, passkey])
     
-    oid = sessionStorage.verify(sessionid, passkey)
+    oid = sessionStorage.verify(sessionid, passkey)[0]
     
     return oid
 
 @app.route('/')
 def home():
-    if ensureLoggedIn(session):
-        return redirect('/passCatalogue')
+    if ensureLoggedIn(session, 3):
+        rejectionmessage = request.args.get('reject')
+        print('rejectionmessage')
+        return redirect('/passCatalogue?reject=' + rejectionmessage) if rejectionmessage else redirect('/passCatalogue')
     else:
         return render_template('signin.html')
    
@@ -337,7 +344,7 @@ def kiosk():
         dprint(kioskSession)
         return render_template('passCatalogue.html')
     else:
-        return redirect('/')
+        return redirect('/?reject=You are not authorized to view this page')
     
 @app.route('/signout')
 def signout():
@@ -424,6 +431,7 @@ def passwordLoginCallback():
                 result = dbcursor.fetchall()
 
         if len(result) > 0:
+            print('Password login successful')
             oid = result[0][0]
             keepSessionDays = int(getSettingsValue('keepSessionDays'))
             sessioninfo = sessionStorage.create(oid, keepSessionDays)
@@ -489,7 +497,7 @@ def searchLocations():
         
 @app.route('/api/editLocation', methods=['POST'])
 def editLocation():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 1):
         retinfo = {}
         
         locationid = request.json.get('locationid')
@@ -595,7 +603,7 @@ def getLocationId():
     
 @app.route('/api/generateKioskToken', methods=['POST'])
 def generateKioskToken():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 2):
         retinfo = {}
         
         oid = getOidFromSession(session)
@@ -622,7 +630,7 @@ def generateKioskToken():
     
 @app.route('/api/updatePass', methods=['POST'])
 def updatePass():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 2):
         retinfo = {}
         
         oid = getOidFromSession(session)
@@ -803,7 +811,7 @@ def updatePass():
     
 @app.route('/api/getStudents', methods=['POST'])
 def getStudents():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         oid = getOidFromSession(session)
@@ -960,7 +968,7 @@ def getStudents():
     
 @app.route('/api/addStudent', methods=['POST'])
 def addStudent():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 1):
         retinfo = {}
         
         studentName = request.json.get('name')
@@ -1087,7 +1095,7 @@ def addStudent():
     
 @app.route('/api/getUserLocation', methods=['POST'])
 def getUserLocation():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         oid = getOidFromSession(session)
@@ -1129,7 +1137,7 @@ def getUserLocation():
     
 @app.route('/api/addUser', methods=['POST'])
 def addUser():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 1):
         retinfo = {}
         
         userName = request.json.get('name')
@@ -1245,7 +1253,7 @@ def addUser():
     
 @app.route('/api/addLocation', methods=['POST'])
 def addLocation():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 1):
         retinfo = {}
         
         locationName = request.json.get('name')
@@ -1299,7 +1307,7 @@ def addLocation():
     
 @app.route('/api/editStudent', methods=['POST'])
 def editStudent():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 1):
         retinfo = {}
         
         studentid = request.json.get('studentid')
@@ -1470,7 +1478,7 @@ def editStudent():
                 
 @app.route('/api/editUser', methods=['POST'])
 def editUser():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 1):
         retinfo = {}
         
         settingsEdit = request.json.get('settingsEdit')
@@ -1620,7 +1628,7 @@ def editUser():
     
 @app.route('/api/searchStudents', methods=['POST'])
 def searchStudents():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         searchFilter = request.json.get('searchFilter')
@@ -1722,7 +1730,7 @@ def searchStudents():
     
 @app.route('/api/searchUsers', methods=['POST'])
 def searchUsers():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         searchFilter = request.json.get('searchFilter')
@@ -1821,7 +1829,7 @@ def searchUsers():
     
 @app.route('/api/getLocationInfo', methods=['POST'])    
 def getLocationInfo():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         locationfilter = request.json.get('filters')
@@ -1874,7 +1882,7 @@ def getLocationInfo():
     
 @app.route('/api/updateUserLocation', methods=['POST'])
 def updateUserLocation():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         oid = getOidFromSession(session)
@@ -1923,7 +1931,7 @@ def updateUserLocation():
     
 @app.route('/api/getUserInfo', methods=['POST'])
 def getUserInfo():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         oid = getOidFromSession(session)
@@ -1955,7 +1963,7 @@ def getUserInfo():
     
 @app.route('/api/getStudentInfo', methods=['POST'])
 def getStudentsInfo():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         studentid = str(request.json.get('studentid'))
@@ -1994,7 +2002,7 @@ def getStudentsInfo():
     
 @app.route('/api/newPass', methods=['POST'])
 def newPass():
-    if ensureLoggedIn(session): 
+    if ensureLoggedIn(session, 2): 
         retinfo = {}
         
         studentid = request.json.get('studentid')
@@ -2117,21 +2125,21 @@ def webSerialTest():
 
 @app.route('/passCatalogue')
 def passCatalogue():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         return render_template('passCatalogue.html')
     else:
-        return redirect('/')
+        return redirect('/?reject=You are not authorized to view this page')
     
 @app.route('/studentCatalogue')
 def studentCatalogue():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 2):
         return render_template('studentCatalogue.html')
     else:
-        return redirect('/')
+        return redirect('/?reject=You are not authorized to view this page')
     
 @app.route('/api/getStudentImage', methods=['POST'])
 def getStudentImage():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         studentid = request.json.get('studentid')
@@ -2162,7 +2170,7 @@ def getStudentImage():
     
 @app.route('/api/getPassInfo', methods=['POST'])
 def getPassInfo():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         data = request.json
@@ -2209,10 +2217,10 @@ def getPassInfo():
         
 @app.route('/managePanel')
 def managePanel():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 1):
         return render_template('managePanel.html')
     else:
-        return redirect('/')
+        return redirect('/?reject=You are not authorized to view this page')
     
 @app.route('/passwordReset')
 def passwordReset():
@@ -2220,10 +2228,10 @@ def passwordReset():
     
 @app.route('/settingsPanel')
 def settingsPanel():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         return render_template('settingsPanel.html')
     else:
-        return redirect('/')
+        return redirect('/?reject=You are not authorized to view this page')
 
 @app.route('/api/passwordReset', methods=['POST'])
 def requestPasswordReset():
@@ -2332,24 +2340,24 @@ def resetNewPassword():
 
 @app.route('/newPassEdit')
 def newPassEdit():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 2):
         return render_template('newPass.html')
     else:
-        return redirect('/')
+        return redirect('/?reject=You are not authorized to view this page')
     
 @app.route('/studentInfo')
 def studentInfo():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         return render_template('studentInfo.html')
     else:
-        return redirect('/')
+        return redirect('/?reject=You are not authorized to view this page')
     
 @app.route('/passInfo')
 def passInfo():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         return render_template('passInfo.html')
     else:
-        return redirect('/')
+        return redirect('/?reject=You are not authorized to view this page')
 
 @app.route('/closePage')
 def closePage():

@@ -703,9 +703,14 @@ async function mainProcess() {
     window.lastfilterchoice = 'filterButtonRelated'
     window.exsistingAlert = {}
 
-    const urlParams = new URLSearchParams();
+    const urlParams = new URLSearchParams(window.location.search);
 
     const firstLanding = urlParams.get('firstLanding')
+    const rejectionmessage = urlParams.get('reject')
+
+    if (rejectionmessage != null && rejectionmessage != undefined && rejectionmessage != '') {
+        createAlertPopup(5000, null, 'Rejected From Page', rejectionmessage)
+    }
 
     if (userinfo == 'error') {
         userinfo = null
