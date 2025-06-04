@@ -3,6 +3,8 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+        <script src="/static/js/socketScript.js"></script>
         <title>DPM - Manage Panel</title>
         <style>
             body {
@@ -374,9 +376,9 @@
                     <img src="/static/resource/local_pin_icon.png" alt="Locations Icon" class="option-icon">
                     <p>Locations</p>
                 </div>
-                <div class="option" id="diagnosticsOption">
-                    <img src="/static/resource/microscope_icon.png" alt="Diagnostics Icon" class="option-icon">
-                    <p>Diagnostics</p>
+                <div class="option" id="commandOption">
+                    <img src="/static/resource/checkmark_icon.png" alt="Command Icon" class="option-icon">
+                    <p>Command</p>
                 </div>
                 <div class="option" id="backupOption">
                     <img src="/static/resource/database_download_icon.png" alt="Backup Icon" class="option-icon">
@@ -540,8 +542,8 @@
                     
                 </div>
             </div>
-            <div class="manageContainer containerHidden" id="diagnosticsContainer">
-                <p>Diagnostics Container Placeholder</p>
+            <div class="manageContainer containerHidden" id="commandContainer">
+                <p>To schedule a diagnostic check or report a bug please contact <a href="mailto:dpm@exabyte.org.cn">dpm@exabyte.org.cn</a></p>
             </div>
             <div class="manageContainer containerHidden" id="backupContainer">
                 <h3>Backup Control</h3>

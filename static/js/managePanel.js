@@ -669,7 +669,7 @@ function doOptionUpdate(optionid = null) {
     const studentsOption = document.getElementById('studentsOption');
     const usersOption = document.getElementById('usersOption');
     const locationsOption = document.getElementById('locationsOption');
-    const diagnosticsOption = document.getElementById('diagnosticsOption');
+    const commandOption = document.getElementById('commandOption');
     const backupOption = document.getElementById('backupOption');
     const settingsOption = document.getElementById('settingsOption');
 
@@ -683,8 +683,8 @@ function doOptionUpdate(optionid = null) {
         case 'locationsOption':
             locationsOption.classList.add('optionActivated')
             break;
-        case 'diagnosticsOption':
-            diagnosticsOption.classList.add('optionActivated')
+        case 'commandOption':
+            commandOption.classList.add('optionActivated')
             break;
         case 'backupOption':
             backupOption.classList.add('optionActivated')
@@ -696,7 +696,7 @@ function doOptionUpdate(optionid = null) {
             studentsOption.classList.remove('optionActivated')
             usersOption.classList.remove('optionActivated')
             locationsOption.classList.remove('optionActivated')
-            diagnosticsOption.classList.remove('optionActivated')
+            commandOption.classList.remove('optionActivated')
             backupOption.classList.remove('optionActivated')
             settingsOption.classList.remove('optionActivated')
 
@@ -710,8 +710,8 @@ function doOptionUpdate(optionid = null) {
                 case 'locationsOption':
                     locationsOption.classList.add('optionActivated')
                     break;
-                case 'diagnosticsOption':
-                    diagnosticsOption.classList.add('optionActivated')
+                case 'commandOption':
+                    commandOption.classList.add('optionActivated')
                     break;
                 case 'backupOption':
                     backupOption.classList.add('optionActivated')
@@ -725,7 +725,7 @@ function doOptionUpdate(optionid = null) {
             studentsOption.classList.remove('optionActivated')
             usersOption.classList.remove('optionActivated')
             locationsOption.classList.remove('optionActivated')
-            diagnosticsOption.classList.remove('optionActivated')
+            commandOption.classList.remove('optionActivated')
             backupOption.classList.remove('optionActivated')
             settingsOption.classList.remove('optionActivated')
         default:
@@ -751,14 +751,14 @@ function setSelectedOption(optionid) {
     const studentsContainer = document.getElementById('studentsContainer');
     const usersContainer = document.getElementById('usersContainer');
     const locationsContainer = document.getElementById('locationsContainer');
-    const diagnosticsContainer = document.getElementById('diagnosticsContainer');
+    const commandContainer = document.getElementById('commandContainer');
     const backupContainer = document.getElementById('backupContainer');
     const settingsContainer = document.getElementById('settingsContainer');
 
     studentsContainer.classList.add('containerHidden')
     usersContainer.classList.add('containerHidden')
     locationsContainer.classList.add('containerHidden')
-    diagnosticsContainer.classList.add('containerHidden')
+    commandContainer.classList.add('containerHidden')
     backupContainer.classList.add('containerHidden')
     settingsContainer.classList.add('containerHidden')
 
@@ -775,8 +775,8 @@ function setSelectedOption(optionid) {
         case 'locationsOption':
             locationsContainer.classList.remove('containerHidden')
             break;
-        case 'diagnosticsOption':
-            diagnosticsContainer.classList.remove('containerHidden')
+        case 'commandOption':
+            commandContainer.classList.remove('containerHidden')
             break;
         case 'backupOption':
             backupContainer.classList.remove('containerHidden')
@@ -1610,7 +1610,7 @@ async function deleteBackup(filename) {
 }
 
 async function loadBackup(filename) {
-    if (confirm(`Do you want to load ${filename}? This will override all data on the exsisting database!`) != true) {
+    if (confirm(`Do you want to load ${filename}? This will override all data on the exsisting database and force everyone regardless of their current state to sign out!`) != true) {
         return;
     }
     try {
@@ -1634,7 +1634,8 @@ async function loadBackup(filename) {
                 createAlertPopup(5000, null, 'Error While Loading Backup', responseJson.errorinfo)
                 return 'error'
             case "ok":
-                createAlertPopup(5000, 'success', 'Backup Loaded', `Backup ${filename} has been loaded successfully.`);
+                createAlertPopup(10000, 'success', 'Backup Loaded', `Backup ${filename} has been loaded successfully. You will be signed out now.`);
+                setTimeout(() => { window.location = '/' }, 3000)
                 return 0
             default:
                 return null
@@ -1807,28 +1808,28 @@ async function mainProcess() {
     const studentsOption = document.getElementById('studentsOption');
     const usersOption = document.getElementById('usersOption');
     const locationsOption = document.getElementById('locationsOption');
-    const diagnosticsOption = document.getElementById('diagnosticsOption');
+    const commandOption = document.getElementById('commandOption');
     const backupOption = document.getElementById('backupOption');
     const settingsOption = document.getElementById('settingsOption');
 
     studentsOption.onmouseover = function() {doOptionUpdate('studentsOption')}
     usersOption.onmouseover = function() {doOptionUpdate('usersOption')}
     locationsOption.onmouseover = function() {doOptionUpdate('locationsOption')}
-    diagnosticsOption.onmouseover = function() {doOptionUpdate('diagnosticsOption')}
+    commandOption.onmouseover = function() {doOptionUpdate('commandOption')}
     backupOption.onmouseover = function() {doOptionUpdate('backupOption')}
     settingsOption.onmouseover = function() {doOptionUpdate('settingsOption')}
 
     studentsOption.onmouseout = function() {doOptionUpdate('moreset')}
     usersOption.onmouseout = function() {doOptionUpdate('moreset')}
     locationsOption.onmouseout = function() {doOptionUpdate('moreset')}
-    diagnosticsOption.onmouseout = function() {doOptionUpdate('moreset')}
+    commandOption.onmouseout = function() {doOptionUpdate('moreset')}
     backupOption.onmouseout = function() {doOptionUpdate('moreset')}
     settingsOption.onmouseout = function() {doOptionUpdate('moreset')}
 
     studentsOption.onclick = function() {setSelectedOption('studentsOption')}
     usersOption.onclick = function() {setSelectedOption('usersOption')}
     locationsOption.onclick = function() {setSelectedOption('locationsOption')}
-    diagnosticsOption.onclick = function() {setSelectedOption('diagnosticsOption')}
+    commandOption.onclick = function() {setSelectedOption('commandOption')}
     backupOption.onclick = function() {setSelectedOption('backupOption')}
     settingsOption.onclick = function() {setSelectedOption('settingsOption')}
 

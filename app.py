@@ -13,6 +13,7 @@ import random
 import hashlib
 import smtplib
 from email.mime.text import MIMEText
+from flask_socketio import SocketIO
 
 app = Flask(__name__)
 
@@ -38,6 +39,7 @@ dbuser = "dpmhost"
 dbpassword = "tlw7uwa1537b66d6p0o2"
 dbdatabase = "Dorm Pass Manager"
 
+socketio = SocketIO(app)
 
 def dprint(text):
     if debug:
@@ -330,6 +332,9 @@ def getOidFromSession(session):
     oid = sessionStorage.verify(sessionid, passkey)[0]
     
     return oid
+
+def broadcastMasterCommand(command, payload = None):
+    socketio.emit('command', {'command': command, 'payload': payload})
 
 @app.route('/')
 def home():
@@ -2648,6 +2653,13 @@ def loadBackup():
         try:
             if os.path.exists(file_path):
                 os.system(f"/usr/local/mysql-9.1.0-macos14-arm64/bin/mysql -u {dbuser} --password={dbpassword} '{dbdatabase}' < '{file_path}'")
+
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('UPDATE sessions SET active = false')
+
+                broadcastMasterCommand('signout')
+
                 retinfo['status'] = 'ok'
             else:
                 retinfo['status'] = 'error'
@@ -2682,6 +2694,11 @@ def uploadBackup():
             retinfo['errorinfo'] = 'No selected file'
             return jsonify(retinfo)
         
+        if not file.filename.lower().endswith('.sql'):
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Only .sql files are allowed'
+            return jsonify(retinfo)
+        
         homeDir = os.path.expanduser("~")
         backupDir = os.path.join(homeDir, 'DPMBackups')
         
@@ -2694,6 +2711,35 @@ def uploadBackup():
             file.save(file_path)
             retinfo['status'] = 'ok'
             retinfo['filename'] = file.filename
+        except Exception as e:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = str(e)
+        
+        return jsonify(retinfo)
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+
+@app.route('/api/sendMasterCommand', methods=['POST'])
+def sendMasterCommand():
+    if ensureLoggedIn(session, 1):
+        retinfo = {}
+        
+        command = request.json.get('command')
+        payload = request.json.get('payload')
+        
+        if not command:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Command is required'
+            return jsonify(retinfo)
+        
+        try:
+            broadcastMasterCommand(command, payload)
+            retinfo['status'] = 'ok'
         except Exception as e:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = str(e)
@@ -2754,4 +2800,4 @@ def page_not_found(e):
     return render_template('errorPage.html', errorTitle = '500 Internal Server Error', errorText = 'The server encountered an internal error and was unable to complete your request.', errorDesc = 'Either the server is overloaded or there is an error in the application.', errorLink = '/'), 500
 
 if __name__ == '__main__':
-    app.run(port=8080, host="0.0.0.0")
+    socketio.run(app, port=8080, host="0.0.0.0")
