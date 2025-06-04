@@ -251,6 +251,94 @@
             .closebtn:hover {
               color: black;
             }
+
+            datalist {
+                display: block;
+                z-index: 1000;
+                position: absolute;
+            }
+
+            .backupList {
+                padding: 5px;
+                padding-left: 20px;
+            }
+
+            .backupList span {
+                margin-right: 15px;
+            }
+
+            .download-button {
+                margin-bottom: 10px;
+                position: relative;
+                display: inline-block;
+                background-color: #007bff;
+                color: white;
+                padding: 5px 10px;
+                border: none;
+                border-radius: 5px;
+                text-decoration: none;
+                transition: background-color 0.3s ease;
+            }
+
+            .download-button:hover {
+                background-color: #0056b3;
+            }
+
+            .download-button:active {
+                background-color: #004494;
+            }
+
+            .delete-button {
+                position: relative;
+                display: inline-block;
+                background-color: #dc3545;
+                color: white;
+                padding: 5px 10px;
+                border: none;
+                border-radius: 5px;
+                text-decoration: none;
+                transition: background-color 0.3s ease;
+            }
+
+            .delete-button:hover {
+                background-color: #c82333;
+            }
+
+            .delete-button:active {
+                background-color: #bd2130;
+            }
+
+            .load-button {
+                position: relative;
+                display: inline-block;
+                background-color: #28a745;
+                color: white;
+                padding: 5px 10px;
+                border: none;
+                border-radius: 5px;
+                text-decoration: none;
+                transition: background-color 0.3s ease;
+            }
+
+            .load-button:hover {
+                background-color: #218838;
+            }
+
+            .load-button:active {
+                background-color: #1e7e34;
+            }
+
+            .bg-green {
+                background-color: #28a745;
+            }
+
+            .bg-green:hover {
+                background-color: #218838;
+            }
+
+            .bg-green:active {
+                background-color: #1e7e34;
+            }
         </style>
 
         <script src="/static/js/managePanel.js"></script>
@@ -320,6 +408,8 @@
                         <input class="formInput formInput" type="text" list="addStudentFoundFloors" id="addStudentFloor" name="floor" placeholder="West 6" requried><br>
                         <datalist id="addStudentFoundFloors">
                         </datalist>
+                        <label class="formLabel" for="email">Email</label><br>
+                        <input class="formInput formInput" type="email" id="addStudentEmail" name="email" placeholder="xiaoming.li@example.domain" required><br>
                         <label class="formLabel" for="cardid">Card ID (Optional)</label><br>
                         <input class="formInput formInput" type="text" id="addStudentCardid" name="cardid" placeholder="1234567890"><br>
                         <label class="formLabel" for="image">Student Image (Optional)</label><br>
@@ -341,6 +431,8 @@
                         <input class="formInput formInput" type="text" list="editStudentFoundFloors" id="editStudentFloor" name="floor" placeholder="West 6" required disabled><br>
                         <datalist id="editStudentFoundFloors">
                         </datalist>
+                        <label class="formLabel" for="email">Email</label><br>
+                        <input class="formInput formInput" type="email" id="editStudentEmail" name="email" placeholder="xiaoming.li@example.domain" required disabled><br>
                         <label class="formLabel" for="cardid">Card ID (Optional)</label><br>
                         <input class="formInput formInput" type="text" id="editStudentCardid" name="cardid" placeholder="1234567890" disabled><br>
                         <label class="formLabel" for="image" id="editStudentClearFileButton">Student Image (Optional)</label><br>
@@ -377,7 +469,7 @@
                         <datalist id="addUserFoundLocations">
                         </datalist>
                         <label class="formLabel" for="password">Password (Optional)</label><br>
-                        <input class="formInput formInput" type="password" id="addUserPassword" name="password" required><br>
+                        <input class="formInput formInput" type="password" id="addUserPassword" name="password" placeholder="••••••••••••" required><br>
                         <input class="formInput formSubmit" type="button" value="Submit" id="addUserButtonSubmit">
                         
                 </div>
@@ -390,7 +482,7 @@
                         <label class="formLabel" for="name">Full Name</label><br>
                         <input class="formInput formInput" type="text" id="editUserName" name="name" placeholder="Xiaoming John Li" required disabled><br>
                         <label class="formLabel" for="email">Email</label><br>
-                        <input class="formInput formInput" type="email" id="editUserEmail" name="email" placeholder="" required disabled><br>
+                        <input class="formInput formInput" type="email" id="editUserEmail" name="email" placeholder="xiaoming.li@example.domain" required disabled><br>
                         <label class="formLabel" for="role">Role</label><br>
                         <select name="role" id="editUserRole" class="formInput formSelect" disabled>
                             <option value="admin">Admin</option>
@@ -402,7 +494,7 @@
                         <datalist id="editUserFoundLocations">
                         </datalist>
                         <label class="formLabel" for="password">Password (Optional)</label><br>
-                        <input class="formInput formInput" type="password" id="editUserPassword" name="password" required disabled><br>
+                        <input class="formInput formInput" type="password" id="editUserPassword" name="password" placeholder="••••••••••••" required disabled><br>
                         <input class="formInput formSubmit" type="button" value="Submit" id="editUserButtonSubmit">
                         <input class="formInput formSubmit redAction" type="button" value="Delete User" id="editUserDeleteButton">
                     
@@ -452,10 +544,91 @@
                 <p>Diagnostics Container Placeholder</p>
             </div>
             <div class="manageContainer containerHidden" id="backupContainer">
-                <p>Backup Container Placeholder</p>
+                <h3>Backup Control</h3>
+                <button class="formInput formSubmit bg-green" id="generateBackupButton">Generate Backup</button>
+                <button class="formInput formSubmit" id="getBackupListButton">Refresh Backup List</button><br>
+                <label class="formLabel" for="backupSelect">Upload Backup</label>
+                <input class="formInput" type="file" id="backupFileInput" name="backupSelect" accept=".sql">
+                <button class="formInput formSubmit" id="uploadBackupButton">Upload Backup</button><br>
+                <hr>
+                <label class="formLabel">Backup List</label>
+                <div class="backupList" id="backupList"></div>
             </div>
             <div class="manageContainer containerHidden" id="settingsContainer">
-                <p>Settings Container Placeholder</p>
+
+                <p style="color: red; font-weight: bold">WARNING: Server settings normally does not need editing after the server is set up. Please be very sure you know what you are doing.</p>
+
+                <h3>Edit Settings</h3>
+                <form id="settingsForm">
+                    <label class="formLabel" for="studentWarningTimeout">Student Warning Timeout</label><br>
+                    <input class="formInput" type="number" id="studentWarningTimeout" name="studentWarningTimeout"><br>
+
+                    <label class="formLabel" for="studentAlertTimemout">Student Alert Timeout</label><br>
+                    <input class="formInput" type="number" id="studentAlertTimemout" name="studentAlertTimemout"><br>
+
+                    <label class="formLabel" for="studentMinimumTimeout">Student Minimum Timeout</label><br>
+                    <input class="formInput" type="number" id="studentMinimumTimeout" name="studentMinimumTimeout"><br>
+
+                    <label class="formLabel" for="passkeyLength">Passkey Length</label><br>
+                    <input class="formInput" type="number" id="passkeyLength" name="passkeyLength"><br>
+
+                    <label class="formLabel" for="querySearchLimit">Query Search Limit</label><br>
+                    <input class="formInput" type="number" id="querySearchLimit" name="querySearchLimit"><br>
+
+                    <label class="formLabel" for="keepSessionDays">Keep Session Days</label><br>
+                    <input class="formInput" type="number" id="keepSessionDays" name="keepSessionDays"><br>
+
+                    <label class="formLabel" for="minGrade">Min Grade</label><br>
+                    <input class="formInput" type="number" id="minGrade" name="minGrade"><br>
+
+                    <label class="formLabel" for="maxGrade">Max Grade</label><br>
+                    <input class="formInput" type="number" id="maxGrade" name="maxGrade"><br>
+
+                    <label class="formLabel" for="minNameLength">Min Name Length</label><br>
+                    <input class="formInput" type="number" id="minNameLength" name="minNameLength"><br>
+
+                    <label class="formLabel" for="maxNameLength">Max Name Length</label><br>
+                    <input class="formInput" type="number" id="maxNameLength" name="maxNameLength"><br>
+
+                    <label class="formLabel" for="minCardidLength">Min Card ID Length</label><br>
+                    <input class="formInput" type="number" id="minCardidLength" name="minCardidLength"><br>
+
+                    <label class="formLabel" for="maxCardidLength">Max Card ID Length</label><br>
+                    <input class="formInput" type="number" id="maxCardidLength" name="maxCardidLength"><br>
+
+                    <label class="formLabel" for="minEmailLength">Min Email Length</label><br>
+                    <input class="formInput" type="number" id="minEmailLength" name="minEmailLength"><br>
+
+                    <label class="formLabel" for="maxEmailLength">Max Email Length</label><br>
+                    <input class="formInput" type="number" id="maxEmailLength" name="maxEmailLength"><br>
+
+                    <label class="formLabel" for="smtpServer">SMTP Server</label><br>
+                    <input class="formInput" type="text" id="smtpServer" name="smtpServer"><br>
+
+                    <label class="formLabel" for="smtpEmail">SMTP Email</label><br>
+                    <input class="formInput" type="email" id="smtpEmail" name="smtpEmail"><br>
+
+                    <label class="formLabel" for="smtpPassword">SMTP Password</label><br>
+                    <input class="formInput" type="password" id="smtpPassword" name="smtpPassword" placeholder="For security reasons, you can only change this field but not read it."><br>
+
+                    <label class="formLabel" for="serverURL">Server URL</label><br>
+                    <input class="formInput" type="text" id="serverURL" name="serverURL"><br>
+
+                    <label class="formLabel" for="msauthClientId">MS Auth Client ID</label><br>
+                    <input class="formInput" type="text" id="msauthClientId" name="msauthClientId"><br>
+
+                    <label class="formLabel" for="msauthClientSecret">MS Auth Client Secret</label><br>
+                    <input class="formInput" type="password" id="msauthClientSecret" name="msauthClientSecret" placeholder="For security reasons, you can only change this field but not read it."><br>
+
+                    <label class="formLabel" for="msauthAuthority">MS Auth Authority</label><br>
+                    <input class="formInput" type="text" id="msauthAuthority" name="msauthAuthority"><br>
+
+                    <label class="formLabel" for="msauthScope">MS Auth Scope</label><br>
+                    <input class="formInput" type="text" id="msauthScope" name="msauthScope"><br>
+
+                    <input class="formInput formSubmit" type="submit" value="Save Settings">
+                </form>
+
             </div>
         </div>
         <script type="text/javascript">function add_chatinline(){var hccid=17228201;var nt=document.createElement("script");nt.async=true;nt.src="https://mylivechat.com/chatinline.aspx?hccid="+hccid;var ct=document.getElementsByTagName("script")[0];ct.parentNode.insertBefore(nt,ct);}

@@ -33,11 +33,11 @@ fernet = Fernet(encryption_key)
 
 debug = False
 
-CLIENT_ID = 'b15b7118-5315-48dc-bac7-9f34fc878c03'
-CLIENT_SECRET = '~Ia8Q~jsZv1GL-zKDMKbzSPYW7sxDb8pFA7Wmae_'
-AUTHORITY = 'https://login.microsoftonline.com/common'
-REDIRECT_URI = 'http://localhost:8080/microsoftLoginCallback'
-SCOPE = ["User.Read"]
+dbhost = "localhost"
+dbuser = "dpmhost"
+dbpassword = "tlw7uwa1537b66d6p0o2"
+dbdatabase = "Dorm Pass Manager"
+
 
 def dprint(text):
     if debug:
@@ -55,26 +55,39 @@ def generateSHA256(text):
     return str(hashlib.sha256(text.encode()).hexdigest())
 
 def dbConnect():
+    global dbhost, dbuser, dbpassword, dbdatabase
+
     return mysql.connector.connect(
-    host="localhost",
-    user="dpmhost",
-    password="tlw7uwa1537b66d6p0o2",
+    host=dbhost,
+    user=dbuser,
+    password=dbpassword,
     autocommit = True,
-    database="Dorm Pass Manager",
+    database=dbdatabase,
     buffered = True
 )
 
 def get_msal_app():
     return ConfidentialClientApplication(
-        CLIENT_ID,
-        authority=AUTHORITY,
-        client_credential=CLIENT_SECRET
+        getSettingsValue('msauthClientId'),
+        authority=getSettingsValue('msauthauthority'),
+        client_credential=getSettingsValue('msauthclientsecret')
     )
     
 def checkUserInformation(usergetparam, oid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute(f"SELECT {usergetparam} FROM users WHERE oid = %s", (oid,))
+            dbcursorfetch = dbcursor.fetchall()
+            
+    if len(dbcursorfetch) < 1:
+        return None
+    
+    return dbcursorfetch[0]
+
+def checkStudentInformation(studentgetparam, oid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute(f"SELECT {studentgetparam} FROM students WHERE oid = %s", (oid,))
             dbcursorfetch = dbcursor.fetchall()
             
     if len(dbcursorfetch) < 1:
@@ -126,13 +139,17 @@ def joinLocations(locationList):
     joinedString = joinedString[:-1]
     return joinedString
 
-def ensureLoggedIn(session, allowedroles = 3):
+def ensureLoggedIn(session, allowedroles = 3, studentPortal = False):
     try:
         sessionid = decrypt(str(session.get('sessionid')))
         passkey = decrypt(str(session.get('passkey')))
         userinfo = sessionStorage.verify(sessionid, passkey)
-        print(userinfo)
-        if userinfo != None and userinfo[1] <= allowedroles:
+        dprint(userinfo)
+        if studentPortal:
+            if userinfo[2] == False:
+                return False
+            return True
+        if userinfo != None and userinfo[1] <= allowedroles and userinfo[2] == False:
             return True
         else:
             return False
@@ -271,7 +288,7 @@ class sessionStorage:
     def verify(sessionid, passkey):
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT oid, expdate, active FROM sessions WHERE sessionid = %s AND passkey = %s AND active = true', (sessionid, passkey))
+                dbcursor.execute('SELECT oid, expdate, isstudent FROM sessions WHERE sessionid = %s AND passkey = %s AND active = true', (sessionid, passkey))
                 result = dbcursor.fetchall()
         
         if len(result) < 1:
@@ -279,6 +296,7 @@ class sessionStorage:
 
         oid = result[0][0]
         expdate = result[0][1]
+        isstudent = result[0][2]
         
         if expdate < currentDatetime():
             with dbConnect() as connection:
@@ -291,7 +309,7 @@ class sessionStorage:
                 dbcursor.execute('SELECT role FROM users WHERE oid = %s', (oid,))
                 userrole = dbcursor.fetchall()[0][0]
 
-        return [oid, userrole]
+        return [oid, userrole, isstudent]
     
     def deactivate(sessionid, passkey):
         with dbConnect() as connection:
@@ -317,9 +335,17 @@ def getOidFromSession(session):
 def home():
     if ensureLoggedIn(session, 3):
         rejectionmessage = request.args.get('reject')
-        print('rejectionmessage')
+        dprint('rejectionmessage')
         return redirect('/passCatalogue?reject=' + rejectionmessage) if rejectionmessage else redirect('/passCatalogue')
+    
+    elif ensureLoggedIn(session, studentPortal = True):
+        return redirect('/student')
+    
     else:
+        rejectionmessage = request.args.get('reject')
+        if rejectionmessage != None:
+            session.clear()
+            return redirect('/')
         return render_template('signin.html')
    
 @app.route('/west6')
@@ -366,7 +392,7 @@ def userSignin():
 @app.route('/mslogin')
 def login():
     msal_app = get_msal_app()
-    auth_url = msal_app.get_authorization_request_url(SCOPE, redirect_uri=REDIRECT_URI)
+    auth_url = msal_app.get_authorization_request_url(getSettingsValue('msauthscope').split('$'), redirect_uri=getSettingsValue('serverURL') + '/microsoftLoginCallback')
     return redirect(auth_url)
 
 @app.route('/microsoftLoginCallback')
@@ -375,13 +401,35 @@ def microsoftLoginCallback():
     if not code:
         return render_template('errorPage.html', errorTitle = 'Microsoft Signin Error', errorText = 'Error in auth token', errorDesc = 'Please try signing in again', errorLink = '/'), 400
     msal_app = get_msal_app()
-    result = msal_app.acquire_token_by_authorization_code(code, scopes=SCOPE, redirect_uri=REDIRECT_URI)
+    result = msal_app.acquire_token_by_authorization_code(code, scopes=getSettingsValue('msauthscope').split('$'), redirect_uri=getSettingsValue('serverURL') + '/microsoftLoginCallback')
     dprint(result)
     if 'access_token' in result:
         msUserInfo = result.get('id_token_claims')
         oid = msUserInfo["oid"]
         email = msUserInfo["preferred_username"]
         urin = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+        stin = checkStudentInformation("studentid, name, oid, email, cardid, grade", oid)
+        if urin != None:
+            userInfo = urin
+            dprint(userInfo)
+            keepSessionDays = int(getSettingsValue('keepSessionDays'))
+            sessioninfo = sessionStorage.create(oid, keepSessionDays, False)
+            session['sessionid'] = str(encrypt(sessioninfo[0]))
+            session['passkey'] = str(encrypt(sessioninfo[1]))
+
+            session['login'] = True
+            return redirect('/passCatalogue')
+        elif stin != None:
+            studentInfo = stin
+            dprint(studentInfo)
+            keepSessionDays = int(getSettingsValue('keepSessionDays'))
+            sessioninfo = sessionStorage.create(oid, keepSessionDays, True)
+            session['sessionid'] = str(encrypt(sessioninfo[0]))
+            session['passkey'] = str(encrypt(sessioninfo[1]))
+
+            session['login'] = True
+            return redirect('/student')
+        
         if urin == None:
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
@@ -392,25 +440,38 @@ def microsoftLoginCallback():
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
                         dbcursor.execute('UPDATE users SET oid = %s WHERE email = %s', (oid, email,))   
+            
+                keepSessionDays = int(getSettingsValue('keepSessionDays'))
+                sessioninfo = sessionStorage.create(oid, keepSessionDays, False)
+                session['sessionid'] = str(encrypt(sessioninfo[0]))
+                session['passkey'] = str(encrypt(sessioninfo[1]))   
+
+                session['login'] = True
+                return render_template('firstLanding.html')
+                
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT * FROM students WHERE email = %s', (email,))
+                    result = dbcursor.fetchall()
+
+            if len(result) > 0:
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dbcursor.execute('UPDATE students SET oid = %s WHERE email = %s', (oid, email,))
                 session['login'] = True
                 keepSessionDays = int(getSettingsValue('keepSessionDays'))
-                sessioninfo = sessionStorage.create(oid, keepSessionDays)
-                session['sessionid'] = str(encrypt(sessioninfo[0]))
-                session['passkey'] = str(encrypt(sessioninfo[1]))                    
-                return render_template('firstLanding.html')
-            else:
-                return render_template('userNotRegistered.html', email = msUserInfo["preferred_username"])
-        userInfo = urin
-        dprint(userInfo)
-        keepSessionDays = int(getSettingsValue('keepSessionDays'))
-        sessioninfo = sessionStorage.create(oid, keepSessionDays)
-        session['sessionid'] = str(encrypt(sessioninfo[0]))
-        session['passkey'] = str(encrypt(sessioninfo[1]))                    
+                sessioninfo = sessionStorage.create(oid, keepSessionDays, True)
+                session['sessionid'] = str(sessioninfo[0])
+                session['passkey'] = str(sessioninfo[1])
+
+                session['login'] = True
+                return redirect('/student')
             
-        session['login'] = True
-        return redirect('/passCatalogue')
+            else:
+                render_template('userNotRegistered.html', email = email, msUserInfo = msUserInfo, oid = oid)
+                    
     else:
-        return f'Error: {result.get("error_description")}', 400
+        return render_template('errorPage.html', errorTitle = 'Microsoft Signin Error', errorText = 'Our servers encountered an error while signing you in.', errorDesc = 'Please try signing in again', errorLink = '/'), 400
     
 @app.route('/passwordLoginCallback', methods=['POST'])
 def passwordLoginCallback():
@@ -431,7 +492,7 @@ def passwordLoginCallback():
                 result = dbcursor.fetchall()
 
         if len(result) > 0:
-            print('Password login successful')
+            dprint('Password login successful')
             oid = result[0][0]
             keepSessionDays = int(getSettingsValue('keepSessionDays'))
             sessioninfo = sessionStorage.create(oid, keepSessionDays)
@@ -578,7 +639,7 @@ def editLocation():
     
 @app.route('/api/getLocationId', methods=['POST'])
 def getLocationId():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         locationtype = request.json.get('type')
@@ -975,11 +1036,12 @@ def addStudent():
         studentGrade = request.json.get('grade')
         studentFloor = request.json.get('floor')
         studentCardid = request.json.get('cardid')
+        studentEmail = request.json.get('email')
         studentImage = request.json.get('image')
         
         dprint([studentName, studentGrade, studentFloor, studentCardid])
         
-        if studentName == None or studentGrade == None or studentFloor == None or studentName == '' or studentGrade == '' or studentFloor == '':
+        if studentName == None or studentGrade == None or studentFloor == None or studentName == '' or studentGrade == '' or studentFloor == '' or studentEmail == None or studentEmail == '':
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Please fill in all of the required fields'
             
@@ -1043,7 +1105,28 @@ def addStudent():
                 return jsonify(retinfo)
         else:
             studentCardid = None
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM students WHERE email = %s', (studentEmail,))
+                dbcursorfetch = dbcursor.fetchall()
+
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Email of student has already been taken'
+            return jsonify(retinfo)
         
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM users WHERE email = %s', (studentEmail,))
+                dbcursorfetch = dbcursor.fetchall()
+
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Email of student has already been taken'
+            
+            return jsonify(retinfo)
+
         try: 
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
@@ -1076,7 +1159,7 @@ def addStudent():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('INSERT INTO students (name, grade, floorid, cardid, image) VALUES (%s, %s, %s, %s, %s)', (studentName, studentGrade, studentFloorId, studentCardid, studentImage,))
+                dbcursor.execute('INSERT INTO students (name, grade, floorid, cardid, image, email) VALUES (%s, %s, %s, %s, %s, %s)', (studentName, studentGrade, studentFloorId, studentCardid, studentImage, studentEmail,))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
                 dbcursorfetch = dbcursor.fetchall()
                 
@@ -1185,6 +1268,17 @@ def addUser():
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Email of user has already been taken'
+            
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM students WHERE email = %s', (userEmail,))
+                dbcursorfetch = dbcursor.fetchall()
+
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Email of user has already been taken by a student'
             
             return jsonify(retinfo)
         
@@ -1351,6 +1445,7 @@ def editStudent():
         studentGrade = request.json.get('grade')
         studentFloor = request.json.get('floor')
         studentCardid = request.json.get('cardid')
+        studentEmail = request.json.get('email')
         studentImage = request.json.get('image')
         
         if checkNameLength(studentName) == False:
@@ -1373,7 +1468,7 @@ def editStudent():
         
         dprint([studentid, studentName, studentGrade, studentFloor, studentCardid])
         
-        if studentName == None or studentGrade == None or studentFloor == None or studentName == '' or studentGrade == '' or studentFloor == '':
+        if studentName == None or studentGrade == None or studentFloor == None or studentName == '' or studentGrade == '' or studentFloor == '' or studentEmail == None or studentEmail == '':
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Please fill in all of the required fields'
             
@@ -1460,9 +1555,42 @@ def editStudent():
 
             return jsonify(retinfo)
         
+        try:
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT email FROM students WHERE email = %s AND studentid != %s', (studentEmail, studentid,))
+                    dbcursorfetch = dbcursor.fetchall()
+                    
+            if len(dbcursorfetch) > 0:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Email of student has already been taken'
+                
+                return jsonify(retinfo)
+        except:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid email'
+            
+            return jsonify(retinfo)
+        
+        try:
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT email FROM users WHERE email = %s', (studentEmail,))
+                    dbcursorfetch = dbcursor.fetchall()
+            if len(dbcursorfetch) > 0:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Email of student has already been taken by a user'
+                
+                return jsonify(retinfo)
+        except:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Please enter a valid email'
+            
+            return jsonify(retinfo)
+        
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('UPDATE students SET name = %s, grade = %s, floorid = %s, cardid = %s, image = %s WHERE studentid = %s', (studentName, studentGrade, studentFloorId, studentCardid, studentImage, studentid,))
+                dbcursor.execute('UPDATE students SET name = %s, grade = %s, floorid = %s, cardid = %s, image = %s, email = %s WHERE studentid = %s', (studentName, studentGrade, studentFloorId, studentCardid, studentImage, studentEmail, studentid,))
         
         retinfo['status'] = 'ok'
         
@@ -1478,26 +1606,28 @@ def editStudent():
                 
 @app.route('/api/editUser', methods=['POST'])
 def editUser():
-    if ensureLoggedIn(session, 1):
+    if request.json.get('settingsEdit') == 'true' or ensureLoggedIn(session, 1):
         retinfo = {}
         
+        oid = getOidFromSession(session)
         settingsEdit = request.json.get('settingsEdit')
+        setuserid = checkUserInformation("userid", oid)[0]
+        setuserrole = checkUserInformation("role", oid)[0]
+
         if settingsEdit == 'true':
             seTrue = True
             
-            oid = getOidFromSession(session)
-            userid = checkUserInformation("userid", oid)[0]
-            
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
-                    dbcursor.execute('SELECT role FROM users WHERE userid = %s', (userid,))
+                    dbcursor.execute('SELECT role FROM users WHERE userid = %s', (setuserid,))
                     dbcursorfetch = dbcursor.fetchall()
                     
             userRoleId = dbcursorfetch[0][0]
+            userid = setuserid
         else:
             seTrue = False
             userid = request.json.get('userid')
-        
+
         try:
             deleteUser = request.json.get('delete')
             if deleteUser == 'true':
@@ -1581,6 +1711,17 @@ def editUser():
             
             return jsonify(retinfo)
         
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM students WHERE email = %s', (userEmail,))
+                dbcursorfetch = dbcursor.fetchall()
+
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Email of user has already been taken by a student'
+            
+            return jsonify(retinfo)
+        
         if userPassword == None or userPassword == '':
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
@@ -1605,24 +1746,45 @@ def editUser():
             
             return jsonify(retinfo)
         
-        if not seTrue:
-            if userRole == 'admin':
-                userRoleId = 1
-            elif userRole == 'proctor':
-                userRoleId = 2
-            elif userRole == 'approver':
-                userRoleId = 3
-            else:
+        if userRole == 'admin':
+            userSetRole = 1
+        elif userRole == 'proctor':
+            userSetRole = 2
+        elif userRole == 'approver':
+            userSetRole = 3
+        else:
+            userSetRole = 0
+
+        if not seTrue and userid != setuserid:
+            if userSetRole == 0:
                 retinfo['status'] = 'error'
                 retinfo['errorinfo'] = 'Please enter a valid role'
 
                 return jsonify(retinfo)
+            
+        elif userRole != None and userSetRole != setuserrole:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'You cannot change your own role'
+
+            return jsonify(retinfo)
+        
+        if userSetRole == 0:
+            userRoleId = setuserrole
+        else:
+            userRoleId = userSetRole
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('UPDATE users SET name = %s, email = %s, role = %s, locationid = %s, password = %s WHERE userid = %s', (userName, userEmail, userRoleId, userLocationId, userPassword, userid,))
         
         retinfo['status'] = 'ok'
+        
+        return jsonify(retinfo)
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
         
         return jsonify(retinfo)
     
@@ -1635,7 +1797,7 @@ def searchStudents():
         
         dprint(searchFilter)
         
-        sqlquery = "SELECT studentid, name, grade, cardid, floorid, disabledlocations FROM students WHERE 1 = 1 "
+        sqlquery = "SELECT studentid, name, grade, cardid, floorid, disabledlocations, email FROM students WHERE 1 = 1 "
         sqlqueryvar = []
         
         try:
@@ -1706,8 +1868,8 @@ def searchStudents():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                print(sqlquery)
-                print(sqlqueryvar)
+                dprint(sqlquery)
+                dprint(sqlqueryvar)
                 dbcursor.execute(sqlquery, sqlqueryvar)
                 dprint('execed')
                 dprint(dbcursor.statement)
@@ -1970,7 +2132,7 @@ def getStudentsInfo():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT name, grade, floorid, disabledlocations, cardid FROM students WHERE studentid = %s", (studentid,))
+                dbcursor.execute("SELECT name, grade, floorid, disabledlocations, cardid, email FROM students WHERE studentid = %s", (studentid,))
                 dbcursorfetch = dbcursor.fetchall()
                 
         if len(dbcursorfetch) < 0:
@@ -2283,6 +2445,51 @@ def requestPasswordReset():
         delaySeconds = random.randint(0, 20)
         time.sleep(delaySeconds / 10)
         return jsonify({'status': 'error', 'errorinfo': 'Failed to send email'})
+    
+@app.route('/api/getSettingsValue', methods=['POST'])
+def getSettingsValueAPI():
+    if ensureLoggedIn(session, 1):
+        retinfo = {}
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT name, value FROM settings WHERE name != "smtpPassword" AND name != "msauthClientSecret"')
+                result = dbcursor.fetchall()
+
+        settings = {name: value for name, value in result}
+
+        retinfo['status'] = 'ok'
+        retinfo['settings'] = settings
+
+        return jsonify(retinfo)
+    
+@app.route('/api/setSettingsValue', methods=['POST'])
+def setSettingsValueAPI():
+    if ensureLoggedIn(session, 1):
+        retinfo = {}
+        
+        settingName = request.json.get('settingName')
+        settingValue = request.json.get('settingValue')
+        
+        if not settingName or not settingValue:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Invalid setting name or value'
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('UPDATE settings SET value = %s WHERE name = %s', (settingValue, settingName))
+        
+        retinfo['status'] = 'ok'
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+
+        return jsonify(retinfo)
 
 @app.route('/resetPassword')
 def resetPassword():
@@ -2338,6 +2545,181 @@ def resetNewPassword():
     
     return jsonify({'status': 'ok'})
 
+@app.route('/api/generateBackup', methods=['POST'])
+def generateBackup():
+    if ensureLoggedIn(session, 1):
+        retinfo = {}
+        
+        homeDir = os.path.expanduser("~")
+        backupFileName = f"backup_{currentDatetime().strftime('%Y%m%d_%H%M%S')}.sql"
+
+        try:
+            os.system(f"/usr/local/mysql-9.1.0-macos14-arm64/bin/mysqldump -u {dbuser} --password={dbpassword} '{dbdatabase}' > '{os.path.join(os.path.join(homeDir, 'DPMBackups'), backupFileName)}'")
+            retinfo['status'] = 'ok'
+            retinfo['backupFileName'] = backupFileName
+        except Exception as e:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = str(e)
+        
+        return jsonify(retinfo)
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/api/getBackupList', methods=['POST'])
+def getBackupList():
+    if ensureLoggedIn(session, 1):
+        retinfo = {}
+        
+        homeDir = os.path.expanduser("~")
+        backupDir = os.path.join(homeDir, 'DPMBackups')
+        
+        try:
+            backupFiles = [f for f in os.listdir(backupDir) if f.startswith('backup_') and f.endswith('.sql')]
+            retinfo['status'] = 'ok'
+            retinfo['backupFiles'] = backupFiles
+        except Exception as e:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = str(e)
+        
+        return jsonify(retinfo)
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/api/deleteBackup', methods=['POST'])
+def deleteBackup():
+    if ensureLoggedIn(session, 1):
+        retinfo = {}
+        
+        filename = request.json.get('filename')
+        
+        if not filename:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Filename is required'
+            return jsonify(retinfo)
+        
+        homeDir = os.path.expanduser("~")
+        file_path = os.path.join(os.path.join(homeDir, 'DPMBackups'), filename)
+        
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                retinfo['status'] = 'ok'
+            else:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'File does not exist'
+        except Exception as e:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = str(e)
+        
+        return jsonify(retinfo)
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/api/loadBackup', methods=['POST'])
+def loadBackup():
+    if ensureLoggedIn(session, 1):
+        retinfo = {}
+        
+        filename = request.json.get('filename')
+        
+        if not filename:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Filename is required'
+            return jsonify(retinfo)
+        
+        homeDir = os.path.expanduser("~")
+        file_path = os.path.join(os.path.join(homeDir, 'DPMBackups'), filename)
+        
+        try:
+            if os.path.exists(file_path):
+                os.system(f"/usr/local/mysql-9.1.0-macos14-arm64/bin/mysql -u {dbuser} --password={dbpassword} '{dbdatabase}' < '{file_path}'")
+                retinfo['status'] = 'ok'
+            else:
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'File does not exist'
+        except Exception as e:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = str(e)
+        
+        return jsonify(retinfo)
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/api/uploadBackup', methods=['POST'])
+def uploadBackup():
+    if ensureLoggedIn(session, 1):
+        retinfo = {}
+        
+        if 'file' not in request.files:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'No file part in the request'
+            return jsonify(retinfo)
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'No selected file'
+            return jsonify(retinfo)
+        
+        homeDir = os.path.expanduser("~")
+        backupDir = os.path.join(homeDir, 'DPMBackups')
+        
+        if not os.path.exists(backupDir):
+            os.makedirs(backupDir)
+        
+        file_path = os.path.join(backupDir, file.filename)
+        
+        try:
+            file.save(file_path)
+            retinfo['status'] = 'ok'
+            retinfo['filename'] = file.filename
+        except Exception as e:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = str(e)
+        
+        return jsonify(retinfo)
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+
+@app.route('/downloadBackup/<filename>')
+def downloadBackup(filename):
+    if ensureLoggedIn(session, 1):
+        homeDir = os.path.expanduser("~")
+        file_path = os.path.join(os.path.join(homeDir, 'DPMBackups'), filename)
+        
+        if os.path.exists(file_path):
+            return send_file(file_path, as_attachment=True)
+        else:
+            return render_template('errorPage.html', errorTitle='File Not Found', errorText='The requested backup file does not exist.', errorDesc='Please ensure the file exists and try again.', errorLink='/managePanel')
+    else:
+        return redirect('/?reject=You are not authorized to view this page')
+
 @app.route('/newPassEdit')
 def newPassEdit():
     if ensureLoggedIn(session, 2):
@@ -2362,6 +2744,14 @@ def passInfo():
 @app.route('/closePage')
 def closePage():
     return render_template('closePage.html')
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('errorPage.html', errorTitle = '404 Not Found', errorText = 'The requested URL was not found on the server.', errorDesc = 'If you entered the URL manually please check your spelling and try again.', errorLink = '/'), 404
+
+@app.errorhandler(500)
+def page_not_found(e):
+    return render_template('errorPage.html', errorTitle = '500 Internal Server Error', errorText = 'The server encountered an internal error and was unable to complete your request.', errorDesc = 'Either the server is overloaded or there is an error in the application.', errorLink = '/'), 500
 
 if __name__ == '__main__':
     app.run(port=8080, host="0.0.0.0")

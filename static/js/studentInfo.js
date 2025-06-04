@@ -62,8 +62,11 @@ async function fetchStudentInfo(studentid) {
         }
 
         const studentInfo = responseJson.studentinfo;
+        console.log(studentInfo)
+        window.studentName = studentInfo[0];
         document.getElementById('studentName').textContent = studentInfo[0];
         document.getElementById('studentGrade').textContent = studentInfo[1];
+        document.getElementById('studentEmail').textContent = studentInfo[5];
         document.getElementById('studentFloor').textContent = await getLocationName(studentInfo[2]);
         document.getElementById('studentCardId').textContent = studentInfo[4]; // Ensure cardid is displayed
         document.getElementById('studentLocation').textContent = await getCurrentLocation(studentid);
@@ -260,12 +263,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     
     document.getElementById('editStudentButton').onclick = () => {
-        window.parent.postMessage({ message: 'redirect', redirectUrl: `/managePanel?editStudent=${studentName}` }, '*');
+        window.parent.postMessage({ message: 'redirect', redirectUrl: `/managePanel?editStudent=${wiondow.studentName}` }, '*');
     }
 
     document.getElementById('studentLocation').onclick = () => {
         window.parent.postMessage({ message: 'redirect', redirectUrl: `/passCatalogue?viewPass=${window.passid}` }, '*');
     }
 
-    document.get
 });

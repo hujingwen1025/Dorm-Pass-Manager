@@ -218,7 +218,7 @@ async function addUser(name, email, role, location, password = null) {
     }
 }
 
-async function addStudent(studentName, studentGrade, studentFloor, studentCardid, studentImage) {
+async function addStudent(studentName, studentGrade, studentFloor, studentCardid, studentImage, studentEmail) {
     try {
         const response = await fetch("/api/addStudent", {
             method: 'POST',
@@ -227,6 +227,7 @@ async function addStudent(studentName, studentGrade, studentFloor, studentCardid
                 "grade": studentGrade,
                 "floor": studentFloor,
                 "cardid": studentCardid,
+                "email": studentEmail,
                 "image": studentImage
             }),
             headers: {
@@ -295,7 +296,7 @@ async function addLocation(locationName, locationType) {
     }
 }
 
-async function editStudent(studentid, studentName, studentGrade, studentFloor, studentCardid, studentImage) {
+async function editStudent(studentid, studentName, studentGrade, studentFloor, studentCardid, studentImage, studentEmail) {
     try {
         const response = await fetch("/api/editStudent", {
             method: 'POST',
@@ -305,6 +306,7 @@ async function editStudent(studentid, studentName, studentGrade, studentFloor, s
                 "grade": studentGrade,
                 "floor": studentFloor,
                 "cardid": studentCardid,
+                "email": studentEmail,
                 "image": studentImage
             }),
             headers: {
@@ -877,6 +879,7 @@ function setStudentEditDisable(status) {
     document.getElementById('editStudentGrade').disabled = status
     document.getElementById('editStudentCardid').disabled = status
     document.getElementById('editStudentFloor').disabled = status
+    document.getElementById('editStudentEmail').disabled = status
     document.getElementById('editStudentImage').disabled = status
 }
 
@@ -903,18 +906,21 @@ async function loadStudentInfoEdit(name) {
         var locationInfo = await getLocationInfo({'id': studentList[0][4]})
         locationInfo = locationInfo[0][1]
         var cardidInfo = studentList[0][3]
+        var emailInfo = studentList[0][6]
 
         setStudentEditDisable(false)
 
         document.getElementById('editStudentName').value = nameInfo
         document.getElementById('editStudentGrade').value = gradeInfo
         document.getElementById('editStudentCardid').value = cardidInfo
+        document.getElementById('editStudentEmail').value = emailInfo
         document.getElementById('editStudentFloor').value = locationInfo
     } else {
         dlog('student not found, clearing')
         document.getElementById('editStudentName').value = ''
         document.getElementById('editStudentGrade').value = ''
         document.getElementById('editStudentCardid').value = ''
+        document.getElementById('editStudentEmail').value = ''
         document.getElementById('editStudentFloor').value = ''
 
         setStudentEditDisable(true)
@@ -1027,17 +1033,19 @@ async function doStudentAdd() {
     var studentGrade = document.getElementById('addStudentGrade').value
     var studentFloor = document.getElementById('addStudentFloor').value
     var studentCardid = document.getElementById('addStudentCardid').value
+    var studentEmail = document.getElementById('addStudentEmail').value
     var studentImage = ''
     if (studentImageFile != undefined && studentImageFile != null) {
         await convertImageFileToBase64(studentImageFile).then(base64 => studentImage = base64);
     }
 
-    var addResult = await addStudent(studentName, studentGrade, studentFloor, studentCardid, studentImage)
+    var addResult = await addStudent(studentName, studentGrade, studentFloor, studentCardid, studentImage, studentEmail)
     if (addResult != 'error') {
         document.getElementById('addStudentName').value = ''
         document.getElementById('addStudentGrade').value = ''
         document.getElementById('addStudentFloor').value = ''
         document.getElementById('addStudentCardid').value = ''
+        document.getElementById('addStudentEmail').value = ''
         document.getElementById('addStudentImage').value = ''
         createAlertPopup(5000, 'success', 'Success', `Student ${studentName} added successfully with an ID of ${addResult}`)
     } else {
@@ -1236,6 +1244,7 @@ async function doStudentEdit() {
     var studentGrade = document.getElementById('editStudentGrade').value
     var studentFloor = document.getElementById('editStudentFloor').value
     var studentCardid = document.getElementById('editStudentCardid').value
+    var studentEmail = document.getElementById('editStudentEmail').value
     var studentImage = ''
     if (studentImageFile != undefined && studentImageFile != null) {
         await convertImageFileToBase64(studentImageFile).then(base64 => studentImage = base64);
@@ -1246,7 +1255,7 @@ async function doStudentEdit() {
         return 0
     }
 
-    var editResult = await editStudent(window.studentEditId, studentName, studentGrade, studentFloor, studentCardid, studentImage)
+    var editResult = await editStudent(window.studentEditId, studentName, studentGrade, studentFloor, studentCardid, studentImage, studentEmail)
     if (editResult != 'error') {
         createAlertPopup(5000, 'success', 'Success', `Student ${studentName} edited successfully`)
         document.getElementById('editStudentChoose').value = ''
@@ -1347,7 +1356,403 @@ async function getUserLocation() {
     }
 }
 
+async function getSettingsValue() {
+    try {
+        const response = await fetch("/api/getSettingsValue", {
+            method: 'POST',
+            body: JSON.stringify({}),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
 
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Getting Settings Value', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return responseJson.settings
+            default:
+                return null
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return null
+    }
+}
+
+async function generateBackup() {
+    try {
+        const response = await fetch("/api/generateBackup", {
+            method: 'POST',
+            body: JSON.stringify({}),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Generating Backup', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                createAlertPopup(5000, 'success', 'Backup Generated', 'Backup has been generated successfully. You can download it by clicking "Download Latest Backup" button.')
+                loadBackupList()
+                return 0
+            default:
+                return null
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return null
+    }
+}
+
+
+/**
+ * Loads all settings values from the server and populates the settings form fields.
+ */
+async function loadSettingsValues() {
+    const settings = await getSettingsValue();
+    if (!settings || settings === 'error') {
+        createAlertPopup(5000, null, 'Error', 'Failed to load settings from server');
+        return;
+    }
+
+    // List of all settings fields to populate
+    const fields = [
+        'studentWarningTimeout',
+        'studentAlertTimemout',
+        'studentMinimumTimeout',
+        'passkeyLength',
+        'querySearchLimit',
+        'keepSessionDays',
+        'minGrade',
+        'maxGrade',
+        'minNameLength',
+        'maxNameLength',
+        'minCardidLength',
+        'maxCardidLength',
+        'minEmailLength',
+        'maxEmailLength',
+        'smtpServer',
+        'smtpEmail',
+        'serverURL',
+        'msauthClientId',
+        'msauthAuthority',
+        'msauthScope'
+    ];
+
+    fields.forEach(field => {
+        const el = document.getElementById(field);
+        if (el && settings[field] !== undefined) {
+            el.value = settings[field];
+        }
+    });
+}
+
+/**
+ * Sends a single setting value to the server to update it.
+ * @param {string} settingName 
+ * @param {string|number} settingValue 
+ * @returns {Promise<string>} "ok" or "error"
+ */
+async function setSettingValue(settingName, settingValue) {
+    try {
+        const response = await fetch("/api/setSettingsValue", {
+            method: 'POST',
+            body: JSON.stringify({
+                settingName: settingName,
+                settingValue: settingValue
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+        if (responseJson.status === "ok") {
+            return "ok";
+        } else {
+            createAlertPopup(5000, null, 'Error Saving Setting', responseJson.errorinfo || 'Unknown error');
+            return "error";
+        }
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return "error";
+    }
+}
+
+async function getBackupList() {
+    try {
+        const response = await fetch("/api/getBackupList", {
+            method: 'POST',
+            body: JSON.stringify({}),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Getting Backup List', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                return responseJson.backupFiles
+            default:
+                return null
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return null
+    }
+}
+
+async function loadBackupList() {
+    const backupListDiv = document.getElementById('backupList');
+    backupListDiv.innerHTML = ''; // Clear existing content
+    const backupFiles = await getBackupList();
+    if (!backupFiles || backupFiles === 'error') {
+        createAlertPopup(5000, null, 'Error', 'Failed to load backup files');
+        return;
+    }
+    if (backupFiles.length === 0) {
+        backupListDiv.innerHTML = '<p>No backups available.</p>';
+        return;
+    }
+    backupFiles.forEach(file => {
+        const fileDiv = document.createElement('div');
+        fileDiv.className = 'backup-file';
+        fileDiv.innerHTML = `
+            <span>${file}</span>
+            <button class="download-button" onclick="downloadBackup('${file}')">Download</button>
+            <button class="load-button" onclick="loadBackup('${file}')">Load</button>
+            <button class="delete-button" onclick="deleteBackup('${file}')">Delete</button>
+        `;
+        backupListDiv.appendChild(fileDiv);
+    });
+}
+
+async function downloadBackup(filename) {
+    window.open(`/downloadBackup/${encodeURIComponent(filename)}`, '_blank');
+}
+
+async function deleteBackup(filename) {
+    if (confirm(`Do you want to delete ${filename}? This action cannot be undone!`) != true) {
+        return;
+    }
+    try {
+        const response = await fetch("/api/deleteBackup", {
+            method: 'POST',
+            body: JSON.stringify({ filename: filename }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Deleting Backup', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                createAlertPopup(5000, 'success', 'Backup Deleted', `Backup ${filename} has been deleted successfully.`);
+                loadBackupList(); // Refresh the backup list
+                return 0
+            default:
+                return null
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
+    }
+}
+
+async function loadBackup(filename) {
+    if (confirm(`Do you want to load ${filename}? This will override all data on the exsisting database!`) != true) {
+        return;
+    }
+    try {
+        const response = await fetch("/api/loadBackup", {
+            method: 'POST',
+            body: JSON.stringify({ filename: filename }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Loading Backup', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                createAlertPopup(5000, 'success', 'Backup Loaded', `Backup ${filename} has been loaded successfully.`);
+                return 0
+            default:
+                return null
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
+    }
+}
+
+async function uploadBackup() {
+    const fileInput = document.getElementById('backupFileInput');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        createAlertPopup(5000, null, 'Error', 'Please select a file to upload');
+        return;
+    }
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/uploadBackup', {
+            method: 'POST',
+            body: formData
+            // Do NOT set Content-Type header here!
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request ERROR - status: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Uploading Backup', responseJson.errorinfo)
+                return 'error'
+            case "ok":
+                createAlertPopup(5000, 'success', 'Backup Uploaded', `Backup ${file.name} has been uploaded successfully.`);
+                loadBackupList(); // Refresh the backup list
+                return 0
+            default:
+                return null
+        }
+        
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
+    }
+}
+
+/**
+ * Collects all settings from the form and saves them one by one.
+ */
+async function saveAllSettings() {
+    const fields = [
+        'studentWarningTimeout',
+        'studentAlertTimemout',
+        'studentMinimumTimeout',
+        'passkeyLength',
+        'querySearchLimit',
+        'keepSessionDays',
+        'minGrade',
+        'maxGrade',
+        'minNameLength',
+        'maxNameLength',
+        'minCardidLength',
+        'maxCardidLength',
+        'minEmailLength',
+        'maxEmailLength',
+        'smtpServer',
+        'smtpEmail',
+        'smtpPassword',
+        'serverURL',
+        'msauthClientId',
+        'msauthClientSecret',
+        'msauthAuthority',
+        'msauthScope'
+    ];
+
+    let allOk = true;
+    for (const field of fields) {
+        const el = document.getElementById(field);
+        if (el) {
+            const value = el.value;
+            // Only send if value is not empty (optional: you can remove this check)
+            if (value !== undefined && value !== null && value !== '') {
+                const result = await setSettingValue(field, value);
+                if (result !== "ok") {
+                    allOk = false;
+                }
+            }
+        }
+    }
+    if (allOk) {
+        createAlertPopup(3000, 'success', 'Settings Saved', 'All settings have been saved successfully.');
+        window.scrollTo(0, 0);
+    }
+}
+
+// Attach to the settings form submit event
+document.addEventListener('DOMContentLoaded', () => {
+    // ...existing code...
+    const settingsForm = document.getElementById('settingsForm');
+    if (settingsForm) {
+        settingsForm.onsubmit = async function(event) {
+            event.preventDefault();
+            await saveAllSettings();
+        };
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    mainProcess();
+});
 async function mainProcess() {
     document.getElementById('usernameTopbar').onclick = function(event) {
         var signoutNow = confirm('Do you want to signout now?')
@@ -1579,8 +1984,26 @@ async function mainProcess() {
         document.getElementById('editStudentSelector').click();
         loadStudentInfoEdit(editStudentParam);
     }
-}
 
-document.addEventListener('DOMContentLoaded', () => {
-    mainProcess()
-});
+    loadSettingsValues();
+
+    const generateBackupButton = document.getElementById('generateBackupButton');
+    generateBackupButton.onclick = async function(event) { await generateBackup() };
+
+    const getBackupListButton = document.getElementById('getBackupListButton');
+    getBackupListButton.onclick = async function(event) {
+        const backupList = await loadBackupList();
+        if (backupList === 'error') {
+            createAlertPopup(5000, null, 'Error', 'Failed to load backup list');
+            return;
+        }
+        // Populate the backup list UI here
+        // For example, you can create a dropdown or a table to display the backups
+        console.log('Backup List:', backupList);
+    };
+
+    const uploadBackupButton = document.getElementById('uploadBackupButton');
+    uploadBackupButton.onclick = async function(event) { await uploadBackup() };
+
+    loadBackupList();
+}
