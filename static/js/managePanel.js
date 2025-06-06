@@ -1739,6 +1739,195 @@ async function saveAllSettings() {
     }
 }
 
+function generateAlertScopeArray() {
+    const scopeAdminValue = document.getElementById('scopeAdmin').checked;
+    const scopeProctorValue = document.getElementById('scopeProctor').checked;
+    const scopeApproverValue = document.getElementById('scopeApprover').checked;
+
+    const scopeArray = [];
+
+    if (scopeAdminValue) {
+        scopeArray.push('admin');
+    }
+    if (scopeProctorValue) {
+        scopeArray.push('proctor');
+    }
+    if (scopeApproverValue) {
+        scopeArray.push('approver');
+    }
+    if (scopeArray.length === 0) {
+        createAlertPopup(5000, null, 'Error', 'Please select at least one scope for the alert');
+        return null;
+    }
+
+    return scopeArray;
+}
+
+async function doSendMasterCommand() {
+    var commandSection = window.commandSection
+
+    commandSection = commandSection.replace('Section', '')
+
+    switch (commandSection) {
+        case 'alert':
+            var alertTitle = document.getElementById('alertTitle').value
+            var alertMessage = document.getElementById('alertMessage').value
+            var alertDuration = document.getElementById('alertDuration').value
+            var alertType = document.getElementById('alertType').value
+
+            var alertScope = generateAlertScopeArray();
+            if (alertScope === null) {
+                return 0; // Error already handled in generateAlertScopeArray
+            }
+
+            if (alertTitle == '' || alertMessage == '' || alertDuration == '' || alertType == '') {
+                createAlertPopup(5000, null, 'Error', 'Please fill in all fields')
+                return 0
+            }
+
+            var result = await sendMasterCommand('alert', {
+                'title': alertTitle,
+                'body': alertMessage,
+                'closetimeout': alertDuration,
+                'type': alertType
+            },
+            alertScope);
+
+            if (result == 'error') {
+                return 0
+            }
+            
+            createAlertPopup(5000, 'success', 'Success', `Alert "${alertTitle}" has been sent successfully to ${alertScope.join(', ')}`);
+
+            document.getElementById('alertTitle').value = ''
+            document.getElementById('alertMessage').value = ''
+            document.getElementById('alertDuration').value = ''
+            document.getElementById('alertType').value = 'success'
+            document.getElementById('scopeAdmin').checked = false
+            document.getElementById('scopeProctor').checked = false
+            document.getElementById('scopeApprover').checked = false
+            
+            break;
+        case 'reload':
+            var reloadTimeout = document.getElementById('reloadTimeout').value;
+
+            var alertScope = generateAlertScopeArray();
+            if (alertScope === null) {
+                return 0; // Error already handled in generateAlertScopeArray
+            }
+
+            if (reloadTimeout == '') {
+                createAlertPopup(5000, null, 'Error', 'Please fill in all fields')
+                return 0
+            }
+
+            var result = await sendMasterCommand('reload', {
+                'reloadtimeout': reloadTimeout
+            },
+            alertScope);
+            if (result == 'error') {
+                return 0
+            }
+            createAlertPopup(5000, 'success', 'Success', `Reload command has been sent successfully to ${alertScope.join(', ')}`);
+            document.getElementById('reloadTimeout').value = ''
+            document.getElementById('scopeAdmin').checked = false
+            document.getElementById('scopeProctor').checked = false
+            document.getElementById('scopeApprover').checked = false
+            break;
+        case 'signout':
+            var signoutTimeout = document.getElementById('signoutTimeout').value;
+
+            var alertScope = generateAlertScopeArray();
+            if (alertScope === null) {
+                return 0; // Error already handled in generateAlertScopeArray
+            }
+
+            if (signoutTimeout == '') {
+                createAlertPopup(5000, null, 'Error', 'Please fill in all fields')
+                return 0
+            }
+
+            var result = await sendMasterCommand('signout', {
+                'signouttimeout': signoutTimeout
+            },
+            alertScope);
+            if (result == 'error') {
+                return 0
+            }
+            createAlertPopup(5000, 'success', 'Success', `Signout command has been sent successfully to ${alertScope.join(', ')}`);
+            document.getElementById('signoutTimeout').value = ''
+            document.getElementById('scopeAdmin').checked = false
+            document.getElementById('scopeProctor').checked = false
+            document.getElementById('scopeApprover').checked = false
+            break;
+        case 'redirect':
+            var redirectUrl = document.getElementById('redirectUrl').value;
+            var redirectTimeout = document.getElementById('redirectTimeout').value;
+            var alertScope = generateAlertScopeArray();
+
+            if (alertScope === null) {
+                return 0; // Error already handled in generateAlertScopeArray
+            }
+
+            if (redirectUrl == '' || redirectTimeout == '') {
+                createAlertPopup(5000, null, 'Error', 'Please fill in all fields')
+                return 0
+            }
+
+            var result = await sendMasterCommand('redirect', {
+                'redirecturl': redirectUrl,
+                'redirecttimeout': redirectTimeout
+            },
+            alertScope);
+            
+            if (result == 'error') {
+                return 0
+            }
+
+            createAlertPopup(5000, 'success', 'Success', `Redirect command has been sent successfully to ${alertScope.join(', ')}`);
+
+            document.getElementById('redirectUrl').value = ''
+            document.getElementById('redirectTimeout').value = ''
+            document.getElementById('scopeAdmin').checked = false
+            document.getElementById('scopeProctor').checked = false
+            document.getElementById('scopeApprover').checked = false
+            break;
+    
+        case 'custom':
+            var customCommand = document.getElementById('customCommand').value;
+            var customPayload = document.getElementById('customPayload').value;
+
+            var alertScope = generateAlertScopeArray();
+            if (alertScope === null) {
+                return 0; // Error already handled in generateAlertScopeArray
+            }
+
+            if (customCommand == '') {
+                createAlertPopup(5000, null, 'Error', 'Please fill in all fields')
+                return 0
+            }
+
+            var result = await sendMasterCommand(customCommand, customPayload,
+            alertScope);
+            if (result == 'error') {
+                return 0
+            }
+
+            createAlertPopup(5000, 'success', 'Success', `Custom command "${customCommand}" has been sent successfully to ${alertScope.join(', ')}`);
+
+            document.getElementById('customCommand').value = ''
+            document.getElementById('scopeAdmin').checked = false
+            document.getElementById('scopeProctor').checked = false
+            document.getElementById('scopeApprover').checked = false
+            break;
+
+        default:
+            createAlertPopup(5000, null, 'Error', 'Unknown command section')
+            return 0
+        }
+        
+}
+
 // Attach to the settings form submit event
 document.addEventListener('DOMContentLoaded', () => {
     // ...existing code...
@@ -1991,6 +2180,12 @@ async function mainProcess() {
     const generateBackupButton = document.getElementById('generateBackupButton');
     generateBackupButton.onclick = async function(event) { await generateBackup() };
 
+    const commandSubmitButton = document.getElementById('commandSubmitButton');
+    commandSubmitButton.onclick = async function(event) {
+        event.preventDefault(); // Prevent form submission
+        await doSendMasterCommand();
+    };
+
     const getBackupListButton = document.getElementById('getBackupListButton');
     getBackupListButton.onclick = async function(event) {
         const backupList = await loadBackupList();
@@ -2004,7 +2199,59 @@ async function mainProcess() {
     };
 
     const uploadBackupButton = document.getElementById('uploadBackupButton');
-    uploadBackupButton.onclick = async function(event) { await uploadBackup() };
+    uploadBackupButton.onclick = async function(event) { await uploadBackup() }
 
-    loadBackupList();
+    // Section button IDs and corresponding content IDs
+    const sections = [
+        { btn: 'alertSectionBtn', content: 'alertSection' },
+        { btn: 'reloadSectionBtn', content: 'reloadSection' },
+        { btn: 'redirectSectionBtn', content: 'redirectSection' },
+        { btn: 'signoutSectionBtn', content: 'signoutSection' },
+        { btn: 'customSectionBtn', content: 'customSection' }
+    ];
+
+    function showSection(sectionId) {
+        window.commandSection = sectionId
+        sections.forEach(({ content, btn }) => {
+            const section = document.getElementById(content);
+            const button = document.getElementById(btn);
+            if (section) section.style.display = (content === sectionId) ? 'block' : 'none';
+            if (button) button.classList.toggle('active', content === sectionId);
+        });
+    }
+
+    // Attach click handlers
+    sections.forEach(({ btn, content }) => {
+        const button = document.getElementById(btn);
+        if (button) {
+            button.addEventListener('click', () => showSection(content));
+        }
+    });
+
+    // Show the first section by default
+    showSection(sections[0].content);
+};
+
+/**
+ * Sends a master command to the server.
+ * @param {string} commandType - The type of command to send.
+ * @param {object} payload - The payload for the command.
+ * @param {any} roles - The roles to target (if applicable).
+ * @returns {Promise<object>} - The response JSON from the server.
+ */
+async function sendMasterCommand(commandType, payload, roles) {
+    try {
+        const res = await fetch('/api/sendMasterCommand', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json'
+            },
+            body: JSON.stringify({ command: commandType, payload, roles })
+        });
+        return await res.json();
+    } catch (error) {
+        dlog('Error:', error);
+        return { status: 'error', errorinfo: error.message };
+    }
 }

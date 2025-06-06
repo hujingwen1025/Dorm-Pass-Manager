@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" crossorigin="anonymous"></script>
+    <script src="/static/js/socketScript.js"></script>
+    <title>Student Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px 30px 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            width: 550px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .student-image {
+            width: 120px;
+            height: 170px;
+            border-radius: 7.5%;
+            margin-bottom: 20px;
+            object-fit: cover;
+            background: #eee;
+        }
+        .status {
+            margin: 15px 0;
+            font-size: 16px;
+            color: #007bff;
+        }
+        .status h2 {
+            font-weight: bold;
+        }
+        .status h3 {
+            display: inline;
+            font-weight: bold
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .alert {
+            padding: 20px;
+            background-color: #f7675a;
+            color: white;
+            opacity: 1;
+            transition: opacity 0.6s;
+            margin-bottom: 15px;
+            z-index: 1000;
+            margin: 5px;
+            border-radius: 7.5px;
+        }
+        .alert.success {background-color: #4bb885;}
+        .alert.info {background-color: #52a9f5;}
+        .alert.warning {background-color: #ffa946;}
+        .closebtn {
+            margin-left: 15px;
+            color: white;
+            font-weight: bold;
+            float: right;
+            font-size: 22px;
+            line-height: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .closebtn:hover {
+            color: black;
+        }
+        .passInfo {
+            font-size: 16px;
+            color: #333;
+            margin-top: 10px;
+        }
+        .red {
+            background-color: #f7675a;
+        }
+        .red:hover {
+            background-color: #c82333;
+        }
+        .green {
+            background-color: #4bb885;
+        }
+        .green:hover {
+            background-color: #3e8e41;
+        }
+        .green:disabled {
+            cursor: not-allowed;
+            color: #A0A0A0;
+            background-color: #808080;
+        }
+        .alertContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            z-index: 1000;
+        }
+        .green-text {
+            color: #28a745;
+        }
+        .red-text {
+            color: #dc3545;
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.35);
+            justify-content: center;
+            align-items: center;
+        }
+        .popup {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 0 24px rgba(0,0,0,0.18);
+            padding: 40px 20px 20px 20px;
+            position: relative;
+            max-width: 95vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .popup iframe {
+            width: 600px;
+            height: 650px;
+            border: none;
+            border-radius: 8px;
+            background: #fafafa;
+            max-width: 90vw;
+            max-height: 70vh;
+        }
+        .overlayCloseBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #f7675a;
+            color: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 22px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .overlayCloseBtn:hover {
+            background: #c82333;
+        }
+        .yellow {
+            background: #ffa946;
+        }
+        .yellow:hover {
+            background: #d0650a;
+        }
+        .yellow:disabled {
+            cursor: not-allowed;
+            color: #A0A0A0;
+            background-color: #808080;
+        }
+        select {
+            border: none;
+            font-size: 16px;
+        }
+        label {
+            font-size: 16px;
+        }
+        .prevent-select {
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10 and IE 11 */
+            user-select: none; /* Standard syntax */
+        }
+    </style>
+    <script src="/static/js/student.js"></script>
+</head>
+<body class="prevent-select">
+    <div class="container">
+        <h1>Welcome back, <span id="studentName">friend</span>!</h1>
+        <img id="studentImage" class="student-image" src="/static/images/studentImagePlaceholder.png" alt="Student Image">
+        <div class="status">
+            <h2>Pass Info:</h2>
+            <span class="passInfo" id="passInfo"></span>
+        </div>
+        <button class="button green" id="addPassButton">Add New Pass</button>
+        <button class="button yellow" id="deletePassButton">Delete Pass</button>
+        <button class="button" id="refreshButton">Refresh Passes</button>
+        <button class="button red" id="signoutButton">Sign Out</button>
+        <hr>
+        <h3>Dorm Pass Manager - Student</h3>
+    </div>
+    <div class="alertContainer" id="alertContainer"></div>
+    <div class="overlay" id="popupOverlay" style="display:none;">
+    <div class="popup">
+        <button class="overlayCloseBtn" id="overlayCloseBtn" style="position:absolute;top:10px;right:10px;width:30px;height:30px;border:none;background:#ff4444;color:white;border-radius:50%;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:20px;">×</button>
+        <div id="overlayContent">
+            <h2>Create New Pass</h2>
+            <label for="destinationSelect">Destination:</label>
+            <select id="destinationSelect">
+                <option value="">Loading...</option>
+            </select>
+            <button id="submitNewPassButton" class="button green" style="margin-top:15px;">Create</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>

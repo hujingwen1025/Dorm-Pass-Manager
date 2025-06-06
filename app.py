@@ -13,7 +13,7 @@ import random
 import hashlib
 import smtplib
 from email.mime.text import MIMEText
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, join_room, leave_room
 
 app = Flask(__name__)
 
@@ -31,7 +31,6 @@ captcha = FlaskSessionCaptcha(app)
 
 encryption_key = Fernet.generate_key()
 fernet = Fernet(encryption_key)
-
 debug = False
 
 dbhost = "localhost"
@@ -146,7 +145,6 @@ def ensureLoggedIn(session, allowedroles = 3, studentPortal = False):
         sessionid = decrypt(str(session.get('sessionid')))
         passkey = decrypt(str(session.get('passkey')))
         userinfo = sessionStorage.verify(sessionid, passkey)
-        dprint(userinfo)
         if studentPortal:
             if userinfo[2] == False:
                 return False
@@ -306,10 +304,13 @@ class sessionStorage:
                     dbcursor.execute('UPDATE sessions SET active = false WHERE sessionid = %s AND passkey = %s', (sessionid, passkey))
             return None
         
-        with dbConnect() as connection:
-            with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT role FROM users WHERE oid = %s', (oid,))
-                userrole = dbcursor.fetchall()[0][0]
+        userrole = None
+        
+        if not isstudent:
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT role FROM users WHERE oid = %s', (oid,))
+                    userrole = dbcursor.fetchall()[0][0]
 
         return [oid, userrole, isstudent]
     
@@ -321,20 +322,136 @@ class sessionStorage:
         return True
     
 def getOidFromSession(session):
-    sessionid = decrypt(str(session.get('sessionid')))
-    passkey = decrypt(str(session.get('passkey')))
+    sessionid_enc = session.get('sessionid')
+    passkey_enc = session.get('passkey')
+
+    if not sessionid_enc or not passkey_enc:
+        raise Exception("Session ID or passkey missing please check" + str(session))
     
-    dprint((sessionid, passkey))
-    
-    dprint('gofsi')
-    dprint([sessionid, passkey])
-    
+    sessionid = decrypt(str(sessionid_enc))
+    passkey = decrypt(str(passkey_enc))
+
     oid = sessionStorage.verify(sessionid, passkey)[0]
-    
+
     return oid
 
-def broadcastMasterCommand(command, payload = None):
-    socketio.emit('command', {'command': command, 'payload': payload})
+def getLocationNameFromId(locationid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (locationid,))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
+def getStudentNameFromId(studentid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT name FROM students WHERE studentid = %s', (studentid,))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
+def getStudentGradeFromId(studentid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT grade FROM students WHERE studentid = %s', (studentid,))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
+def getStudentCardidFromId(studentid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT cardid FROM students WHERE studentid = %s', (studentid,))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
+def getStudentEmailFromId(studentid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT email FROM students WHERE studentid = %s', (studentid,))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
+def getUserNameFromOid(oid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT name FROM users WHERE oid = %s', (oid,))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
+def getUserEmailFromOid(oid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT email FROM users WHERE oid = %s', (oid,))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
+def broadcastMasterCommand(command, payload = None, roles = ['admin', 'proctor', 'approver']):
+    for role in roles:
+        socketio.emit('command', {'command': command, 'payload': payload}, to=role)
+
+def getStudentIdFromOid(oid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT studentid FROM students WHERE oid = %s', (oid,))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
+@socketio.on('join')
+def socketiojoin(data):    
+    try:
+        oid = getOidFromSession(session)
+    except Exception:
+        return
+
+    if oid == None:
+        return
+    
+    role = checkUserInformation("role", oid)
+
+    if role == None:
+        return
+    
+    role = role[0]
+
+    if role == 1:
+        role = 'admin'
+    elif role == 2:
+        role = 'proctor'
+    elif role == 3:
+        role = 'approver'
+
+    join_room(role)
 
 @app.route('/')
 def home():
@@ -352,6 +469,16 @@ def home():
             session.clear()
             return redirect('/')
         return render_template('signin.html')
+    
+@app.route('/student')
+def student():
+    print('student')
+    if ensureLoggedIn(session, studentPortal = True):
+        print('student portal')
+        return render_template('student.html')
+    else:
+        print('not student portal')
+        return redirect('/?reject=You are not authorized to view this page')
    
 @app.route('/west6')
 def west6():
@@ -512,7 +639,7 @@ def passwordLoginCallback():
     
 @app.route('/api/searchLocations', methods=['POST'])
 def searchLocations():
-    if ensureLoggedIn(session):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         searchFilters = request.json.get('searchFilters')
@@ -874,6 +1001,103 @@ def updatePass():
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
         return jsonify(retinfo)
+    
+@app.route('/api/approvePassByCard', methods=['POST'])
+def approvePassByCard():
+    retinfo = {}
+
+    if not ensureLoggedIn(session, 2):
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        return jsonify(retinfo)
+
+    cardid = request.json.get('cardid')
+    if not cardid:
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Missing card ID'
+        return jsonify(retinfo)
+
+    # Get student ID from card ID
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT studentid FROM students WHERE cardid = %s', (cardid,))
+            student_result = dbcursor.fetchall()
+    if not student_result:
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Student not found'
+        return jsonify(retinfo)
+    studentid = student_result[0][0]
+
+    # Get the latest active pass for the student
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute(
+                'SELECT passid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime '
+                'FROM passes WHERE studentid = %s ORDER BY passid DESC LIMIT 1', (studentid,))
+            pass_result = dbcursor.fetchall()
+    if not pass_result:
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'No active pass found for student'
+        return jsonify(retinfo)
+
+    passid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime = pass_result[0]
+
+    # Determine the next location to approve
+    # 0: Dorm (fleavetime), 1: Destination (darrivetime), 2: Destination leave (dleavetime), 3: Dorm return (farrivetime)
+    if fleavetime is None:
+        next_location_id = floorid
+        next_location_type = 2  # Dorm
+        time_field = 'fleavetime'
+        approver_field = 'flapprover'
+    elif darrivetime is None:
+        next_location_id = destinationid
+        next_location_type = 1  # Destination
+        time_field = 'darrivetime'
+        approver_field = 'daapprover'
+    elif dleavetime is None:
+        next_location_id = destinationid
+        next_location_type = 1  # Destination
+        time_field = 'dleavetime'
+        approver_field = 'dlapprover'
+    elif farrivetime is None:
+        next_location_id = floorid
+        next_location_type = 2  # Dorm
+        time_field = 'farrivetime'
+        approver_field = 'faapprover'
+    else:
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Pass already completed'
+        return jsonify(retinfo)
+
+    # Get current user's location
+    oid = getOidFromSession(session)
+    urin = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+    if urin is None:
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'User not found'
+        return jsonify(retinfo)
+    userinfo = urin
+    userid = userinfo[0]
+    userlocation = userinfo[5]
+
+    # Check if user's location matches the next required location
+    if str(userlocation) != str(next_location_id):
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'User location does not match the next required location for approval'
+        return jsonify(retinfo)
+
+    # Approve the pass at the correct stage
+    timestamp = currentDatetime()
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute(
+                f'UPDATE passes SET {time_field} = %s, {approver_field} = %s WHERE passid = %s',
+                (timestamp, userid, passid)
+            )
+
+    retinfo['status'] = 'ok'
+    retinfo['message'] = f'Pass {passid} approved at location {next_location_id}'
+    return jsonify(retinfo)
     
 @app.route('/api/getStudents', methods=['POST'])
 def getStudents():
@@ -2238,11 +2462,36 @@ def newPass():
             
             return jsonify(retinfo)
         timestamp = currentDatetime()
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT name FROM students WHERE studentid = %s", (studentid,))
+                studentname = dbcursor.fetchall()[0][0]
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT name FROM locations WHERE locationid = %s", (destinationid,))
+                destinationname = dbcursor.fetchall()[0][0]
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT name FROM locations WHERE locationid = %s", (floorid,))
+                floorname = dbcursor.fetchall()[0][0]
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT grade FROM students WHERE studentid = %s", (studentid,))
+                dbcursorfetch = dbcursor.fetchall()
+        
+        studentGrade = 'Grade ' + str(dbcursorfetch[0][0])
+
+        keywordsList = [studentname, destinationname, floorname, studentGrade]
+        keywords = ' '.join(keywordsList)
                 
         try:
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
-                    dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid, creationtime) VALUES (%s, %s, %s, %s)', (studentid, floorid, destinationid, timestamp,))
+                    dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid, creationtime, keywords) VALUES (%s, %s, %s, %s, %s)', (studentid, floorid, destinationid, timestamp, keywords,))
                                         
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
@@ -2303,6 +2552,52 @@ def studentCatalogue():
         return render_template('studentCatalogue.html')
     else:
         return redirect('/?reject=You are not authorized to view this page')
+
+@app.route('/api/getUserRole', methods=['POST'])
+def getUserRole():
+    if ensureLoggedIn(session, 3):
+        retinfo = {}
+
+        oid = getOidFromSession(session)
+        userid = checkUserInformation("userid", oid)[0]
+
+        if userid is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            return jsonify(retinfo)
+        
+        retinfo['status'] = 'ok'
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT role FROM users WHERE userid = %s', (userid,))
+                dbcursorfetch = dbcursor.fetchall()
+
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'User does not exist'
+            return jsonify(retinfo)
+        
+        userRole = dbcursorfetch[0][0]
+
+        if userRole == 1:
+            retinfo['userRole'] = 'admin'
+        elif userRole == 2:
+            retinfo['userRole'] = 'proctor'
+        elif userRole == 3:
+            retinfo['userRole'] = 'approver'
+        else:
+            retinfo['userRole'] = 'user'
+
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
     
 @app.route('/api/getStudentImage', methods=['POST'])
 def getStudentImage():
@@ -2731,6 +3026,8 @@ def sendMasterCommand():
         
         command = request.json.get('command')
         payload = request.json.get('payload')
+
+        roles = request.json.get('roles')
         
         if not command:
             retinfo['status'] = 'error'
@@ -2738,7 +3035,7 @@ def sendMasterCommand():
             return jsonify(retinfo)
         
         try:
-            broadcastMasterCommand(command, payload)
+            broadcastMasterCommand(command, payload, roles)
             retinfo['status'] = 'ok'
         except Exception as e:
             retinfo['status'] = 'error'
@@ -2752,7 +3049,313 @@ def sendMasterCommand():
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
         return jsonify(retinfo)
+    
+@app.route('/api/student/getStudentName', methods=['GET'])
+def getStudentName():
+    if ensureLoggedIn(session, studentPortal = True):
+        retinfo = {}
 
+        oid = getOidFromSession(session)
+
+        studentid = getStudentIdFromOid(oid)
+
+        if studentid is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT name FROM students WHERE studentid = %s', (studentid,))
+                studentname = dbcursor.fetchone()
+
+        if studentname is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Student does not exist'
+            return jsonify(retinfo)
+        
+        retinfo['status'] = 'ok'
+        retinfo['name'] = studentname[0]
+
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/api/student/getStudentImage', methods=['GET'])
+def studentGetImage():
+    if ensureLoggedIn(session, studentPortal = True):
+        retinfo = {}
+
+        oid = getOidFromSession(session)
+
+        studentid = getStudentIdFromOid(oid)
+
+        if studentid is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT image FROM students WHERE studentid = %s', (studentid,))
+                studentimage = dbcursor.fetchone()
+
+        if studentimage is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Student does not exist'
+            return jsonify(retinfo)
+        
+        retinfo['status'] = 'ok'
+        retinfo['image'] = studentimage[0]
+
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/api/student/getStudentPassInfo', methods=['GET'])
+def studentGetPassInfo():
+    if ensureLoggedIn(session, studentPortal = True):
+        retinfo = {}
+
+        oid = getOidFromSession(session)
+
+        studentid = getStudentIdFromOid(oid)
+
+        if studentid is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT passid, destinationid, creationtime, fleavetime, flagged FROM passes WHERE studentid = %s AND farrivetime IS NULL', (studentid,))
+                passinfo = dbcursor.fetchall()
+
+        if len(passinfo) < 1:
+            retinfo['status'] = 'ok'
+            retinfo['passinfo'] = '<h3>No active pass</h3>'
+            retinfo['passstatus'] = False
+            return jsonify(retinfo)
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (passinfo[0][1],))
+                locationinfo = dbcursor.fetchone()
+
+        approvedtext = '<span class="red-text">Not Active</span>'
+        retinfo['approved'] = False
+        if passinfo[0][3] is not None:
+            approvedtext = '<span class="green-text">Active</span>'
+            retinfo['approved'] = True
+
+        flaggedtext = '<span class="green-text">Not Flagged</span>'
+        if passinfo[0][4]:
+            flaggedtext = '<span class="red-text">Flagged</span>'
+
+        if passinfo is None or locationinfo is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'No active pass found or location does not exist'
+            return jsonify(retinfo)
+        
+        passinfotext = f'<h3>Destination: </h3>{locationinfo[0]}<br><h3>Creation Time: </h3>{passinfo[0][2]}<br><h3>Leave Active: </h3><b>{approvedtext}</b><br><h3>Flagged: </h3><b>{flaggedtext}</b>'
+        
+        retinfo['status'] = 'ok'
+        retinfo['passinfo'] = passinfotext
+        retinfo['passstatus'] = True
+
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/api/student/newPass', methods=['POST'])
+def studentNewPass():
+    if ensureLoggedIn(session, studentPortal = True):
+        retinfo = {}
+
+        oid = getOidFromSession(session)
+
+        studentid = getStudentIdFromOid(oid)
+
+        if studentid is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            return jsonify(retinfo)   
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT passid FROM passes WHERE studentid = %s AND farrivetime IS NULL", (studentid,))    
+                dbcursorfetch = dbcursor.fetchall()
+
+        if len(dbcursorfetch) > 0:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'A pass is already active'
+
+            return jsonify(retinfo)
+        
+        destinationname = request.json.get('destinationname')
+
+        if not destinationname:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Destination name is required'
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT locationid FROM locations WHERE name = %s", (destinationname,))
+                dbcursorfetch = dbcursor.fetchall()
+
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Invalid destination name'
+            return jsonify(retinfo)
+        
+        destinationid = dbcursorfetch[0][0]
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (destinationid,))
+                dbcursorfetch = dbcursor.fetchall()
+
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'nulllocation'
+            
+            return jsonify(retinfo)
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT * FROM students WHERE studentid = %s", (studentid,))
+                dbcursorfetch = dbcursor.fetchall()
+
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'nullstudent'
+            
+            return jsonify(retinfo)
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute("SELECT floorid FROM students WHERE studentid = %s", (studentid,))
+                dbcursorfetch = dbcursor.fetchall()
+
+        floorid = dbcursorfetch[0][0]
+
+        timestamp = currentDatetime()
+
+        studentName = getStudentNameFromId(studentid)
+        if studentName is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Student does not exist'
+            return jsonify(retinfo)
+        destinationname = getLocationNameFromId(destinationid)
+        if destinationname is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Destination does not exist'
+            return jsonify(retinfo)
+        floorname = getLocationNameFromId(floorid)
+        if floorname is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Floor does not exist'
+            return jsonify(retinfo)
+        studentGrade = getStudentGradeFromId(studentid)
+        if studentGrade is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Student grade does not exist'
+            return jsonify(retinfo)
+        studentGade = 'Grade ' + str(studentGrade)
+
+        keywordsList = [studentName, destinationname, floorname, studentGade]
+        keywordsList.append(' '.join(keywordsList))
+                
+        try:
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('INSERT INTO passes (studentid, floorid, destinationid, creationtime, keywords) VALUES (%s, %s, %s, %s, %s)', (studentid, floorid, destinationid, timestamp, keywordsList[4],))
+        except Exception as e:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = str(e)
+            
+            return jsonify(retinfo)
+
+        return jsonify({'status': 'ok', 'message': 'Pass created successfully'})
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
+@app.route('/api/student/deletePass', methods = ['POST'])
+def studentDeletePass() :
+    if ensureLoggedIn(session, studentPortal = True):
+        retinfo = {}
+
+        oid = getOidFromSession(session)
+
+        studentid = getStudentIdFromOid(oid)
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM passes WHERE fleavetime IS NULL AND studentid = %s', (studentid,))
+                deletepass = dbcursor.fetchall()
+
+        if len(deletepass) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'No passes to delete or cannot delete an active pass'
+
+            return jsonify(retinfo)
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('DELETE FROM passes WHERE fleavetime IS NULL AND studentid = %s', (studentid,))
+
+        retinfo['status'] = 'ok'
+
+        return jsonify(retinfo)
+    
+@app.route('/api/student/getDestinations', methods =['GET'])
+def getDestinations():
+    if ensureLoggedIn(session, studentPortal = True):
+        retinfo = {}
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT name FROM locations WHERE type = 1')
+                dbcursorfetch = dbcursor.fetchall()
+
+        retinfo['status'] = 'ok'
+        retinfo['destinations'] = dbcursorfetch
+
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo)
+    
 @app.route('/downloadBackup/<filename>')
 def downloadBackup(filename):
     if ensureLoggedIn(session, 1):
@@ -2762,7 +3365,7 @@ def downloadBackup(filename):
         if os.path.exists(file_path):
             return send_file(file_path, as_attachment=True)
         else:
-            return render_template('errorPage.html', errorTitle='File Not Found', errorText='The requested backup file does not exist.', errorDesc='Please ensure the file exists and try again.', errorLink='/managePanel')
+            return render_template('errorPage.html', errorTitle='File Not Found', errorText='The requested backup file does not exist.', errorDesc='Please ensure the file exists and try again.', errorLink = '/managePanel')
     else:
         return redirect('/?reject=You are not authorized to view this page')
 

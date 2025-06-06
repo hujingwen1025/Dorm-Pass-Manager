@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     
     document.getElementById('editStudentButton').onclick = () => {
-        window.parent.postMessage({ message: 'redirect', redirectUrl: `/managePanel?editStudent=${wiondow.studentName}` }, '*');
+        window.parent.postMessage({ message: 'redirect', redirectUrl: `/managePanel?editStudent=${window.studentName}` }, '*');
     }
 
     document.getElementById('studentLocation').onclick = () => {

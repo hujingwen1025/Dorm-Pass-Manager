@@ -1,10 +1,12 @@
+const socket = io.connect();
+
 function createAlertPopup(closetimeout, type = null, title, body, alertid = '') {
     let alertContainer = document.getElementById('alertContainer');
 
     let alertElement = document.createElement('div');
     alertElement.setAttribute('id', alertid);
     alertElement.classList.add('alert');
-    dlog(type);
+
     if (type != null && type != undefined && type != '') {
         alertElement.classList.add(type);
     }
@@ -31,8 +33,11 @@ function createAlertPopup(closetimeout, type = null, title, body, alertid = '') 
     }
 }
 
+async function joinRoom() {
+    socket.emit('join', {});
+  }
+
 document.addEventListener("DOMContentLoaded", () => {
-    const socket = io.connect();
     socket.on("connect", () => {
         console.log("Socket connected successfully");
     });
@@ -47,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log(cmd)
         switch (cmd.command) {
             case "signout":
+                setTimeout(function(){
                 document.cookie.split(";").forEach((c) => {
                     document.cookie = c
                         .replace(/^ +/, "")
@@ -62,19 +68,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 localStorage.clear();
                 sessionStorage.clear();
 
-                window.location = "/";
+                window.location = "/signout";
+            }, cmd.payload.signouttimeout * 1000);
                 break;
             case "alert":
-                createAlertPopup(cmd.payload.closetimeout, cmd.payload.type, cmd.payload.title, cmd.payload.body, cmd.payload.alertid);
+                createAlertPopup(cmd.payload.closetimeout * 1000, cmd.payload.type, cmd.payload.title, cmd.payload.body, cmd.payload.alertid);
                 break;
             case "reload":
-                window.location.reload();
+                setTimeout(function() {window.location.reload();}, cmd.payload.reloadtimeout * 1000);
                 break;
             case "redirect":
-                window.location.href = cmd.payload.url;
+                setTimeout(function() {window.location = cmd.payload.redirecturl;}, cmd.payload.redirecttimeout * 1000);
                 break;
             default:
                 console.warn("Unknown command received:", cmd);
         }
     });
+    joinRoom();
 });

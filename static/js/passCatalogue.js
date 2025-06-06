@@ -687,6 +687,33 @@ async function getUserLocation() {
     }
 }
 
+async function approvePassByCard(cardid) {
+    try {
+        const response = await fetch("/api/approvePassByCard", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({ cardid: cardid }),
+        });
+
+        const responseJson = await response.json();
+
+        if (responseJson.status === "ok") {
+            createAlertPopup(5000, 'success', 'Pass Approved', responseJson.message || 'Pass approved successfully');
+            triggerDisplayUpdate();
+            return responseJson;
+        } else {
+            createAlertPopup(5000, null, 'Error', responseJson.errorinfo || 'Failed to approve pass');
+            return null;
+        }
+    } catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return null;
+    }
+}
 
 async function mainProcess() {
     document.getElementById('usernameTopbar').onclick = function(event) {
