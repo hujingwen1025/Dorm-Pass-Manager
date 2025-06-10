@@ -1028,6 +1028,8 @@ def approvePassByCard():
         return jsonify(retinfo)
     studentid = student_result[0][0]
 
+    retinfo['studentid'] = studentid
+
     # Get the latest active pass for the student
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
@@ -1046,22 +1048,18 @@ def approvePassByCard():
     # 0: Dorm (fleavetime), 1: Destination (darrivetime), 2: Destination leave (dleavetime), 3: Dorm return (farrivetime)
     if fleavetime is None:
         next_location_id = floorid
-        next_location_type = 2  # Dorm
         time_field = 'fleavetime'
         approver_field = 'flapprover'
     elif darrivetime is None:
         next_location_id = destinationid
-        next_location_type = 1  # Destination
         time_field = 'darrivetime'
         approver_field = 'daapprover'
     elif dleavetime is None:
         next_location_id = destinationid
-        next_location_type = 1  # Destination
         time_field = 'dleavetime'
         approver_field = 'dlapprover'
     elif farrivetime is None:
         next_location_id = floorid
-        next_location_type = 2  # Dorm
         time_field = 'farrivetime'
         approver_field = 'faapprover'
     else:
@@ -1095,8 +1093,59 @@ def approvePassByCard():
                 (timestamp, userid, passid)
             )
 
+    if time_field != 'fleavetime' and time_field != 'dleavetime' and time_field != None:
+        lastpos = ''
+        if time_field == 'darrivetime':
+            lastpos = 'fleavetime'
+        elif time_field == 'farrivetime':
+            lastpos = 'dleavetime'
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute(f"SELECT {lastpos}, {time_field} FROM passes WHERE passid = %s", (passid,))
+                stamptime = dbcursor.fetchall()
+                
+        studentWarningTimeout = int(getSettingsValue('studentWarningTimeout'))
+        studentAlertTimeout = int(getSettingsValue('studentAlertTimemout'))
+        studentMinimumTimeout = int(getSettingsValue('studentMinimumTimeout'))
+        
+        dprint(studentMinimumTimeout)
+        
+        stamptime = stamptime[0]
+        
+        dprint(type(stamptime))
+        dprint(stamptime)
+            
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT fleavetime, darrivetime, dleavetime, farrivetime FROM passes WHERE passid = %s', (passid,))
+                curpass = dbcursor.fetchall()[0]
+                
+        retinfo["elapsedtimewarning"] = None
+        
+        dprint(curpass)
+        
+        elapsedtime = None
+            
+        if (curpass[1] != None and curpass[2] == None) or (curpass[3] != None) :
+                                
+            elapsedSecond = calculateElapsedSeconds(stamptime[0])
+            
+            elapsedtime = convertSecondsToTime(elapsedSecond)                  
+            if elapsedSecond > studentAlertTimeout:
+                retinfo["elapsedtimewarning"] = 'alert'
+            elif elapsedSecond > studentWarningTimeout:
+                retinfo["elapsedtimewarning"] = 'warning'
+            elif elapsedSecond < studentMinimumTimeout:
+                retinfo["elapsedtimewarning"] = 'min'
+            
+        retinfo["elapsedtime"] = elapsedtime
+        
+        dprint('set')
+        dprint(studentWarningTimeout)
+        dprint(studentAlertTimeout)
+
     retinfo['status'] = 'ok'
-    retinfo['message'] = f'Pass {passid} approved at location {next_location_id}'
+
     return jsonify(retinfo)
     
 @app.route('/api/getStudents', methods=['POST'])

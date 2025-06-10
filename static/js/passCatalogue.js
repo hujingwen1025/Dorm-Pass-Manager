@@ -308,7 +308,7 @@ async function updateUserLocation(locationName) {
     }
 }
 
-function createAlertPopup(closetimeout, type = null, title, body, alertid = '') {
+function createAlertPopup(closetimeout, type = null, title, body, alertid = '', imageUrl = null) {
     let alertContainer = document.getElementById('alertContainer')
 
     let alertElement = document.createElement('div');
@@ -327,17 +327,30 @@ function createAlertPopup(closetimeout, type = null, title, body, alertid = '') 
     let titleText = document.createElement('strong')
     titleText.textContent = title
 
+    // If imageUrl is provided, add the image to the alert
+    let imageElem = null;
+    if (imageUrl) {
+        imageElem = document.createElement('img');
+        imageElem.src = imageUrl;
+        imageElem.style.width = '60px';
+        imageElem.style.height = '80px';
+        imageElem.style.borderRadius = '8px';
+        imageElem.style.display = 'block';
+        imageElem.style.margin = '10px auto';
+    }
+
     let bodyText = document.createElement('p')
     bodyText.innerHTML = body
 
     alertElement.appendChild(closeButton)
     alertElement.appendChild(titleText)
+    if (imageElem) alertElement.appendChild(imageElem);
     alertElement.appendChild(bodyText)
 
     alertContainer.appendChild(alertElement)
 
     if (closetimeout != null) {
-        let closeTimout = setTimeout(function () {alertElement.remove()}, closetimeout);
+        setTimeout(function () { alertElement.remove() }, closetimeout);
     }
 }
 
@@ -524,52 +537,66 @@ async function setStudentIndex(studentsJson) {
             if (confirmApprove) {
                 var updateResult = await updateStudentPass({'passid': passid,'approve': true})
                 var alertType = ''
+                // --- Fetch student image ---
+                let studentImageUrl = null;
+                try {
+                    const imgResp = await fetch("/api/getStudentImage", {
+                        method: 'POST',
+                        body: JSON.stringify({ studentid: curstudent[2] }),
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    if (imgResp.ok) {
+                        const imgJson = await imgResp.json();
+                        if (imgJson.status === "ok") {
+                            studentImageUrl = imgJson.studentBase64Image;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore image errors
+                }
+                // --- End fetch student image ---
+            
                 if (updateResult != 'error') {
+                    let elapsedstring = '';
+                    let elapsedTime = '';
                     if (updateResult.elapsedtime != null || updateResult.elapsedtime != undefined) {
-                        var elapsedstring = ''
                         dlog(updateResult.elapsedtimewarning)
                         if (updateResult.elapsedtimewarning == 'min') {
                             alertType = 'warning'
-                            elapsedstring = 'The travel time of the student might be too short. Elapsed Time: '
+                            elapsedstring = 'The travel time of the student might be too short.';
                         } else if (updateResult.elapsedtimewarning == 'warning') {
                             alertType = 'warning'
-                            elapsedstring = 'The student has been traveling for an extended period of time. Elapsed Time: '
+                            elapsedstring = 'The student has been traveling for an extended period of time.';
                         } else if (updateResult.elapsedtimewarning == 'alert') {
                             alertType = ''
-                            elapsedstring = 'The student has been traveling for too long. Elapsed Time: '
+                            elapsedstring = 'The student has been traveling for too long.';
                         } else {
-                            elapsedstring = 'Elapsed Time: '
+                            elapsedstring = 'Elapsed Time:'
                             alertType = 'success'
                         }
                         var updateResultET = updateResult.elapsedtime
-                        dlog('d')
-                        dlog(updateResultET)
-                        if (updateResultET[0] != 0) {
-                            if (updateResultET[0] == 1) {
-                                elapsedstring += '1 Hour '
-                            } else {
-                                elapsedstring += `${updateResultET[0]} Hours `
-                            }
+                        let elapsedTimeStr = '';
+                        if (updateResultET && Array.isArray(updateResultET)) {
+                            if (updateResultET[0]) elapsedTimeStr += `${updateResultET[0]} Hour${updateResultET[0] > 1 ? 's' : ''} `;
+                            if (updateResultET[1]) elapsedTimeStr += `${updateResultET[1]} Minute${updateResultET[1] > 1 ? 's' : ''} `;
+                            if (updateResultET[2]) elapsedTimeStr += `${updateResultET[2]} Second${updateResultET[2] > 1 ? 's' : ''}`;
                         }
-                        if (updateResultET[1] != 0) {
-                            if (updateResultET[1] == 1) {
-                                elapsedstring += '1 Minute '
-                            } else {
-                                elapsedstring += `${updateResultET[1]} Minutes `
-                            }
-                        }
-                        if (updateResultET[2] != 0) {
-                            if (updateResultET[2] == 1) {
-                                elapsedstring += '1 Second '
-                            } else {
-                                elapsedstring += `${updateResultET[2]} Seconds `
-                            }
-                        }
+                        elapsedTime = elapsedTimeStr.trim();
                     } else {
                         elapsedstring = ''
                         alertType = 'success'
                     }
-                    createAlertPopup(5000, type = alertType,' Approve Success', `${curstudent[0]} has been approved. ${elapsedstring}`)
+                    createAlertPopup(
+                        5000,
+                        alertType,
+                        'Approve Success',
+                        `<b>${curstudent[0]}</b> has been approved. ${elapsedstring}${elapsedTime ? '<br>Elapsed Time: ' + elapsedTime : ''}`,
+                        '',
+                        studentImageUrl
+                    );
                 } else {
                     return 0
                 }
@@ -691,30 +718,103 @@ async function approvePassByCard(cardid) {
     try {
         const response = await fetch("/api/approvePassByCard", {
             method: 'POST',
+            body: JSON.stringify({ cardid }),
             headers: {
-                'Content-Type': 'application/json',
                 Accept: 'application/json',
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ cardid: cardid }),
         });
 
+        if (!response.ok) throw new Error('Network error');
         const responseJson = await response.json();
 
-        if (responseJson.status === "ok") {
-            createAlertPopup(5000, 'success', 'Pass Approved', responseJson.message || 'Pass approved successfully');
-            triggerDisplayUpdate();
-            return responseJson;
+        // Fetch student image if available
+        let studentImageUrl = null;
+        let studentName = '';
+        if (responseJson.studentid) {
+            // Fetch image from API
+            const imgResp = await fetch("/api/getStudentImage", {
+                method: 'POST',
+                body: JSON.stringify({ studentid: responseJson.studentid }),
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (imgResp.ok) {
+                const imgJson = await imgResp.json();
+                if (imgJson.status === "ok") {
+                    studentImageUrl = imgJson.studentBase64Image;
+                }
+            }
+            // Fetch student name from API
+            const nameResp = await fetch("/api/getStudentInfo", {
+                method: 'POST',
+                body: JSON.stringify({ studentid: responseJson.studentid }),
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (nameResp.ok) {
+                const nameJson = await nameResp.json();
+                if (nameJson.status === "ok" && Array.isArray(nameJson.studentinfo)) {
+                    studentName = nameJson.studentinfo[0];
+                }
+            }
+        }
+
+        // Handle elapsed time and warnings
+        let alertType = 'success';
+        let elapsedstring = 'The student has been approved.';
+        let elapsedTime = responseJson.elapsedtime;
+
+        // Parse elapsed time into hours, minutes, and seconds
+        if (elapsedTime && Array.isArray(elapsedTime)) {
+            let [hours, minutes, seconds] = elapsedTime;
+            let elapsedTimeStr = '';
+            if (hours) elapsedTimeStr += `${hours} Hour${hours > 1 ? 's' : ''} `;
+            if (minutes) elapsedTimeStr += `${minutes} Minute${minutes > 1 ? 's' : ''} `;
+            if (seconds) elapsedTimeStr += `${seconds} Second${seconds > 1 ? 's' : ''}`;
+            elapsedTime = elapsedTimeStr.trim();
         } else {
-            createAlertPopup(5000, null, 'Error', responseJson.errorinfo || 'Failed to approve pass');
-            return null;
+            elapsedTime = '';
+        }
+
+        if (responseJson.elapsedtimewarning === 'min') {
+            alertType = 'warning';
+            elapsedstring = 'The travel time of the student might be too short.';
+        } else if (responseJson.elapsedtimewarning === 'warning') {
+            alertType = 'warning';
+            elapsedstring = 'The student has been traveling for an extended period of time.';
+        } else if (responseJson.elapsedtimewarning === 'alert') {
+            alertType = '';
+            elapsedstring = 'The student has been traveling for too long.';
+        }
+
+        if (responseJson.status === "ok") {
+            createAlertPopup(
+                5000,
+                alertType,
+                'Pass Approved',
+                `${studentName ? `<b>${studentName}</b><br>` : ''}${elapsedstring}${elapsedTime ? '<br>Elapsed Time: ' + elapsedTime : ''}`,
+                '',
+                studentImageUrl
+            );
+        } else {
+            createAlertPopup(
+                5000,
+                null,
+                'Approval Failed',
+                responseJson.errorinfo || 'Failed to approve pass.',
+                '',
+                studentImageUrl
+            );
         }
     } catch (error) {
-        dlog('Error:', error);
-        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
-        return null;
+        createAlertPopup(5000, null, 'Error', 'Error while approving pass');
     }
 }
-
 window.CardScannerMonitor({prefix: ';', suffix: '?'}, function(data){
 	approvePassByCard(data)
 });
