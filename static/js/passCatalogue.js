@@ -715,6 +715,10 @@ async function approvePassByCard(cardid) {
     }
 }
 
+window.CardScannerMonitor({prefix: ';', suffix: '?'}, function(data){
+	approvePassByCard(data)
+});
+
 async function mainProcess() {
     document.getElementById('usernameTopbar').onclick = function(event) {
         var signoutNow = confirm('Do you want to signout now?')

@@ -1032,7 +1032,7 @@ async function doStudentAdd() {
     var studentName = document.getElementById('addStudentName').value
     var studentGrade = document.getElementById('addStudentGrade').value
     var studentFloor = document.getElementById('addStudentFloor').value
-    var studentCardid = document.getElementById('addStudentCardid').value
+    var studentCardid = document.getElementById('addStudentCardid').value.replace(';', '').replace('?', '')
     var studentEmail = document.getElementById('addStudentEmail').value
     var studentImage = ''
     if (studentImageFile != undefined && studentImageFile != null) {
@@ -1243,7 +1243,7 @@ async function doStudentEdit() {
     var studentName = document.getElementById('editStudentName').value
     var studentGrade = document.getElementById('editStudentGrade').value
     var studentFloor = document.getElementById('editStudentFloor').value
-    var studentCardid = document.getElementById('editStudentCardid').value
+    var studentCardid = document.getElementById('editStudentCardid').value.replace(';', '').replace('?', '')
     var studentEmail = document.getElementById('editStudentEmail').value
     var studentImage = ''
     if (studentImageFile != undefined && studentImageFile != null) {
