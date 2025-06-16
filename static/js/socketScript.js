@@ -68,6 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 localStorage.clear();
                 sessionStorage.clear();
 
+                window.onbeforeunload = function(e) {}
                 window.location = "/signout";
             }, cmd.payload.signouttimeout * 1000);
                 break;

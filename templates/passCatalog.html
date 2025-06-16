@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/static/resource/favicon.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/static/js/card-scanner.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+    <script src="/static/js/socketScript.js"></script>
+    <title>DPM - Pass Catalog</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10 and IE 11 */
+            user-select: none; /* Standard syntax */
+            height: 100vh;
+        }
+        
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .text {
+            display: flex;
+        }
+        
+        .card {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            padding-top: 5px;
+            border-radius: 7.5px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .filterButton {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+            margin: 5px;
+            font-weight: bold;
+        }
+
+        .customFilterButton {
+            background-color: #004cff
+        }
+
+        .filterButton:hover {
+            transform: scale(1.04);
+            background-color: #0036b3;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .list-container {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding-top: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .list-item {
+            display: flex;
+            justify-content: left;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .locationSelector {
+            font-size: 16px;
+            background-color: #f0f0f0;
+            border: none;
+            font-weight: 675;
+        }
+
+        .locationSelector:focus {
+            outline: none;
+        }
+    
+
+        .studentNameDiv {
+            font-weight: bolder;
+            width: 30%;
+        }
+
+        .studentInfoDiv {
+            width: 30%;
+        }
+
+        .studentActionButton {
+            width: 75px;
+            height: 25px;
+            background-color: #007bff;
+            border: none;
+            color: #ffffff;
+            border-radius: 5px;
+            margin-right: 7.5px;
+            transition: all 0.2s ease;
+        }
+
+        .studentActionButton:hover {
+            transform: scale(1.04);
+            background-color:#004cff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .material-button {
+            background-color: #0080ff;
+            border: none;
+            border-radius: 3px;
+            height: 30px;
+            width: 100px;
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            margin: 5px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .material-button:hover {
+            background-color:#003dcb;
+            transform: scale(1.04);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.65);
+        }
+
+        .usernameTopbar {
+            font-weight: 675;
+        }
+        
+        .userInfoTopbar{
+            border: solid;
+            border-width: 0.2px;
+            border-radius: 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            padding: 7px;
+        }
+
+        .filterSearchInput {
+            width: 99%;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: 25px;
+            padding: 2px;
+            padding-left: 5px;
+            padding-right: 0;
+            font-size: 15px;
+        }
+
+        .filterSearchInput:focus {
+            outline: none;
+        }
+
+        .kiosk-button {
+            background-color: #00aaff;
+        }
+
+        .alert {
+            padding: 20px;
+            background-color: #f7675a;
+            color: white;
+            opacity: 1;
+            transition: opacity 0.6s;
+            margin-bottom: 15px;
+            z-index: 1000;
+            margin: 5px;
+            border-radius: 7.5px;
+        }
+        .alertContainer {
+          right: 0;
+          top: 0;
+          float: right;
+          max-width: 27%;
+          min-width: 27%;
+          position: absolute;
+          margin-right: 5px;
+        }
+        
+        .alert.success {background-color: #4bb885;}
+        .alert.info {background-color: #52a9f5;}
+        .alert.warning {background-color: #ffa946;}
+        
+        .closebtn {
+          margin-left: 15px;
+          color: white;
+          font-weight: bold;
+          float: right;
+          font-size: 22px;
+          line-height: 20px;
+          cursor: pointer;
+          transition: 0.3s;
+        }
+        
+        .closebtn:hover {
+          color: black;
+        }
+
+        .googleTranslateElement {
+            bottom: 0px;
+            position: absolute;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(5px);
+            background-color: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        /* Popup window */
+        .popup {
+            position: relative;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            max-width: 80%;
+        }
+
+        /* Close button */
+        .overlayCloseBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: #ff4444;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-family: Arial, Helvetica, sans-serif
+        }
+
+        .overlayCloseBtn:hover {
+            background: #cc0000;
+        }
+    </style>
+
+    <script src="/static/js/passCatalog.js"></script>
+<script src="/static/js/tamperDetect.js"></script>
+</head>
+
+<body id="body">
+    <div class="alertContainer" id="alertContainer"></div>
+    <div class="top-bar">
+        <div class="text">
+            <button class="material-button" id="passesNavButton">Passes</button>
+            <button class="material-button" id="studentsNavButton">Students</button>
+            <button class="material-button" id="manageNavButton">Manage</button>
+            <button class="material-button" id="settingsNavButton">Settings</button>
+            <button class="material-button kiosk-button" id="kioskNavButton" onclick="startKioskMode()">KIOSK</button>
+        </div>
+        <span class="userInfoTopbar"><span class="usernameTopbar" id="usernameTopbar">-</span> | 
+            <select name="location" class="locationSelector" id="locationSelector">
+            </select>
+        </span>
+    </div>
+
+    <div class="card">
+        <h2>Pass Catalog</h2>
+        <p><b>Filter: </b><span id="filterDisplay"></span></p>
+        <div class="button-container">
+            <button class="filterButton" id="filterButtonAll">All</button>
+            <button class="filterButton" id="filterButtonRelated">Related</button>
+            <button class="filterButton" id="filterButtonArriving">Arriving</button>
+            <button class="filterButton" id="filterButtonLeaving">Leaving</button>
+            <button class="filterButton" id="filterButtonFlagged">Flagged</button>
+            <button class="filterButton" id="filterButtonPresent">Present</button>
+        </div>
+
+        <input class="filterSearchInput" id="filterSearchInput" placeholder="Search">
+        
+        <div class="list-container">
+            <ul class="list" id="studentList">
+            </ul>
+        </div>
+    </div>
+    <div class="overlay" id="popupOverlay">
+        <div class="popup">
+            <button class="overlayCloseBtn" id="overlayCloseBtn">×</button>
+            <div id="overlayContent"></div>
+        </div>
+    </div>
+    <div id="google_translate_element" class="googleTranslateElement"></div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.list-container').on('scroll', function() {
+                if ($(this).scrollTop() + $(this).height() >= $(this)[0].scrollHeight - 1) {
+                    $(this).append('<li class="list-item">Item ' + ($('.list .list-item').length + 1) + '</li>');
+                }
+            });
+        });
+    </script>
+    <script type="text/javascript">function add_chatinline(){var hccid=17228201;var nt=document.createElement("script");nt.async=true;nt.src="https://mylivechat.com/chatinline.aspx?hccid="+hccid;var ct=document.getElementsByTagName("script")[0];ct.parentNode.insertBefore(nt,ct);}
+        add_chatinline();</script>
+</body>
+</html>

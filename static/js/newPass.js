@@ -17,10 +17,6 @@ async function getLocationId(type) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -54,10 +50,6 @@ async function createNewStudentPass(studentid, floorid, destinationid) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -122,10 +114,6 @@ async function loadStudentInfo(studentid) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -162,10 +150,6 @@ async function loadStudentImage(studentid) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -196,10 +180,6 @@ async function getLocationName(locationId) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 

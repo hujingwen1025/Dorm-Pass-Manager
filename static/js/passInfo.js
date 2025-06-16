@@ -50,10 +50,6 @@ async function fetchPassInfo(passid) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         if (responseJson.status === "error") {
@@ -98,10 +94,6 @@ async function flagPass(passid) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         if (responseJson.status === "error") {
@@ -128,10 +120,6 @@ async function approvePass(passid) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -208,10 +196,6 @@ async function deletePass(passid) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 

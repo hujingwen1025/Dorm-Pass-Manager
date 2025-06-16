@@ -50,10 +50,6 @@ async function fetchStudentInfo(studentid) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         if (responseJson.status === "error") {
@@ -92,10 +88,6 @@ async function loadStudentImage(studentid) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         if (responseJson.status === "error") {
@@ -123,10 +115,6 @@ async function getLocationName(locationId) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         if (responseJson.status === "error") {
@@ -152,10 +140,6 @@ async function getCurrentLocation(studentid) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -207,10 +191,6 @@ async function getPassStatus(studentid) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -267,7 +247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     document.getElementById('studentLocation').onclick = () => {
-        window.parent.postMessage({ message: 'redirect', redirectUrl: `/passCatalogue?viewPass=${window.passid}` }, '*');
+        window.parent.postMessage({ message: 'redirect', redirectUrl: `/passCatalog?viewPass=${window.passid}` }, '*');
     }
 
 });

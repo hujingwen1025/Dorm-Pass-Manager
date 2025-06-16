@@ -34,10 +34,6 @@ async function getLocationId(type) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -77,10 +73,6 @@ async function searchStudents(filters) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -115,10 +107,6 @@ async function searchUsers(filters) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -152,10 +140,6 @@ async function searchLocations(filters) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -195,10 +179,6 @@ async function addUser(name, email, role, location, password = null) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -236,10 +216,6 @@ async function addStudent(studentName, studentGrade, studentFloor, studentCardid
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -272,10 +248,6 @@ async function addLocation(locationName, locationType) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -315,10 +287,6 @@ async function editStudent(studentid, studentName, studentGrade, studentFloor, s
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -356,10 +324,6 @@ async function editUser(userid, userName, userEmail, userRole, userLocation, use
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -394,10 +358,6 @@ async function editLocation(locationid, locationName, locationType) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -427,10 +387,6 @@ async function getUserInfo() {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -466,10 +422,6 @@ async function getLocationInfo(locationFilter) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -504,10 +456,6 @@ async function getStudents(filters) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -539,10 +487,6 @@ async function getStudentInfo(studentid) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -577,10 +521,6 @@ async function updateUserLocation(locationName) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -1080,10 +1020,6 @@ async function deleteStudent(studentid) {
             },
         });
         
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -1117,10 +1053,6 @@ async function deleteUser(userid) {
             },
         });
     
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -1153,10 +1085,6 @@ async function deleteLocation(locationid) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -1333,10 +1261,6 @@ async function getUserLocation() {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -1367,10 +1291,6 @@ async function getSettingsValue() {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -1400,10 +1320,6 @@ async function generateBackup() {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -1489,10 +1405,6 @@ async function setSettingValue(settingName, settingValue) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
         if (responseJson.status === "ok") {
             return "ok";
@@ -1517,10 +1429,6 @@ async function getBackupList() {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -1584,10 +1492,6 @@ async function deleteBackup(filename) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -1622,10 +1526,6 @@ async function loadBackup(filename) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -1664,10 +1564,6 @@ async function uploadBackup() {
             body: formData
             // Do NOT set Content-Type header here!
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -1969,10 +1865,10 @@ async function mainProcess() {
     setLocationSelector(floorIds); 
     
     document.getElementById('passesNavButton').onclick = function(event) {
-        window.location.href = '/passCatalogue'
+        window.location.href = '/passCatalog'
     }
     document.getElementById('studentsNavButton').onclick = function(event) {
-        window.location.href = '/studentCatalogue'
+        window.location.href = '/studentCatalog'
     }
     document.getElementById('manageNavButton').onclick = function(event) {
         window.location.href = '/managePanel'
@@ -2176,6 +2072,7 @@ async function mainProcess() {
     }
 
     loadSettingsValues();
+    loadBackupList();
 
     const generateBackupButton = document.getElementById('generateBackupButton');
     generateBackupButton.onclick = async function(event) { await generateBackup() };

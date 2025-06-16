@@ -29,10 +29,6 @@ async function sendPasswordReset(email) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {

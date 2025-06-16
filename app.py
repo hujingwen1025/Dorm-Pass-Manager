@@ -11,8 +11,11 @@ import time
 import string
 import random
 import hashlib
+import json
 import smtplib
 from email.mime.text import MIMEText
+from functools import wraps
+import logging
 from flask_socketio import SocketIO, join_room, leave_room
 
 app = Flask(__name__)
@@ -427,6 +430,15 @@ def getStudentIdFromOid(oid):
     
     return result[0][0]
 
+logging.basicConfig(
+    filename='./networklogs.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+logging.info('started')
+
 @socketio.on('join')
 def socketiojoin(data):    
     try:
@@ -453,12 +465,122 @@ def socketiojoin(data):
 
     join_room(role)
 
+def log_response_info(response, ip=None):
+    try:
+        status = response.status
+        headers = dict(response.headers)
+        # Uncomment the next line if you want to log the response body (be careful with large or binary responses)
+        body = response.get_data(as_text=True)
+
+        if body != None:
+            if len(body) > 1000:
+                body = body[:1000]
+
+        logging.info(
+            "Response sent to %s < Status: %s | Headers: %s | Body: %s >\n", ip, status, headers, body
+        )
+    except Exception as e:
+        logging.error("Failed to log response info: %s", str(e))
+    return response
+
+@app.before_request
+def beforeRequest():
+    try:
+        # Exclude static files (js, css, images, fonts, etc.)
+        static_exts = ('.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff', '.woff2', '.ttf', '.eot', '.map')
+        if request.path.lower().endswith(static_exts) or request.path.startswith('/static/'):
+            return  # Skip logging for static files
+
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        method = request.method
+        path = request.path
+        headers = dict(request.headers)
+        args = request.args.to_dict()
+        form = request.form.to_dict()
+        data = request.get_data(as_text=True) if request.data else None
+
+        if data != None:
+            if len(data) > 1000:
+                data = data[:1000]
+            
+        user_id = None
+        student_id = None
+
+        # Try to get user id and student id from session
+        try:
+            if 'sessionid' in session and 'passkey' in session:
+                oid = getOidFromSession(session)
+                user_info = checkUserInformation("userid", oid)
+                if user_info:
+                    user_id = user_info[0]
+                student_id_val = getStudentIdFromOid(oid)
+                if student_id_val:
+                    student_id = student_id_val
+        except Exception as e:
+            pass  # Ignore errors in extracting user/student id
+
+        logging.info(
+            "Request from IP: %s < Method: %s | Path: %s | Headers: %s | Args: %s | Form: %s | Raw Data: %s | UserID: %s | StudentID: %s >\n",
+            ip, method, path, headers, args, form, data, user_id, student_id
+        )
+    except Exception as e:
+        logging.error("Failed to log request info: %s", str(e))
+
+@app.after_request
+def afterRequest(response):
+    # Exclude static files (js, css, images, fonts, etc.) from response logging
+    static_exts = ('.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff', '.woff2', '.ttf', '.eot', '.map')
+    if request.path.lower().endswith(static_exts) or request.path.startswith('/static/'):
+        return response  # Skip logging for static files
+
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://code.jquery.com/ https://*.mylivechat.com https://mylivechat.com;"
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.mylivechat.com/ https://mylivechat.com; "
+        "font-src 'self' https://fonts.gstatic.com https://*.mylivechat.com/ https://mylivechat.com; "
+        "img-src 'self' data: https://*.mylivechat.com/ https://mylivechat.com; "
+        "connect-src 'self' https://cdnjs.cloudflare.com; "
+        "frame-src 'self' https://*.mylivechat.com/ https://mylivechat.com/; "
+        "object-src 'none'; "
+        "base-uri 'self' https://*.mylivechat.com/ https://mylivechat.com/; "
+        "form-action 'self' https://*.mylivechat.com/ https://mylivechat.com/;"
+    )
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+
+    # Get user_id and student_id for logging
+    user_id = None
+    student_id = None
+    try:
+        if 'sessionid' in session and 'passkey' in session:
+            oid = getOidFromSession(session)
+            user_info = checkUserInformation("userid", oid)
+            if user_info:
+                user_id = user_info[0]
+            student_id_val = getStudentIdFromOid(oid)
+            if student_id_val:
+                student_id = student_id_val
+    except Exception:
+        pass
+
+    try:
+        status = response.status
+        headers = dict(response.headers)
+        logging.info(
+            "Response sent to %s < Status: %s | Headers: %s | UserID: %s | StudentID: %s >\n",
+            ip, status, headers, user_id, student_id
+        )
+    except Exception as e:
+        logging.error("Failed to log response info: %s", str(e))
+    return response
+
 @app.route('/')
 def home():
     if ensureLoggedIn(session, 3):
         rejectionmessage = request.args.get('reject')
         dprint('rejectionmessage')
-        return redirect('/passCatalogue?reject=' + rejectionmessage) if rejectionmessage else redirect('/passCatalogue')
+        return redirect('/passCatalog?reject=' + rejectionmessage) if rejectionmessage else redirect('/passCatalog')
     
     elif ensureLoggedIn(session, studentPortal = True):
         return redirect('/student')
@@ -472,12 +594,9 @@ def home():
     
 @app.route('/student')
 def student():
-    print('student')
     if ensureLoggedIn(session, studentPortal = True):
-        print('student portal')
         return render_template('student.html')
     else:
-        print('not student portal')
         return redirect('/?reject=You are not authorized to view this page')
    
 @app.route('/west6')
@@ -500,7 +619,7 @@ def kiosk():
         session['passkey'] = passkey
         session['login'] = True
         dprint(kioskSession)
-        return render_template('passCatalogue.html')
+        return render_template('passCatalog.html')
     else:
         return redirect('/?reject=You are not authorized to view this page')
     
@@ -515,7 +634,7 @@ def signout():
         session.clear()
         return redirect('/')
     else:
-        return render_template('errorPage.html', errorTitle = 'Error Signing Out', errorText = 'Sever encountered an error while deactivating your session', errorDesc = 'Please try again later', errorLink = '/passCatalogue')
+        return render_template('errorPage.html', errorTitle = 'Error Signing Out', errorText = 'Sever encountered an error while deactivating your session', errorDesc = 'Please try again later', errorLink = '/passCatalog')
 
 @app.route('/userSignin')
 def userSignin():
@@ -550,7 +669,7 @@ def microsoftLoginCallback():
             session['passkey'] = str(encrypt(sessioninfo[1]))
 
             session['login'] = True
-            return redirect('/passCatalogue')
+            return redirect('/passCatalog')
         elif stin != None:
             studentInfo = stin
             dprint(studentInfo)
@@ -631,7 +750,7 @@ def passwordLoginCallback():
             session['sessionid'] = str(encrypt(sessioninfo[0]))
             session['passkey'] = str(encrypt(sessioninfo[1]))
             session['login'] = True
-            return redirect('/passCatalogue')
+            return redirect('/passCatalog')
         else:
             return render_template('userNotRegistered.html', email = username)
     else:
@@ -686,7 +805,7 @@ def searchLocations():
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Invalid search'
             
-            return jsonify(retinfo)
+            return jsonify(retinfo),
         
 @app.route('/api/editLocation', methods=['POST'])
 def editLocation():
@@ -792,7 +911,7 @@ def getLocationId():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/generateKioskToken', methods=['POST'])
 def generateKioskToken():
@@ -819,11 +938,11 @@ def generateKioskToken():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/updatePass', methods=['POST'])
 def updatePass():
-    if ensureLoggedIn(session, 2):
+    if ensureLoggedIn(session, 3):
         retinfo = {}
         
         oid = getOidFromSession(session)
@@ -841,6 +960,12 @@ def updatePass():
         passid = request.json.get('passid')
         
         try:
+            if not ensureLoggedIn(session, 2):
+                retinfo['status'] = 'error'
+                retinfo['errorinfo'] = 'Not authorized to perform this action'
+            
+                return jsonify(retinfo)
+            
             delete = request.json.get('delete')
             if delete == 'true':
                 with dbConnect() as connection:
@@ -1000,17 +1125,17 @@ def updatePass():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/approvePassByCard', methods=['POST'])
 def approvePassByCard():
     retinfo = {}
 
-    if not ensureLoggedIn(session, 2):
+    if not ensureLoggedIn(session, 3):
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         return jsonify(retinfo)
-
+    
     cardid = request.json.get('cardid')
     if not cardid:
         retinfo['status'] = 'error'
@@ -1064,8 +1189,10 @@ def approvePassByCard():
         approver_field = 'faapprover'
     else:
         retinfo['status'] = 'error'
-        retinfo['errorinfo'] = 'Pass already completed'
+        retinfo['errorinfo'] = 'No active pass found for student'
         return jsonify(retinfo)
+    
+    retinfo['passid'] = passid
 
     # Get current user's location
     oid = getOidFromSession(session)
@@ -1303,7 +1430,7 @@ def getStudents():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/addStudent', methods=['POST'])
 def addStudent():
@@ -1452,7 +1579,7 @@ def addStudent():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/getUserLocation', methods=['POST'])
 def getUserLocation():
@@ -1494,7 +1621,7 @@ def getUserLocation():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/addUser', methods=['POST'])
 def addUser():
@@ -1621,7 +1748,7 @@ def addUser():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/addLocation', methods=['POST'])
 def addLocation():
@@ -1880,7 +2007,7 @@ def editStudent():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
                 
 @app.route('/api/editUser', methods=['POST'])
 def editUser():
@@ -2064,7 +2191,7 @@ def editUser():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/searchStudents', methods=['POST'])
 def searchStudents():
@@ -2166,7 +2293,7 @@ def searchStudents():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/searchUsers', methods=['POST'])
 def searchUsers():
@@ -2265,7 +2392,7 @@ def searchUsers():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/getLocationInfo', methods=['POST'])    
 def getLocationInfo():
@@ -2318,7 +2445,7 @@ def getLocationInfo():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/updateUserLocation', methods=['POST'])
 def updateUserLocation():
@@ -2366,7 +2493,7 @@ def updateUserLocation():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
         
     
 @app.route('/api/getUserInfo', methods=['POST'])
@@ -2399,7 +2526,7 @@ def getUserInfo():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/getStudentInfo', methods=['POST'])
 def getStudentsInfo():
@@ -2437,7 +2564,7 @@ def getStudentsInfo():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
         
     
 @app.route('/api/newPass', methods=['POST'])
@@ -2565,7 +2692,7 @@ def newPass():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
         
 @app.route('/checkOid')
 def checkOid():
@@ -2588,17 +2715,17 @@ def studentDestinationChooser():
 def webSerialTest():
     return render_template('webSerialTest.html')
 
-@app.route('/passCatalogue')
-def passCatalogue():
+@app.route('/passCatalog')
+def passCatalog():
     if ensureLoggedIn(session, 3):
-        return render_template('passCatalogue.html')
+        return render_template('passCatalog.html')
     else:
         return redirect('/?reject=You are not authorized to view this page')
     
-@app.route('/studentCatalogue')
-def studentCatalogue():
+@app.route('/studentCatalog')
+def studentCatalog():
     if ensureLoggedIn(session, 2):
-        return render_template('studentCatalogue.html')
+        return render_template('studentCatalog.html')
     else:
         return redirect('/?reject=You are not authorized to view this page')
 
@@ -2646,7 +2773,7 @@ def getUserRole():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/getStudentImage', methods=['POST'])
 def getStudentImage():
@@ -2677,7 +2804,7 @@ def getStudentImage():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/getPassInfo', methods=['POST'])
 def getPassInfo():
@@ -2917,7 +3044,7 @@ def generateBackup():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/getBackupList', methods=['POST'])
 def getBackupList():
@@ -2942,7 +3069,7 @@ def getBackupList():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/deleteBackup', methods=['POST'])
 def deleteBackup():
@@ -2977,7 +3104,7 @@ def deleteBackup():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/loadBackup', methods=['POST'])
 def loadBackup():
@@ -3019,7 +3146,7 @@ def loadBackup():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/uploadBackup', methods=['POST'])
 def uploadBackup():
@@ -3066,7 +3193,7 @@ def uploadBackup():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
 
 @app.route('/api/sendMasterCommand', methods=['POST'])
 def sendMasterCommand():
@@ -3097,7 +3224,7 @@ def sendMasterCommand():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/student/getStudentName', methods=['GET'])
 def getStudentName():
@@ -3134,7 +3261,7 @@ def getStudentName():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/student/getStudentImage', methods=['GET'])
 def studentGetImage():
@@ -3171,7 +3298,7 @@ def studentGetImage():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/student/getStudentPassInfo', methods=['GET'])
 def studentGetPassInfo():
@@ -3232,7 +3359,7 @@ def studentGetPassInfo():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/api/student/newPass', methods=['POST'])
 def studentNewPass():
@@ -3352,7 +3479,30 @@ def studentNewPass():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
+        return jsonify(retinfo), 401
+    
+@app.route('/api/getStudentIdFromCard', methods=['POST'])
+def getStudentIdFromCard():
+    if ensureLoggedIn(session, 3):
+        retinfo = {}
+        cardid = request.json.get('cardid')
+        if not cardid:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Missing card ID'
+            return jsonify(retinfo)
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT studentid FROM students WHERE cardid = %s', (cardid,))
+                result = dbcursor.fetchall()
+        if not result:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Student not found'
+            return jsonify(retinfo)
+        retinfo['status'] = 'ok'
+        retinfo['studentid'] = result[0][0]
         return jsonify(retinfo)
+    else:
+        return jsonify({'status': 'error', 'errorinfo': 'Not authorized to perform this action'})
     
 @app.route('/api/student/deletePass', methods = ['POST'])
 def studentDeletePass() :
@@ -3403,7 +3553,7 @@ def getDestinations():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
-        return jsonify(retinfo)
+        return jsonify(retinfo), 401
     
 @app.route('/downloadBackup/<filename>')
 def downloadBackup(filename):

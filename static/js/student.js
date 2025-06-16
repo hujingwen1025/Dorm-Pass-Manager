@@ -104,9 +104,10 @@ async function loadStudentPassInfo() {
     passText.innerHTML = studentPassInfo.passinfo;
 
     addPassButton.disabled = false
-    deletePassButton.disabled = false
+    deletePassButton.disabled = true
 
     if (studentPassInfo.passstatus) {
+        deletePassButton.disabled = false
         addPassButton.disabled = true
         if (studentPassInfo.approved) {
             deletePassButton.disabled = true

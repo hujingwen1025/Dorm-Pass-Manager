@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/static/resource/favicon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
     <script src="/static/js/socketScript.js"></script>
@@ -41,6 +42,9 @@
             border: none;
             background-color: rgba(0, 0, 0, 0);
             transition: all 0.2s ease;
+        }
+        .microsoft-sign-in:hover {
+            transform: scale(1.05);
         }
         .passwordloginbutton {
             font-size: 12px;
@@ -108,7 +112,7 @@
         <div class="sign-in-options">
             <button class="microsoft-sign-in" onclick="renderLoader(); window.location.replace('/mslogin');"></button>
         </div>
-        <p class="exabyteText"><a href="https://google.com">POWERED BY EXABYTE</a></p>
+        <p class="exabyteText"><a href="https://exabyte.org.cn">POWERED BY EXABYTE</a></p>
     </div>
     <p class="passwordloginbutton"><a href="/userSignin">Sign In With Password</a></p>
 </body>

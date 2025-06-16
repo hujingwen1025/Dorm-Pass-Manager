@@ -38,10 +38,6 @@ async function getLocationInfo(locationFilter) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -75,10 +71,6 @@ async function getLocationId(type) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -118,10 +110,6 @@ async function searchLocations(filters) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -168,10 +156,6 @@ async function getUserInfo() {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -205,10 +189,6 @@ async function updateUserLocation(locationName) {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -345,10 +325,6 @@ async function editUser(userName, userEmail, userLocation, userPassword) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -396,10 +372,6 @@ async function searchUsers(filters) {
             },
         });
 
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
-
         const responseJson = await response.json();
 
         switch (responseJson.status) {
@@ -431,10 +403,6 @@ async function getUserLocation() {
                 'Content-Type': 'application/json',
             },
         });
-
-        if (!response.ok) {
-            throw new Error(`Request ERROR - status: ${response.status}`);
-        }
 
         const responseJson = await response.json();
 
@@ -482,10 +450,10 @@ async function mainProcess() {
     setLocationSelector(floorIds); 
     
     document.getElementById('passesNavButton').onclick = function(event) {
-        window.location.href = '/passCatalogue'
+        window.location.href = '/passCatalog'
     }
     document.getElementById('studentsNavButton').onclick = function(event) {
-        window.location.href = '/studentCatalogue'
+        window.location.href = '/studentCatalog'
     }
     document.getElementById('manageNavButton').onclick = function(event) {
         window.location.href = '/managePanel'
