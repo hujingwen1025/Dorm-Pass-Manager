@@ -130,6 +130,23 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
+        .resetFilterButton {
+            width: 75px;
+            height: 25px;
+            background-color: #007bff;
+            border: none;
+            color: #ffffff;
+            border-radius: 5px;
+            margin-right: 7.5px;
+            transition: all 0.2s ease;
+        }
+
+        .resetFilterButton:hover {
+            transform: scale(1.04);
+            background-color:#004cff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
         .material-button {
             background-color: #0080ff;
             border: none;
@@ -274,6 +291,25 @@
         .overlayCloseBtn:hover {
             background: #cc0000;
         }
+
+        .loader {
+            position: absolute;
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid blue;
+            border-bottom: 16px solid blue;
+            width: 5vw;
+            height: 5vw;
+            animation: spin 2s linear infinite;
+            z-index: 10005;
+            left: 47.5vw;
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+          }
+          
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
     </style>
 
     <script src="/static/js/passCatalog.js"></script>
@@ -281,6 +317,7 @@
 </head>
 
 <body id="body">
+    <div id="loaderSlot"></div>
     <div class="alertContainer" id="alertContainer"></div>
     <div class="top-bar">
         <div class="text">
@@ -314,6 +351,21 @@
             <ul class="list" id="studentList">
             </ul>
         </div>
+        <br>
+        <p style="display: inline-block;"><b>Search scope: </b></p>
+        <select name="searchOptionSlot" class="locationSelector" id="searchOptionSlot">
+        </select>
+        <br>
+        <p style="display: inline-block;"><b>Search Date: </b></p>
+        <input type="checkbox" id="passSearchDateNoFilter" name="noDateFilter" checked>
+        <label style="margin-right: 5px;" for="noDateFilter">No filter</label>
+        <input style="display: inline-block;" type="date" id="passSearchDate" name="passSearchDate">
+        <br>
+        <p style="display: inline-block;"><b>Completed passes: </b></p>
+        <input type="checkbox" id="showCompletedPass" name="showCompletedPass">
+        <label style="margin-right: 5px;" for="showCompletedPass">Shown</label>
+        <br>
+        <button class="resetFilterButton" id="resetPassFilter">Reset</button>
     </div>
     <div class="overlay" id="popupOverlay">
         <div class="popup">

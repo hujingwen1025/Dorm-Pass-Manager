@@ -212,12 +212,17 @@
         <h1>Welcome back, <span id="studentName">friend</span>!</h1>
         <img id="studentImage" class="student-image" src="/static/resource/studentImagePlaceholder.png" alt="Student Image">
         <div class="status">
-            <h2>Pass Info:</h2>
-            <span class="passInfo" id="passInfo"></span>
+            <h2 style="color: #c82333;" id="suspensionInfo">{{ suspensionInfo }}</h2>
+            <div id="passInfoDiv">
+                <h2>Pass Info:</h2>
+                <span class="passInfo" id="passInfo"></span>
+            </div>
         </div>
-        <button class="button green" id="addPassButton">Add New Pass</button>
-        <button class="button yellow" id="deletePassButton">Delete Pass</button>
-        <button class="button" id="refreshButton">Refresh Passes</button>
+        <div id="actionButtons">
+            <button class="button green" id="addPassButton">Add New Pass</button>
+            <button class="button yellow" id="deletePassButton">Delete Pass</button>
+            <button class="button" id="refreshButton">Refresh Passes</button>
+        </div>
         <button class="button red" id="signoutButton">Sign Out</button>
         <hr>
         <h3>Dorm Pass Manager - Student</h3>

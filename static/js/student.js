@@ -207,6 +207,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadStudentName();
     loadStudentImage();
+
+    const suspensionInfo = document.getElementById('suspensionInfo')
+    const actionButtons = document.getElementById('actionButtons')
+    const passInfoDiv = document.getElementById('passInfoDiv')
+
+    if (suspensionInfo.innerHTML != '') {
+        actionButtons.innerHTML = ''
+        passInfoDiv.innerHTML = ''
+        return 0
+    }
+
     loadStudentPassInfo();
 
     document.getElementById('submitNewPassButton').onclick = async function () {

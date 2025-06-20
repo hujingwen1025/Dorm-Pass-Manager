@@ -22,12 +22,24 @@ function dlog(text) {
     }
 }
 
+window.showCompletedPasses = false
+
 window.onbeforeunload = function(e) {
     return 'Are you sure you want to leave this page?  You will lose any unsaved data.';
   };
 
 function triggerDisplayUpdate() {
     document.getElementById(window.lastfilterchoice).click()
+}
+
+function renderLoader() {
+    const loaderslot = document.getElementById("loaderSlot")
+    loaderslot.insertAdjacentHTML("afterbegin", '<div class="loader"></div>')
+}
+
+function removeLoader() {
+    const loaderslot = document.getElementById("loaderSlot")
+    loaderslot.innerHTML = ''
 }
 
 async function getLocationId(type) {
@@ -150,11 +162,22 @@ async function startKioskMode() {
 }
 
 async function getStudents(filters) {
+    var searchScopeOption = document.getElementById('searchOptionSlot')
+    var searchScope = searchScopeOption.value
+    var dateScopeOption = document.getElementById('passSearchDateNoFilter')
+    var dateScopeSelect = document.getElementById('passSearchDate')
+    var dateScope = ''
+    if (!dateScopeOption.checked) {
+        dateScope = dateScopeSelect.value
+    }
     try {
         const response = await fetch("/api/getStudents", {
             method: 'POST',
             body: JSON.stringify({
-                "filter": filters
+                "filter": filters,
+                "searchScope": searchScope,
+                "showCompletedPass": window.showCompletedPasses,
+                "dateScope": dateScope
             }),
             headers: {
                 Accept: 'application/json',
@@ -439,15 +462,22 @@ async function updateStudentPass(params) {
 
 async function setLocationSelector(locationJson) {
     const optionSlot = document.getElementById("locationSelector")
+    const searchOptionSlot = document.getElementById("searchOptionSlot")
     var locations = []
     var locationJson = await locationJson
     for (i = 0; i < Object.keys(locationJson).length; i ++) {
         locations[i] = locationJson[Object.keys(locationJson)[i]]
     }
     locations.forEach(curlocation => {
-      const option = document.createElement('option');
+      var option = document.createElement('option');
       option.text = curlocation;
       optionSlot.appendChild(option);
+    });
+
+    locations.forEach(curlocation => {
+      var option = document.createElement('option');
+      option.text = curlocation;
+      searchOptionSlot.appendChild(option);
     });
   }
 
@@ -594,6 +624,7 @@ async function setStudentIndex(studentsJson) {
 }
 
 async function setStudents(filters) {
+    renderLoader()
     if (window.destinationLocationJson == null) {
         window.destinationLocationJson = await getLocationId(1)
     }
@@ -643,6 +674,7 @@ async function setStudents(filters) {
         studentsJson[l] = [studentName, `Grade ${studentGrade} ${floorName} - ${passStatus}`, studentsInformation[l][1], passid, flagged]
     }
     setStudentIndex(studentsJson)
+    removeLoader()
 }
 
 async function setUsernameTopbar(username) {
@@ -827,6 +859,21 @@ async function approvePassByCard(cardid) {
         createAlertPopup(5000, null, 'Error', 'Error while approving pass');
     }
 }
+
+async function doResetPassFilter() {
+    var searchOptionSlot = document.getElementById('searchOptionSlot')
+    var passSearchDateNoFilter = document.getElementById('passSearchDateNoFilter')
+    var passSearchDate = document.getElementById('passSearchDate')
+    var showCompletedPass = document.getElementById('showCompletedPass')
+
+    searchOptionSlot.value = 'Use Current Location'
+    passSearchDateNoFilter.checked = true
+    passSearchDate.value = ''
+    showCompletedPass.checked = false
+
+    triggerDisplayUpdate()
+}
+
 window.CardScannerMonitor({prefix: ';', suffix: '?'}, function(data){
 	approvePassByCard(data)
 });
@@ -864,7 +911,12 @@ async function mainProcess() {
     setUsernameTopbar(username)
 
     setLocationSelector(destinationIds);  
-    setLocationSelector(floorIds);  
+    setLocationSelector(floorIds); 
+
+    var option = document.createElement('option');
+    option.text = 'Use Current Location';
+    document.getElementById("searchOptionSlot").appendChild(option);
+    option.selected = true;
     
     document.getElementById('filterButtonAll').onclick = function(event) {
         window.lastfilterchoice = 'filterButtonAll'
@@ -955,6 +1007,24 @@ async function mainProcess() {
         }
     });
 
+    const showCompletedPassOption = document.getElementById('showCompletedPass')
+    showCompletedPassOption.onchange = (event) => {
+        window.showCompletedPasses = showCompletedPassOption.checked
+        triggerDisplayUpdate()
+    }
+
+    const searchOptionSlot = document.getElementById('searchOptionSlot')
+
+    searchOptionSlot.onchange = (event) => {triggerDisplayUpdate()}
+
+    const passSearchDateNoFilter = document.getElementById('passSearchDateNoFilter')
+    const passSearchDate = document.getElementById('passSearchDate')
+    passSearchDateNoFilter.onchange = (event) => {triggerDisplayUpdate()}
+    passSearchDate.onchange = (event) => {triggerDisplayUpdate()}
+
+    const resetPassFilter = document.getElementById('resetPassFilter')
+    resetPassFilter.onclick = (event) => {doResetPassFilter()}
+
     let keysPressed = {};
     window.exportingError = false
 
@@ -1009,6 +1079,11 @@ window.addEventListener('message', (event) => {
     }
 });
 
+function updateDisplay() {
+    if (window.searchActivated == false) {
+        triggerDisplayUpdate()
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     mainProcess()
@@ -1026,11 +1101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderPassInfoPopup(passid);
         };
     }
+
+    setInterval(updateDisplay, 17500)
 });
 
-function updateDisplay() {
-    if (window.searchActivated == false) {
-        triggerDisplayUpdate()
-    }
-    setTimeout(updateDisplay, 15000);
-}

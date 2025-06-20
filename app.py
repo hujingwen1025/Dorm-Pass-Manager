@@ -15,6 +15,7 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from functools import wraps
+from typing import Dict, Any, Union
 import logging
 from flask_socketio import SocketIO, join_room, leave_room
 
@@ -274,6 +275,91 @@ def sendEmail(subject, body, recipient_email):
     except:
         return False
 
+def validate_json_payload(payload: Union[str, dict]) -> bool:
+    if payload == None:
+        return True
+
+    issues = []
+    
+    # Convert string to dict if necessary
+    if isinstance(payload, str):
+        try:
+            payload_dict = json.loads(payload)
+        except json.JSONDecodeError:
+            print("Invalid JSON format")
+            return False
+    elif isinstance(payload, dict):
+        payload_dict = payload
+    else:
+        print("Payload must be a valid JSON string or dictionary")
+        return False
+
+    # Check for suspicious patterns
+    suspicious_patterns = [
+        r"(?:UNION|SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXECUTE|EXEC|DECLARE|CAST)",
+        r"(?:OR\s+1\s*=\s*1|--|\/\*)",
+        r"(?:WHERE|FROM|GROUP|HAVING)",
+        r"(?:UNION\s+ALL\s+SELECT)",
+        r"(?:INSERT\s+INTO)",
+        r"(?:UPDATE\s+[^\)]+\s+SET)",
+        r"(?:DROP\s+TABLE)",
+        r"(?:CREATE\s+TABLE)",
+        r"(?:ALTER\s+TABLE)",
+        r"(?:TRUNCATE\s+TABLE)"
+    ]
+
+    def scan_value(value):
+        if isinstance(value, str):
+            value_lower = value.lower()
+            for pattern in suspicious_patterns:
+                if re.search(pattern, value_lower):
+                    issues.append(f"Suspicious SQL pattern detected: {value}, {pattern}")
+        
+        elif isinstance(value, dict):
+            for v in value.values():
+                scan_value(v)
+                
+        elif isinstance(value, list):
+            for item in value:
+                scan_value(item)
+
+    # Scan the entire payload
+    scan_value(payload_dict)
+
+    # Print issues if found
+    if issues:
+        print("Issues found:")
+        for issue in issues:
+            print(f"- {issue}")
+        return False
+
+    return True
+    
+def isStudentSuspended(studentid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT suspension, suspensionED FROM students WHERE studentid = %s', (studentid,))
+            result = dbcursor.fetchone()
+    if not result:
+        return False
+    suspension, suspensionED = result
+    if not suspension:
+        return False
+    if suspensionED:
+        if isinstance(suspensionED, str):
+            try:
+                suspensionED_dt = datetime.strptime(suspensionED, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                suspensionED_dt = datetime.fromisoformat(suspensionED)
+        else:
+            suspensionED_dt = suspensionED
+        if suspensionED_dt < datetime.now():
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute("UPDATE students SET suspension = NULL, suspensionED = NULL WHERE studentid = %s", (studentid,))
+            return False
+    return suspension
+
 class sessionStorage:
     def create(oid, keepstatedays, isstudent = False):
         passkeylength = int(getSettingsValue('passkeyLength'))
@@ -439,6 +525,17 @@ logging.basicConfig(
 
 logging.info('started')
 
+def getLocationIdFromName(location_name):
+    print(location_name)
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT locationid FROM locations WHERE name = %s', (location_name,))
+            result = dbcursor.fetchall()
+
+    if len(result) < 1:
+        return None
+    return result[0][0]
+
 @socketio.on('join')
 def socketiojoin(data):    
     try:
@@ -464,6 +561,22 @@ def socketiojoin(data):
         role = 'approver'
 
     join_room(role)
+
+def suspend_student(studentid: int, message: str, suspension_end: datetime = None):
+    if not studentid or not message:
+        return False
+
+    try:
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute(
+                    'UPDATE students SET suspension = %s, suspensionED = %s WHERE studentid = %s',
+                    (message, suspension_end, studentid)
+                )
+        return True
+    except Exception as e:
+        logging.error(f"Failed to suspend student {studentid}: {e}")
+        return False
 
 def log_response_info(response, ip=None):
     try:
@@ -523,6 +636,24 @@ def beforeRequest():
             "Request from IP: %s < Method: %s | Path: %s | Headers: %s | Args: %s | Form: %s | Raw Data: %s | UserID: %s | StudentID: %s >\n",
             ip, method, path, headers, args, form, data, user_id, student_id
         )
+
+        validation = validate_json_payload(data)
+
+        if not validation:
+            logging.warning("Attempted attack from IP: %s < UserID: %s | StudentID: %s | Raw Data: %s >\n",
+            ip, user_id, student_id, data
+            )
+
+            if student_id != '' or student_id != None:
+                studentName = getStudentNameFromId(student_id)
+                suspend_student(student_id, '[Auto Suspension] Detected malicious requests sent on behalf of account', None)
+                try:
+                    sendEmail('Student Auto Suspended', f'{studentName} has been suspended due to malicious activities.', getSettingsValue('adminEmail'))
+                except:
+                    pass
+
+            return jsonify({'status': 'error', 'errorinfo': 'You have been detected for suspicious activities.'})
+        
     except Exception as e:
         logging.error("Failed to log request info: %s", str(e))
 
@@ -595,7 +726,17 @@ def home():
 @app.route('/student')
 def student():
     if ensureLoggedIn(session, studentPortal = True):
-        return render_template('student.html')
+        oid = getOidFromSession(session)
+
+        studentid = getStudentIdFromOid(oid)
+
+        suspensionInfo = isStudentSuspended(studentid)
+        suspensionInfoText = ''
+
+        if suspensionInfo:
+            suspensionInfoText = f'You are suspended: {suspensionInfo}'   
+            
+        return render_template('student.html', suspensionInfo = suspensionInfoText)
     else:
         return redirect('/?reject=You are not authorized to view this page')
    
@@ -959,6 +1100,31 @@ def updatePass():
         
         passid = request.json.get('passid')
         
+        retinfo["elapsedtime"] = None
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT * FROM passes WHERE passid = %s', (passid,))
+                result = dbcursor.fetchall()
+                
+        if len(result) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'invalidpass'
+            
+            return jsonify(retinfo)
+        
+        studentid = result[0][1]
+        floorid = result[0][2]
+        destinationid = result[0][3]
+
+        suspendInfo = isStudentSuspended(studentid)
+
+        if suspendInfo:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = f'Student is suspended: {suspendInfo}'
+
+            return jsonify(retinfo)
+        
         try:
             if not ensureLoggedIn(session, 2):
                 retinfo['status'] = 'error'
@@ -985,23 +1151,6 @@ def updatePass():
                 return jsonify(retinfo)
         except KeyError:
             pass
-        
-        retinfo["elapsedtime"] = None
-        
-        with dbConnect() as connection:
-            with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM passes WHERE passid = %s', (passid,))
-                result = dbcursor.fetchall()
-                
-        if len(result) < 1:
-            retinfo['status'] = 'error'
-            retinfo['errorinfo'] = 'invalidpass'
-            
-            return jsonify(retinfo)
-        
-        studentid = result[0][1]
-        floorid = result[0][2]
-        destinationid = result[0][3]
                 
         floorname = getLocationsInformation(2, floorid)[0][1]
         destinationname = getLocationsInformation(1, destinationid)[0][1]
@@ -1155,6 +1304,14 @@ def approvePassByCard():
 
     retinfo['studentid'] = studentid
 
+    suspendInfo = isStudentSuspended(studentid)
+
+    if suspendInfo:
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = f'Student is suspended: {suspendInfo}'
+
+        return jsonify(retinfo)
+
     # Get the latest active pass for the student
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
@@ -1283,18 +1440,24 @@ def getStudents():
         oid = getOidFromSession(session)
         
         urin = checkUserInformation("userid, name, oid, email, role, locationid", oid)
+
         if urin == None:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Not authorized to perform this action'
             
             return jsonify(retinfo)
+        
+        searchScope = request.json.get('searchScope')
         userinfo = urin
         userid = userinfo[0]
         userlocation = userinfo[5]
+        dateScope = request.json.get('dateScope')
+
+        if searchScope != 'Use Current Location':
+            userlocation = getLocationIdFromName(searchScope)
+
         userlocationtype = getLocationType(userlocation)
-        
-        dprint(userlocation)
-        
+                
         searchfilters = request.json.get('filter')
         
         sqlquery = "SELECT passid, studentid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged FROM passes WHERE 1 = 1 "
@@ -1309,6 +1472,10 @@ def getStudents():
                 allfilter = True
         except KeyError:
             pass
+
+        if dateScope != '':
+            sqlquery += "AND (DATE(creationtime) = %s OR DATE(fleavetime) = %s OR DATE(darrivetime) = %s OR DATE(dleavetime) = %s OR DATE(farrivetime) = %s) "
+            sqlqueryvar += [dateScope, dateScope, dateScope, dateScope, dateScope]
         
         try:
             studentfilter = searchfilters['studentid']
@@ -1374,7 +1541,7 @@ def getStudents():
             pass
         
         try:
-            includeCompletedPasses = searchfilters['includeCompletedPasses']
+            includeCompletedPasses = request.json.get('showCompletedPass')
             if not includeCompletedPasses:
                 sqlquery += 'AND farrivetime IS NULL '
         except KeyError:
@@ -1704,14 +1871,9 @@ def addUser():
             
             userPassword = generateSHA256(userPassword)
 
-        try:
-            with dbConnect() as connection:
-                with connection.cursor() as dbcursor:
-                    dbcursor.execute('SELECT type, locationid FROM locations WHERE name = %s', (userLocation,))
-                    dbcursorfetch = dbcursor.fetchall()
-            
-            userLocationId = dbcursorfetch[0][1]
-        except:
+        userLocationId = getLocationIdFromName(userLocation)
+
+        if userLocationId == None:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Please enter a valid location'
             
@@ -1852,6 +2014,8 @@ def editStudent():
         studentCardid = request.json.get('cardid')
         studentEmail = request.json.get('email')
         studentImage = request.json.get('image')
+        studentSuspensionInfo = request.json.get('suspension')
+        studentSuspensionEndDate = request.json.get('suspensionED')
         
         if checkNameLength(studentName) == False:
             retinfo['status'] = 'error'
@@ -1995,7 +2159,7 @@ def editStudent():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('UPDATE students SET name = %s, grade = %s, floorid = %s, cardid = %s, image = %s, email = %s WHERE studentid = %s', (studentName, studentGrade, studentFloorId, studentCardid, studentImage, studentEmail, studentid,))
+                dbcursor.execute('UPDATE students SET name = %s, grade = %s, floorid = %s, cardid = %s, image = %s, email = %s, suspension = %s, suspensionED = %s WHERE studentid = %s', (studentName, studentGrade, studentFloorId, studentCardid, studentImage, studentEmail, studentSuspensionInfo, studentSuspensionEndDate, studentid,))
         
         retinfo['status'] = 'ok'
         
@@ -2138,14 +2302,8 @@ def editUser():
         else:
             userPassword = generateSHA256(userPassword)
             
-        try:
-            with dbConnect() as connection:
-                with connection.cursor() as dbcursor:
-                    dbcursor.execute('SELECT type, locationid FROM locations WHERE name = %s', (userLocation,))
-                    dbcursorfetch = dbcursor.fetchall()
-            
-            userLocationId = dbcursorfetch[0][1]
-        except:
+        userLocationId = getLocationIdFromName(userLocation)
+        if userLocationId == None:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Please enter a valid location'
             
@@ -2199,10 +2357,11 @@ def searchStudents():
         retinfo = {}
         
         searchFilter = request.json.get('searchFilter')
+        strictNameSearch = False
         
         dprint(searchFilter)
         
-        sqlquery = "SELECT studentid, name, grade, cardid, floorid, disabledlocations, email FROM students WHERE 1 = 1 "
+        sqlquery = "SELECT studentid, name, grade, cardid, floorid, disabledlocations, email, suspension, suspensionED FROM students WHERE 1 = 1 "
         sqlqueryvar = []
         
         try:
@@ -2230,6 +2389,7 @@ def searchStudents():
         
         try:
             strictNameFilter = str(searchFilter['strictname'])
+            strictNameSearch = True
             dprint(strictNameFilter)
             sqlquery += 'AND name = %s '
             sqlqueryvar.append(strictNameFilter)
@@ -2279,6 +2439,21 @@ def searchStudents():
                 dprint('execed')
                 dprint(dbcursor.statement)
                 dbcursorfetch = dbcursor.fetchall()
+        
+        if strictNameSearch:
+            try:
+                isStudentSuspended(dbcursorfetch[0][0])
+
+                with dbConnect() as connection:
+                    with connection.cursor() as dbcursor:
+                        dprint(sqlquery)
+                        dprint(sqlqueryvar)
+                        dbcursor.execute(sqlquery, sqlqueryvar)
+                        dprint('execed')
+                        dprint(dbcursor.statement)
+                        dbcursorfetch = dbcursor.fetchall()
+            except IndexError:
+                pass
                 
         querySearchLimit = int(getSettingsValue('querySearchLimit'))
                 
@@ -2466,19 +2641,14 @@ def updateUserLocation():
         
         dprint(type(locationName))
         
-        with dbConnect() as connection:
-            with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT locationid FROM locations WHERE name = %s', (locationName,))
-                dbcursorfetch = dbcursor.fetchall()
+        locationid = getLocationIdFromName(locationName)
                                 
-        if len(dbcursorfetch) < 1:
+        if locationid == None:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'invalidlocation'
             
             return jsonify(retinfo)
-                
-        locationid = dbcursorfetch[0][0]
-                
+                                
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('UPDATE users SET locationid = %s WHERE userid = %s', (locationid, userid,))
@@ -2574,6 +2744,14 @@ def newPass():
         
         studentid = request.json.get('studentid')
         destinationid = request.json.get('destinationid')
+
+        suspendInfo = isStudentSuspended(studentid)
+
+        if suspendInfo:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = f'Student is suspended: {suspendInfo}'
+
+            return jsonify(retinfo)
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
@@ -3370,6 +3548,14 @@ def studentNewPass():
 
         studentid = getStudentIdFromOid(oid)
 
+        suspendInfo = isStudentSuspended(studentid)
+
+        if suspendInfo:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = f'You are suspended: {suspendInfo}'
+
+            return jsonify(retinfo)
+
         if studentid is None:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Not authorized to perform this action'
@@ -3393,18 +3579,13 @@ def studentNewPass():
             retinfo['errorinfo'] = 'Destination name is required'
             return jsonify(retinfo)
         
-        with dbConnect() as connection:
-            with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT locationid FROM locations WHERE name = %s", (destinationname,))
-                dbcursorfetch = dbcursor.fetchall()
+        destinationid = getLocationIdFromName(destinationname)
 
-        if len(dbcursorfetch) < 1:
+        if destinationid == None:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Invalid destination name'
             return jsonify(retinfo)
         
-        destinationid = dbcursorfetch[0][0]
-
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (destinationid,))
@@ -3513,6 +3694,14 @@ def studentDeletePass() :
 
         studentid = getStudentIdFromOid(oid)
 
+        suspendInfo = isStudentSuspended(studentid)
+
+        if suspendInfo:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = f'You are suspended: {suspendInfo}'
+
+            return jsonify(retinfo)
+
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM passes WHERE fleavetime IS NULL AND studentid = %s', (studentid,))
@@ -3602,4 +3791,4 @@ def page_not_found(e):
     return render_template('errorPage.html', errorTitle = '500 Internal Server Error', errorText = 'The server encountered an internal error and was unable to complete your request.', errorDesc = 'Either the server is overloaded or there is an error in the application.', errorLink = '/'), 500
 
 if __name__ == '__main__':
-    socketio.run(app, port=8080, host="0.0.0.0")
+    socketio.run(app, port=8080, host="0.0.0.0", debug=True)

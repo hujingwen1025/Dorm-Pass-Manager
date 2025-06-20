@@ -21,6 +21,12 @@ function dlog(text) {
     }
 }
 
+function toDatetimeLocal(dateString) {
+    const date = new Date(dateString);
+    const pad = n => n < 10 ? '0' + n : n;
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 async function getLocationId(type) {
     try {
         const response = await fetch("/api/getLocationId", {
@@ -268,7 +274,7 @@ async function addLocation(locationName, locationType) {
     }
 }
 
-async function editStudent(studentid, studentName, studentGrade, studentFloor, studentCardid, studentImage, studentEmail) {
+async function editStudent(studentid, studentName, studentGrade, studentFloor, studentCardid, studentImage, studentEmail, studentSuspensionMessage, studentSuspensionEndDate) {
     try {
         const response = await fetch("/api/editStudent", {
             method: 'POST',
@@ -279,7 +285,9 @@ async function editStudent(studentid, studentName, studentGrade, studentFloor, s
                 "floor": studentFloor,
                 "cardid": studentCardid,
                 "email": studentEmail,
-                "image": studentImage
+                "image": studentImage,
+                "suspension": studentSuspensionMessage,
+                "suspensionED": studentSuspensionEndDate
             }),
             headers: {
                 Accept: 'application/json',
@@ -820,6 +828,8 @@ function setStudentEditDisable(status) {
     document.getElementById('editStudentCardid').disabled = status
     document.getElementById('editStudentFloor').disabled = status
     document.getElementById('editStudentEmail').disabled = status
+    document.getElementById('editStudentSuspensionMessage').disabled = status
+    document.getElementById('editStudentSuspensionEndDate').disabled = status
     document.getElementById('editStudentImage').disabled = status
 }
 
@@ -847,6 +857,8 @@ async function loadStudentInfoEdit(name) {
         locationInfo = locationInfo[0][1]
         var cardidInfo = studentList[0][3]
         var emailInfo = studentList[0][6]
+        var suspensionMessage = studentList[0][7]
+        var suspensionEndDate = toDatetimeLocal(studentList[0][8])
 
         setStudentEditDisable(false)
 
@@ -854,6 +866,8 @@ async function loadStudentInfoEdit(name) {
         document.getElementById('editStudentGrade').value = gradeInfo
         document.getElementById('editStudentCardid').value = cardidInfo
         document.getElementById('editStudentEmail').value = emailInfo
+        document.getElementById('editStudentSuspensionMessage').value = suspensionMessage
+        document.getElementById('editStudentSuspensionEndDate').value = suspensionEndDate
         document.getElementById('editStudentFloor').value = locationInfo
     } else {
         dlog('student not found, clearing')
@@ -861,6 +875,8 @@ async function loadStudentInfoEdit(name) {
         document.getElementById('editStudentGrade').value = ''
         document.getElementById('editStudentCardid').value = ''
         document.getElementById('editStudentEmail').value = ''
+        document.getElementById('editStudentSuspensionMessage').value = ''
+        document.getElementById('editStudentSuspensionEndDate').value = ''
         document.getElementById('editStudentFloor').value = ''
 
         setStudentEditDisable(true)
@@ -1173,6 +1189,8 @@ async function doStudentEdit() {
     var studentFloor = document.getElementById('editStudentFloor').value
     var studentCardid = document.getElementById('editStudentCardid').value.replace(';', '').replace('?', '')
     var studentEmail = document.getElementById('editStudentEmail').value
+    var studentSuspensionMessage = document.getElementById('editStudentSuspensionMessage').value
+    var studentSuspensionEndDate = document.getElementById('editStudentSuspensionEndDate').value
     var studentImage = ''
     if (studentImageFile != undefined && studentImageFile != null) {
         await convertImageFileToBase64(studentImageFile).then(base64 => studentImage = base64);
@@ -1183,7 +1201,7 @@ async function doStudentEdit() {
         return 0
     }
 
-    var editResult = await editStudent(window.studentEditId, studentName, studentGrade, studentFloor, studentCardid, studentImage, studentEmail)
+    var editResult = await editStudent(window.studentEditId, studentName, studentGrade, studentFloor, studentCardid, studentImage, studentEmail, studentSuspensionMessage, studentSuspensionEndDate)
     if (editResult != 'error') {
         createAlertPopup(5000, 'success', 'Success', `Student ${studentName} edited successfully`)
         document.getElementById('editStudentChoose').value = ''

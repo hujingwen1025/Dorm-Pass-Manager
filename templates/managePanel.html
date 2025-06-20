@@ -432,7 +432,7 @@
                 </div>
                 <div class="option" id="usersOption">
                     <img src="/static/resource/people_search_icon.png" alt="Users Icon" class="option-icon">
-                    <p>Users</p>
+                    <p>Teachers</p>
                 </div>
                 <div class="option" id="locationsOption">
                     <img src="/static/resource/local_pin_icon.png" alt="Locations Icon" class="option-icon">
@@ -495,6 +495,10 @@
                         <input class="formInput formInput" type="text" list="editStudentFoundFloors" id="editStudentFloor" name="floor" placeholder="West 6" required disabled><br>
                         <datalist id="editStudentFoundFloors">
                         </datalist>
+                        <label class="formLabel" for="suspend">Suspension Message</label><br>
+                        <input class="formInput formInput" type="text" id="editStudentSuspensionMessage" name="suspend" placeholder="Enter message to suspend student" required disabled><br>
+                        <label class="formLabel" for="suspendEnd">Suspension End Date</label><br>
+                        <input class="formInput formInput" type="datetime-local" id="editStudentSuspensionEndDate" name="suspendEnd" required disabled><br>
                         <label class="formLabel" for="email">Email</label><br>
                         <input class="formInput formInput" type="email" id="editStudentEmail" name="email" placeholder="xiaoming.li@example.domain" required disabled><br>
                         <label class="formLabel" for="cardid">Card ID (Optional)</label><br>
@@ -510,10 +514,10 @@
                 <h3>Select Action</h3>
                 <div class="buttonContainer">
                     <div class="buttonSelector" id="addUserSelector">
-                        <p>Add User</p>
+                        <p>Add Teacher</p>
                     </div>
                     <div class="buttonSelector" id="editUserSelector">
-                        <p>Edit User</p>
+                        <p>Edit Teacher</p>
                     </div>
                 </div>
                 <div id="addUserContent" class="containerHidden actionCard">
@@ -539,7 +543,7 @@
                 </div>
                 <div id="editUserContent" class="containerHidden actionCard">
                     
-                        <label class="formLabel" for="userChoose">Select User</label>
+                        <label class="formLabel" for="userChoose">Select Teacher</label>
                         <input class="formInput formInput" type="text" list="editUserFoundUsers" id="editUserChoose" name="userChoose" placeholder="Start typing to search ...">
                         <datalist id="editUserFoundUsers">
                         </datalist><br><br>
