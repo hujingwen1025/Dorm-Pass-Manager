@@ -323,10 +323,8 @@ def validate_json_payload(payload: Union[str, dict]) -> bool:
             for item in value:
                 scan_value(item)
 
-    # Scan the entire payload
     scan_value(payload_dict)
 
-    # Print issues if found
     if issues:
         print("Issues found:")
         for issue in issues:
@@ -371,6 +369,8 @@ class sessionStorage:
                 dbcursor.execute('INSERT INTO sessions (oid, passkey, expdate, active, isstudent) VALUES (%s, %s, %s, %s, %s)', (oid, passkey, expdate, True, isstudent))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
                 result = dbcursor.fetchall()
+
+        print('Session created with ID:', str(result[0][0]))
                                 
         return [str(result[0][0]), passkey]
                 
@@ -3791,4 +3791,4 @@ def page_not_found(e):
     return render_template('errorPage.html', errorTitle = '500 Internal Server Error', errorText = 'The server encountered an internal error and was unable to complete your request.', errorDesc = 'Either the server is overloaded or there is an error in the application.', errorLink = '/'), 500
 
 if __name__ == '__main__':
-    socketio.run(app, port=8080, host="0.0.0.0", debug=True)
+    socketio.run(app, port=8080, host="0.0.0.0", debug=debug)
