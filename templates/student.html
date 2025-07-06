@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" crossorigin="anonymous"></script>
     <script src="/static/js/socketScript.js"></script>
+    <script src="/static/js/devtooldetect.js"></script>
     <title>Student Page</title>
     <style>
         body {
@@ -241,5 +242,32 @@
         </div>
     </div>
 </div>
+<script>
+    window.addEventListener('devtoolschange', event => {
+        if (event.detail.isOpen) {
+            document.body.innerHTML = 'Please close developer console and reload the page'
+        }
+    });
+    window.addEventListener('onresize', event => {
+        if (event.detail.isOpen) {
+            document.body.innerHTML = 'Please close developer console and reload the page'
+        }
+    });
+    window.addEventListener('onmousemove', event => {
+        if (event.detail.isOpen) {
+            document.body.innerHTML = 'Please close developer console and reload the page'
+        }
+    });
+    window.addEventListener('onfocus', event => {
+        if (event.detail.isOpen) {
+            document.body.innerHTML = 'Please close developer console and reload the page'
+        }
+    });
+    window.addEventListener('onblur', event => {
+        if (event.detail.isOpen) {
+            document.body.innerHTML = 'Please close developer console and reload the page'
+        }
+    });
+</script>
 </body>
 </html>

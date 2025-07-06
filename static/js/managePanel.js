@@ -1392,7 +1392,9 @@ async function loadSettingsValues() {
         'serverURL',
         'msauthClientId',
         'msauthAuthority',
-        'msauthScope'
+        'msauthScope',
+        'msauthRedirectURL',
+        'adminEmail'
     ];
 
     fields.forEach(field => {
@@ -1630,7 +1632,9 @@ async function saveAllSettings() {
         'msauthClientId',
         'msauthClientSecret',
         'msauthAuthority',
-        'msauthScope'
+        'msauthScope',
+        'msauthRedirectURL',
+        'adminEmail'
     ];
 
     let allOk = true;
@@ -1638,7 +1642,6 @@ async function saveAllSettings() {
         const el = document.getElementById(field);
         if (el) {
             const value = el.value;
-            // Only send if value is not empty (optional: you can remove this check)
             if (value !== undefined && value !== null && value !== '') {
                 const result = await setSettingValue(field, value);
                 if (result !== "ok") {

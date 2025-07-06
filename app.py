@@ -369,8 +369,6 @@ class sessionStorage:
                 dbcursor.execute('INSERT INTO sessions (oid, passkey, expdate, active, isstudent) VALUES (%s, %s, %s, %s, %s)', (oid, passkey, expdate, True, isstudent))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
                 result = dbcursor.fetchall()
-
-        print('Session created with ID:', str(result[0][0]))
                                 
         return [str(result[0][0]), passkey]
                 
@@ -526,7 +524,6 @@ logging.basicConfig(
 logging.info('started')
 
 def getLocationIdFromName(location_name):
-    print(location_name)
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT locationid FROM locations WHERE name = %s', (location_name,))
@@ -784,7 +781,7 @@ def userSignin():
 @app.route('/mslogin')
 def login():
     msal_app = get_msal_app()
-    auth_url = msal_app.get_authorization_request_url(getSettingsValue('msauthscope').split('$'), redirect_uri=getSettingsValue('serverURL') + '/microsoftLoginCallback')
+    auth_url = msal_app.get_authorization_request_url(getSettingsValue('msauthscope').split('$'), redirect_uri=getSettingsValue('msauthRedirectURL'))
     return redirect(auth_url)
 
 @app.route('/microsoftLoginCallback')
@@ -793,7 +790,7 @@ def microsoftLoginCallback():
     if not code:
         return render_template('errorPage.html', errorTitle = 'Microsoft Signin Error', errorText = 'Error in auth token', errorDesc = 'Please try signing in again', errorLink = '/'), 400
     msal_app = get_msal_app()
-    result = msal_app.acquire_token_by_authorization_code(code, scopes=getSettingsValue('msauthscope').split('$'), redirect_uri=getSettingsValue('serverURL') + '/microsoftLoginCallback')
+    result = msal_app.acquire_token_by_authorization_code(code, scopes=getSettingsValue('msauthscope').split('$'), redirect_uri=getSettingsValue('msauthRedirectURL'))
     dprint(result)
     if 'access_token' in result:
         msUserInfo = result.get('id_token_claims')
@@ -3791,4 +3788,4 @@ def page_not_found(e):
     return render_template('errorPage.html', errorTitle = '500 Internal Server Error', errorText = 'The server encountered an internal error and was unable to complete your request.', errorDesc = 'Either the server is overloaded or there is an error in the application.', errorLink = '/'), 500
 
 if __name__ == '__main__':
-    socketio.run(app, port=8080, host="0.0.0.0", debug=debug)
+    socketio.run(app, port=80, host="0.0.0.0", debug=debug)
