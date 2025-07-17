@@ -21,26 +21,29 @@ from flask_socketio import SocketIO, join_room, leave_room
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = os.urandom(24)
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+with open(os.path.join(os.path.dirname(__file__), 'config.json')) as f:
+    serverConfig = json.load(f)
 
-app.config['CAPTCHA_ENABLE'] = True
-app.config['CAPTCHA_LENGTH'] = 7
-app.config['CAPTCHA_WIDTH'] = 200
-app.config['CAPTCHA_HEIGHT'] = 45
-app.config['CAPTCHA_INCLUDE_ALPHABET'] = False
-app.config['CAPTCHA_INCLUDE_NUMERIC'] = True
+app.config['SECRET_KEY'] = os.urandom(serverConfig['session']['keyLength'])
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=serverConfig['session']['lifetime'])
+
+app.config['CAPTCHA_ENABLE'] = serverConfig['captcha']['enable']
+app.config['CAPTCHA_LENGTH'] = serverConfig['captcha']['length']
+app.config['CAPTCHA_WIDTH'] = serverConfig['captcha']['width']
+app.config['CAPTCHA_HEIGHT'] = serverConfig['captcha']['height']
+app.config['CAPTCHA_INCLUDE_ALPHABET'] = serverConfig['captcha']['alphabet']
+app.config['CAPTCHA_INCLUDE_NUMERIC'] = serverConfig['captcha']['numeric']
 
 captcha = FlaskSessionCaptcha(app)
 
 encryption_key = Fernet.generate_key()
 fernet = Fernet(encryption_key)
-debug = False
+debug = serverConfig['debug']['enable']
 
-dbhost = "localhost"
-dbuser = "dpmhost"
-dbpassword = "tlw7uwa1537b66d6p0o2"
-dbdatabase = "Dorm Pass Manager"
+dbhost = serverConfig['database']['dbhost']
+dbuser = serverConfig['database']['dbuser']
+dbpassword = serverConfig['database']['dbpassword']
+dbdatabase = serverConfig['database']['dbdatabase']
 
 socketio = SocketIO(app)
 

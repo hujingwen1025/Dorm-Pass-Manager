@@ -1,0 +1,26 @@
+{
+    "session" : {
+        "keyLength": 24,
+        "lifetime": 30
+    },
+
+    "database": {
+        "dbhost": "localhost",
+        "dbuser": "dpmhost",
+        "dbpassword": "tlw7uwa1537b66d6p0o2",
+        "dbdatabase": "Dorm Pass Manager"
+    },
+
+    "captcha": {
+        "enable": true,
+        "length": 7,
+        "width": 220,
+        "height": 60,
+        "alphabet": true,
+        "numeric": true
+    },
+
+    "debug": {
+        "enable": false
+    }
+}
