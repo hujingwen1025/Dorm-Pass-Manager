@@ -451,38 +451,6 @@ async function getLocationInfo(locationFilter) {
     }
 }
 
-async function getStudents(filters) {
-    try {
-        const response = await fetch("/api/getStudents", {
-            method: 'POST',
-            body: JSON.stringify({
-                "filter": filters
-            }),
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-        });
-
-        const responseJson = await response.json();
-
-        switch (responseJson.status) {
-            case "error":
-                createAlertPopup(5000, null, 'Error While Getting Student Info', responseJson.errorinfo)
-                return 'error'
-            case "ok":
-                return responseJson.students
-            default:
-                return None
-        }
-        
-    } catch (error) {
-        dlog('Error:', error);
-        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
-        return 'error'
-    }
-}
-
 async function getStudentInfo(studentid) {
     try {
         const response = await fetch("/api/getStudentInfo", {

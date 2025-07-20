@@ -17,6 +17,7 @@ from email.mime.text import MIMEText
 from functools import wraps
 from typing import Dict, Any, Union
 import logging
+import secrets
 from flask_socketio import SocketIO, join_room, leave_room
 
 app = Flask(__name__)
@@ -80,6 +81,13 @@ def get_msal_app():
         authority=getSettingsValue('msauthauthority'),
         client_credential=getSettingsValue('msauthclientsecret')
     )
+
+def generate_csrf_token():
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = secrets.token_urlsafe(32)
+    return session['_csrf_token']
+
+app.jinja_env.globals['csrf_token'] = generate_csrf_token
     
 def checkUserInformation(usergetparam, oid):
     with dbConnect() as connection:
@@ -502,6 +510,21 @@ def getUserEmailFromOid(oid):
     
     return result[0][0]
 
+def getStudentInfoFromId(studentid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute("SELECT name, grade, floorid, disabledlocations, cardid, email FROM students WHERE studentid = %s", (studentid,))
+            dbcursorfetch = dbcursor.fetchall()
+                
+    if len(dbcursorfetch) < 0:
+        return 'nostudent'
+    try:
+        studentinfo = dbcursorfetch[0]
+    except IndexError:
+        return 'nostudent'
+    
+    return studentinfo
+
 def broadcastMasterCommand(command, payload = None, roles = ['admin', 'proctor', 'approver']):
     for role in roles:
         socketio.emit('command', {'command': command, 'payload': payload}, to=role)
@@ -646,7 +669,7 @@ def beforeRequest():
 
             if student_id != '' or student_id != None:
                 studentName = getStudentNameFromId(student_id)
-                suspend_student(student_id, '[Auto Suspension] Detected malicious requests sent on behalf of account', None)
+                suspend_student(student_id, f'[Auto Suspension] Detected malicious requests sent on behalf of account ({currentDatetime()})', None)
                 try:
                     sendEmail('Student Auto Suspended', f'{studentName} has been suspended due to malicious activities.', getSettingsValue('adminEmail'))
                 except:
@@ -867,6 +890,11 @@ def microsoftLoginCallback():
     
 @app.route('/passwordLoginCallback', methods=['POST'])
 def passwordLoginCallback():
+    form_token = request.form.get('csrf_token')
+    session_token = session.get('_csrf_token')
+    if not form_token or not session_token or form_token != session_token:
+        return render_template('errorPage.html', errorTitle="CSRF Error", errorText="Invalid CSRF token", errorDesc="Please try again.", errorLink="/userSignin")
+    
     if captcha.validate():
         username = request.form['username']
         password = request.form['password']
@@ -1453,10 +1481,13 @@ def getStudents():
         userlocation = userinfo[5]
         dateScope = request.json.get('dateScope')
 
-        if searchScope != 'Use Current Location':
-            userlocation = getLocationIdFromName(searchScope)
+        try:
+            if searchScope != 'Use Current Location':
+                userlocation = getLocationIdFromName(searchScope)
 
-        userlocationtype = getLocationType(userlocation)
+            userlocationtype = getLocationType(userlocation)
+        except:
+            pass
                 
         searchfilters = request.json.get('filter')
         
@@ -1473,7 +1504,7 @@ def getStudents():
         except KeyError:
             pass
 
-        if dateScope != '':
+        if dateScope != '' and dateScope != None:
             sqlquery += "AND (DATE(creationtime) = %s OR DATE(fleavetime) = %s OR DATE(darrivetime) = %s OR DATE(dleavetime) = %s OR DATE(farrivetime) = %s) "
             sqlqueryvar += [dateScope, dateScope, dateScope, dateScope, dateScope]
         
@@ -1564,26 +1595,26 @@ def getStudents():
                 
         curpasscur = 0
         for curpass in dbcursorfetch:
+            studentinfo = getStudentInfoFromId(curpass[1])
             if (curpass[4] != None and curpass[5] == None) or (curpass[6] != None and curpass[7] == None) :
                 for i in range(4):
-                    dprint('d')
-                    dprint(curpass)
-                    dprint(-2 - i)
-                    dprint(curpass[-2 - i])
                     if curpass[-2 - i] != None:
                         elapsedSecond = calculateElapsedSeconds(curpass[-2 - i])
-
+        
                         if elapsedSecond > studentAlertTimeout:
                             dbcursorfetch[curpasscur] += ('alert',)
                         elif elapsedSecond > studentWarningTimeout:
                             dbcursorfetch[curpasscur] += ('warning',)
                         else:
                             dbcursorfetch[curpasscur] += (None,)
-
+        
                         break
             else:
-                dprint('atstablelocation')
                 dbcursorfetch[curpasscur] += (None,)
+        
+            dbcursorfetch[curpasscur] += (studentinfo,)
+        
+            curpasscur += 1
                         
                 
         retinfo['status'] = 'ok'
@@ -2705,24 +2736,14 @@ def getStudentsInfo():
         
         studentid = str(request.json.get('studentid'))
         
-        with dbConnect() as connection:
-            with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT name, grade, floorid, disabledlocations, cardid, email FROM students WHERE studentid = %s", (studentid,))
-                dbcursorfetch = dbcursor.fetchall()
-                
-        if len(dbcursorfetch) < 0:
+        studentinfo = getStudentInfoFromId(studentid)
+
+        if studentinfo == 'nostudent':
             retinfo['status'] = 'error'
-            retinfo['errorinfo'] = 'nostudent'
-            
+            retinfo['errorinfo'] = 'No student maches the studentid provided'
+
             return jsonify(retinfo)
-        try:
-            studentinfo = dbcursorfetch[0]
-        except IndexError:
-            retinfo['status'] = 'error'
-            retinfo['errorinfo'] = 'nostudent'
-            
-            return jsonify(retinfo)
-        
+
         retinfo['status'] = 'ok'
         retinfo['studentinfo'] = studentinfo
         

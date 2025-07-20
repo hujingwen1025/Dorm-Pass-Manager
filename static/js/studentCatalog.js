@@ -305,17 +305,11 @@ async function setStudents(studentList) {
     //window.opo = studentsInformation
     let studentsJson = {}
     for (l = 0; l < studentsInformation.length; l ++) {
-        let studentInfo  = await getStudentInfo(studentsInformation[l][0])
-        let floorName = window.floorLocationJson[studentInfo[2]]
-        let studentGrade = studentInfo[1]
-        let studentName = studentInfo[0]
+        let floorName = window.floorLocationJson[studentsInformation[l][4]]
+        let studentGrade = studentsInformation[l][2]
+        let studentName = studentsInformation[l][1]
         let passid = studentsInformation[l][0]
         let flagged = studentsInformation[l][8]
-
-        if (studentInfo == 'error') {
-            createAlertPopup(5000, null, 'Error', 'Error while getting student info')
-            return 0
-        }
 
         studentsJson[l] = [studentName, `Grade ${studentGrade} ${floorName}`, studentsInformation[l][1], passid, flagged]
     }

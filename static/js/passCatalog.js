@@ -638,7 +638,7 @@ async function setStudents(filters) {
     window.opo = studentsInformation
     let studentsJson = {}
     for (l = 0; l < studentsInformation.length; l ++) {
-        let studentInfo  = await getStudentInfo(studentsInformation[l][1])
+        let studentInfo  = studentsInformation[l][studentsInformation[l].length - 1]
         let floorName = window.floorLocationJson[studentInfo[2]]
         let studentGrade = studentInfo[1]
         let studentName = studentInfo[0]
@@ -646,17 +646,13 @@ async function setStudents(filters) {
         let flagged = studentsInformation[l][8]
         let passStatus = ''
 
-        if ((studentsInformation[l][studentsInformation[l].length - 1] == 'alert') && window.exsistingAlert[`${passid.toString()}alert`] != true) {
+        let timeoutType = studentsInformation[l][studentsInformation[l].length - 2]
+        if ((timeoutType == 'alert') && window.exsistingAlert[`${passid.toString()}alert`] != true) {
             createAlertPopup(null, null, 'Student Timeout Warning', `${studentName} from ${floorName} has been inactive for too long. Please take necessary actions!`, alertid = `${passid.toString()}alert`)
             window.exsistingAlert[`${passid.toString()}alert`] = true
-        } else if ((studentsInformation[l][studentsInformation[l].length - 1] == 'warning') && window.exsistingAlert[`${passid.toString()}warning`] != true) {
+        } else if ((timeoutType == 'warning') && window.exsistingAlert[`${passid.toString()}warning`] != true) {
             createAlertPopup(15000, 'warning', 'Student Timeout Warning', `${studentName} from ${floorName} has been inactive for a extended period of time.`, alertid = `${passid.toString()}warning`)
             window.exsistingAlert[`${passid.toString()}warning`] = true
-        }
-
-        if (studentInfo == 'error') {
-            createAlertPopup(5000, null, 'Error', 'Error while getting student info')
-            return 0
         }
 
         if (studentsInformation[l][4] == null) {
