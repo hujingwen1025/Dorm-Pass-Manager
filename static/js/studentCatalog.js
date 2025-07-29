@@ -23,6 +23,24 @@ function dlog(text) {
     }
 }
 
+async function confirmDialog(title, text, icon, buttonText) {
+    var result = await Swal.fire({
+        title: title,
+        text: text,
+        icon: icon,
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: buttonText
+    })
+
+    if (result.isConfirmed) {
+        return true
+    }
+
+    return false
+}
+
 function intersectLists(list1, list2, list3) {
     const activeLists = [];
     for (const lst of [list1, list2, list3]) {
@@ -751,8 +769,8 @@ async function mainProcess() {
     const filterFloorOptions = document.getElementById('filterFloor')
     const filterLocationOptions = document.getElementById('filterLocation')
 
-    document.getElementById('usernameTopbar').onclick = function(event) {
-        var signoutNow = confirm('Do you want to signout now?')
+    document.getElementById('usernameTopbar').onclick = async function(event) {
+        var signoutNow = await confirmDialog('Sign Out', 'Do you want to signout now?', 'warning', 'Signout')
         if (signoutNow) {
             window.location = '/signout'
         }

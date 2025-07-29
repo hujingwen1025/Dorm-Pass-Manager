@@ -11,6 +11,7 @@ import time
 import string
 import random
 import hashlib
+import pytz
 import json
 import smtplib
 from email.mime.text import MIMEText
@@ -171,8 +172,11 @@ def ensureLoggedIn(session, allowedroles = 3, studentPortal = False):
     except:
         return False
     
-def currentDatetime():
-    return datetime.now()
+def currentDatetime(naive = True):
+    if naive:
+        return datetime.now()
+    else:
+        return datetime.now(pytz.timezone('Asia/Shanghai'))
 
 def listToJson(lst):
     res_dict = {}
@@ -197,8 +201,8 @@ def getPassStatus(passid):
     else:
         return None
     
-def calculateElapsedSeconds(timestamp):
-    rawtime = currentDatetime() - timestamp
+def calculateElapsedSeconds(timestamp, naive = True):
+    rawtime = currentDatetime(naive) - timestamp
     return rawtime.days * 86400 + rawtime.seconds
 
 def convertSecondsToTime(seconds):
@@ -362,7 +366,7 @@ def isStudentSuspended(studentid):
                 suspensionED_dt = datetime.fromisoformat(suspensionED)
         else:
             suspensionED_dt = suspensionED
-        if suspensionED_dt < datetime.now():
+        if suspensionED_dt < currentDatetime():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute("UPDATE students SET suspension = NULL, suspensionED = NULL WHERE studentid = %s", (studentid,))
@@ -433,6 +437,17 @@ def getOidFromSession(session):
 
     return oid
 
+def convert_gmt_to_cst(gmt_datetime):
+    try:
+        gmt_dt = gmt_datetime.replace(tzinfo=pytz.UTC)
+    
+        cst_dt = gmt_dt.replace(tzinfo=pytz.timezone('Asia/Shanghai'))
+    
+        return cst_dt
+
+    except:
+        return None
+
 def getLocationNameFromId(locationid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
@@ -492,6 +507,17 @@ def getUserNameFromOid(oid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT name FROM users WHERE oid = %s', (oid,))
+            result = dbcursor.fetchall()
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
+def getUserNameFromId(id):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT name FROM users WHERE userid = %s', (id,))
             result = dbcursor.fetchall()
     
     if len(result) < 1:
@@ -691,7 +717,7 @@ def afterRequest(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://code.jquery.com/ https://*.mylivechat.com https://mylivechat.com;"
+        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net/ https://code.jquery.com/ https://*.mylivechat.com https://mylivechat.com;"
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.mylivechat.com/ https://mylivechat.com; "
         "font-src 'self' https://fonts.gstatic.com https://*.mylivechat.com/ https://mylivechat.com; "
         "img-src 'self' data: https://*.mylivechat.com/ https://mylivechat.com; "
@@ -1259,9 +1285,7 @@ def updatePass():
                         curpass = dbcursor.fetchall()[0]
                         
                 retinfo["elapsedtimewarning"] = None
-                
-                dprint(curpass)
-                
+                                
                 elapsedtime = None
                     
                 if (curpass[1] != None and curpass[2] == None) or (curpass[3] != None) :
@@ -1596,6 +1620,7 @@ def getStudents():
         curpasscur = 0
         for curpass in dbcursorfetch:
             studentinfo = getStudentInfoFromId(curpass[1])
+
             if (curpass[4] != None and curpass[5] == None) or (curpass[6] != None and curpass[7] == None) :
                 for i in range(4):
                     if curpass[-2 - i] != None:
@@ -1613,9 +1638,14 @@ def getStudents():
                 dbcursorfetch[curpasscur] += (None,)
         
             dbcursorfetch[curpasscur] += (studentinfo,)
+
+            dbcursorfetch[curpasscur] = list(dbcursorfetch[curpasscur])
+
+            for i in range(4):
+                if dbcursorfetch[curpasscur][i + 4] != None:
+                    dbcursorfetch[curpasscur][i + 4] = str(dbcursorfetch[curpasscur][i + 4])
         
             curpasscur += 1
-                        
                 
         retinfo['status'] = 'ok'
         retinfo['students'] = dbcursorfetch
@@ -3012,6 +3042,9 @@ def getPassInfo():
         
         data = request.json
         passid = data.get('passid')
+        appendApproverName = True
+        if data.get('appendApproverName') == False:
+            appendApproverName = False
         
         if not passid:
             return jsonify({'status': 'error', 'errorinfo': 'Pass ID is missing'})
@@ -3019,8 +3052,16 @@ def getPassInfo():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('''
-                    SELECT studentid, floorid, destinationid, flagged, fleavetime, darrivetime, dleavetime, farrivetime FROM passes WHERE passid = %s ''', (passid,))
+                    SELECT studentid, floorid, destinationid, flagged, fleavetime, darrivetime, dleavetime, farrivetime, flapprover, daapprover, dlapprover, faapprover FROM passes WHERE passid = %s ''', (passid,))
                 passinfo = dbcursor.fetchone()
+
+        passinfo = list(passinfo)
+        
+        for i in range(4):
+            if passinfo[i + 8] != None:
+                passinfo[i + 4] = str(passinfo[i + 4])
+                if appendApproverName:
+                    passinfo[i + 4] += '\n' + getUserNameFromId(passinfo[i + 8])
                 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
@@ -3810,6 +3851,10 @@ def page_not_found(e):
 @app.errorhandler(500)
 def page_not_found(e):
     return render_template('errorPage.html', errorTitle = '500 Internal Server Error', errorText = 'The server encountered an internal error and was unable to complete your request.', errorDesc = 'Either the server is overloaded or there is an error in the application.', errorLink = '/'), 500
+
+@app.route('/fl')
+def fl():
+    return render_template('firstLanding.html')
 
 if __name__ == '__main__':
     socketio.run(app, port=80, host="0.0.0.0", debug=debug)

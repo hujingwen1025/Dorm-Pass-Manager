@@ -1,3 +1,21 @@
+async function confirmDialog(title, text, icon, buttonText) {
+    var result = await Swal.fire({
+        title: title,
+        text: text,
+        icon: icon,
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: buttonText
+    })
+
+    if (result.isConfirmed) {
+        return true
+    }
+
+    return false
+}
+
 function getParameterByName(name) {
     return new URLSearchParams(window.location.search).get(name);
 }
@@ -199,11 +217,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const popupCloseButton = document.getElementById('overlayCloseBtn');
     const deletePassButton = document.getElementById('deletePassButton');
 
-    signoutButton.onclick = function () { if (confirm('Are you sure you want to sign out now?')) {window.location = '/signout';} };
+    signoutButton.onclick = async function () { if (await confirmDialog('Sign Out', 'Do you want to signout now?', 'warning', 'Signout')) {window.location = '/signout';} };
     refreshButton.onclick = function () { loadStudentPassInfo(); };
     createPassButton.onclick = function () { showCreatePassPopup(); };
     popupCloseButton.onclick = function () { toggleOverlay(false); }
-    deletePassButton.onclick = function () { if (confirm('Are you sure you want to delete your pass?')) {deletePass(); loadStudentPassInfo();}}
+    deletePassButton.onclick = async function () { if (await confirmDialog('Delete Pass', 'Are you sure you want to delete your pass?', 'warning', 'Delete')) {deletePass(); loadStudentPassInfo();}}
 
     loadStudentName();
     loadStudentImage();
@@ -236,4 +254,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             createAlertPopup(5000, null, 'Error', result.errorinfo || 'Failed to create pass');
         }
     };
+
+    setInterval(() => {loadStudentPassInfo()}, 300000)
 });

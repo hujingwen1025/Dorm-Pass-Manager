@@ -6,11 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/static/js/card-scanner.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="/static/js/socketScript.js"></script>
     <title>DPM - Pass Catalog</title>
     <style>
+        @font-face {
+            font-family: msEmoji;
+            src: url(/static/resource/FluentEmojiColor.ttf);
+        
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: Arial, sans-serif, msEmoji;
             margin: 0;
             padding: 0;
             -webkit-user-select: none; /* Safari */
@@ -141,10 +147,14 @@
             transition: all 0.2s ease;
         }
 
-        .resetFilterButton:hover {
+        .resetFilterButton:hover:enabled {
             transform: scale(1.04);
             background-color:#004cff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .resetFilterButton:disabled {
+            background-color: #aeaeae;
         }
 
         .material-button {
@@ -366,6 +376,9 @@
         <label style="margin-right: 5px;" for="showCompletedPass">Shown</label>
         <br>
         <button class="resetFilterButton" id="resetPassFilter">Reset</button>
+        <hr>
+        <p>This list automatically updates every 20 seconds or whenever any search parameters are changed.</p>
+        <button class="resetFilterButton" id="listManualUpdateButton" onclick="updateDisplay();document.getElementById('listManualUpdateButton').disabled = true;setTimeout(function () {document.getElementById('listManualUpdateButton').disabled = false;}, 7500);">Update</button>
     </div>
     <div class="overlay" id="popupOverlay">
         <div class="popup">

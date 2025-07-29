@@ -25,6 +25,24 @@ window.onbeforeunload = function(e) {
     return 'Are you sure you want to leave this page?  You will lose any unsaved data.';
 };
 
+async function confirmDialog(title, text, icon, buttonText) {
+    var result = await Swal.fire({
+        title: title,
+        text: text,
+        icon: icon,
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: buttonText
+    })
+
+    if (result.isConfirmed) {
+        return true
+    }
+
+    return false
+}
+
 async function getLocationInfo(locationFilter) {
     try {
         const response = await fetch("/api/getLocationInfo", {
@@ -425,8 +443,8 @@ async function getUserLocation() {
 
 
 async function mainProcess() {
-    document.getElementById('usernameTopbar').onclick = function(event) {
-        var signoutNow = confirm('Do you want to signout now?')
+    document.getElementById('usernameTopbar').onclick = async function(event) {
+        var signoutNow = await confirmDialog('Sign Out', 'Do you want to signout now?', 'warning', 'Signout')
         if (signoutNow) {
             window.location = '/signout'
         }

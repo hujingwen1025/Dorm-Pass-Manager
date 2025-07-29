@@ -28,6 +28,40 @@ window.onbeforeunload = function(e) {
     return 'Are you sure you want to leave this page?  You will lose any unsaved data.';
   };
 
+async function confirmDialog(title, text, icon, buttonText) {
+    var result = await Swal.fire({
+        title: title,
+        text: text,
+        icon: icon,
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: buttonText
+    })
+
+    if (result.isConfirmed) {
+        return true
+    }
+
+    return false
+}
+
+function calculateElapsedTime(timeStr) {
+    if (timeStr == null) {
+        return 'N/A'
+    }
+
+    const inputTime = new Date(timeStr);
+    
+    const currentTime = new Date();
+    
+    const diffMs = currentTime - inputTime;
+    
+    const minutes = Math.round(diffMs / (1000 * 60));
+    
+    return minutes;
+}
+
 function triggerDisplayUpdate() {
     document.getElementById(window.lastfilterchoice).click()
 }
@@ -367,58 +401,6 @@ function createStudentInfoDisplayPopup() {
     open("/studentInfoDisplay", "Student Status Display", params)
 }
 
-async function createNewStudentPass(studentid, destinationid) {
-    try {
-        const response = await fetch("/api/newPass", {
-            method: 'POST',
-            body: JSON.stringify({
-                "studentid": studentid,
-                "destinationid": destinationid
-            }),
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-        });
-
-        const responseJson = await response.json();
-
-        switch (responseJson.status) {
-            case "error":
-                createAlertPopup(5000, null, 'Error While Creating Pass', responseJson.errorinfo)
-                return 'error'
-            case "ok":
-                var studentName = await getStudentInfo(studentid)
-                studentName = studentName[0]
-                window.stun = studentName
-                createAlertPopup(5000, type = 'success', 'Pass Created', `A new pass has been created for ${studentName}`)
-                setTimeout(function () {triggerDisplayUpdate()}, 1500)
-                setTimeout(function () {
-                    var approveRightNow = confirm('Pass has been created but is not active. Do you also want to approve and activate the pass right now? (The student leaves now)')
-                    if (approveRightNow) {
-                        var updateResult = updateStudentPass({passid: responseJson.passid, approve: true})
-                        dlog(updateResult,)
-                        if (updateResult != 'error') {
-                            createAlertPopup(5000, type = 'success',' Approve Success', `${studentName} has been approved.`)
-                        } else {
-                            createAlertPopup(5000, null, 'Error', 'Error while updating student pass')
-                        }
-                    }
-                }, 200)
-                return 0
-            default:
-                createAlertPopup(5000, null, 'Error', 'Server returned unreadable data')
-                return 0
-        }
-        
-    } catch (error) {
-        window.errorLog.push(error)
-        dlog('Error:', error);
-        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
-        return 0
-    }
-}
-
 async function updateStudentPass(params) {
     try {
         const response = await fetch("/api/updatePass", {
@@ -531,14 +513,19 @@ async function setStudentIndex(studentsJson) {
         studentFlagButton.innerHTML = 'Flag'
 
         studentActionButton.setAttribute('id', `actions-${curstudent[0]}-${passid}`)
-        studentApproveButton.setAttribute('id', `approve-${curstudent[0]}-${passid}`)
-        studentFlagButton.setAttribute('id', `flag-${curstudent[0]}-${passid}`)
+        studentApproveButton.setAttribute('id', `approve-${curstudent[0]}-${passid}-${curstudent[5]}-${curstudent[6]}-${curstudent[7]}-${curstudent[8]}`)
+        studentFlagButton.setAttribute('id', `flag-${curstudent[0]}-${passid}-${curstudent[5]}-${curstudent[6]}-${curstudent[7]}`)
 
         document.getElementById(`actions-${curstudent[0]}-${passid}`).onclick = function(event){
             renderPassInfoPopup(passid); // Open passInfo overlay
         }
-        document.getElementById(`approve-${curstudent[0]}-${passid}`).onclick = async function(event){
-            var confirmApprove = confirm(`APPROVE ${curstudent[0]} ?`)
+        document.getElementById(`approve-${curstudent[0]}-${passid}-${curstudent[5]}-${curstudent[6]}-${curstudent[7]}-${curstudent[8]}`).onclick = async function(event){
+            var userLocation = await getUserLocation()
+            var locWarningStr = ''
+            if (((curstudent[8] == 1) && (userLocation != curstudent[5])) || ((curstudent[8] == 2) && (userLocation != curstudent[6])) || ((curstudent[8] == 3) && (userLocation != curstudent[6])) || ((curstudent[8] == 4) && (userLocation != curstudent[5]))) {
+                locWarningStr = ` | ⚠️ WARNING: ${curstudent[0]} is not supposed to be at your location`
+            }
+            var confirmApprove = await confirmDialog(`Approve ${curstudent[0]} ?`, `${curstudent[5]} ↔️ ${curstudent[6]} | 🕓 ${calculateElapsedTime(curstudent[7])} Min${locWarningStr}`, 'question', 'Approve')
             if (confirmApprove) {
                 var updateResult = await updateStudentPass({'passid': passid,'approve': true})
                 var alertType = ''
@@ -608,8 +595,8 @@ async function setStudentIndex(studentsJson) {
                 setTimeout(function () {triggerDisplayUpdate()}, 1500)
             }
         }
-        document.getElementById(`flag-${curstudent[0]}-${passid}`).onclick = function(event){
-            var confirmApprove = confirm(`FLAG ${curstudent[0]} ?`)
+        document.getElementById(`flag-${curstudent[0]}-${passid}-${curstudent[5]}-${curstudent[6]}-${curstudent[7]}`).onclick = async function(event){
+            var confirmApprove = await confirmDialog(`Flag ${curstudent[0]} ?`, `${curstudent[5]} ↔️ ${curstudent[6]} | 🕓 ${calculateElapsedTime(curstudent[7])} Min`, 'warning', 'Flag')
             if (confirmApprove) {
                 var updateResult = updateStudentPass({'passid': passid,'flag': true})
                 if (updateResult != 'error') {
@@ -640,6 +627,7 @@ async function setStudents(filters) {
     for (l = 0; l < studentsInformation.length; l ++) {
         let studentInfo  = studentsInformation[l][studentsInformation[l].length - 1]
         let floorName = window.floorLocationJson[studentInfo[2]]
+        let destinationName = window.destinationLocationJson[studentsInformation[l][3]]
         let studentGrade = studentInfo[1]
         let studentName = studentInfo[0]
         let passid = studentsInformation[l][0]
@@ -655,6 +643,24 @@ async function setStudents(filters) {
             window.exsistingAlert[`${passid.toString()}warning`] = true
         }
 
+        let lastApproveTime = null;
+
+        for (curtime of [studentsInformation[l][7], studentsInformation[l][6], studentsInformation[l][5], studentsInformation[l][4]]) {
+            if (curtime != null) {
+                lastApproveTime = curtime;
+                break;
+            }
+        }
+
+        var studentState = 0;
+
+        for (var i = 0; i < 4; i ++) {
+            if (studentsInformation[l][i + 4] == null) {
+                studentState = i + 1
+                break
+            }
+        }
+
         if (studentsInformation[l][4] == null) {
             passStatus = '◽️🏢◽️'
         } else if (studentsInformation[l][5] == null) {
@@ -667,7 +673,7 @@ async function setStudents(filters) {
             passStatus = '◽️🏢✅'
         }
 
-        studentsJson[l] = [studentName, `Grade ${studentGrade} ${floorName} - ${passStatus}`, studentsInformation[l][1], passid, flagged]
+        studentsJson[l] = [studentName, `Grade ${studentGrade} ${floorName} - ${passStatus}`, studentsInformation[l][1], passid, flagged, floorName, destinationName, lastApproveTime, studentState]
     }
     setStudentIndex(studentsJson)
     removeLoader()
@@ -832,18 +838,91 @@ async function approvePassByCard(cardid) {
 
             if (passid != undefined) {
                 triggerDisplayUpdate()
-                document.getElementById(`flag-${passid}-${rdn}`).onclick = function(event){
-                    var confirmApprove = confirm(`FLAG ${studentName} ?`)
-                    if (confirmApprove) {
-                        var updateResult = updateStudentPass({'passid': passid,'flag': true})
-                        if (updateResult != 'error') {
-                            createAlertPopup(5000, type = 'success', 'Flag Success', `${studentName} has been flagged`)
-                        } else {
-                            createAlertPopup(5000, type = 'error', 'Flag Failed', `Failed to flag ${studentName}`)
+                document.getElementById(`flag-${passid}-${rdn}`).onclick = async function(event){
+                    // --- Fetch info for dialog ---
+                    let floorName = '';
+                    let destName = '';
+                    let travelTimeStr = '';
+                
+                    // Fetch student info (for floor)
+                    let studentInfoResp = await fetch("/api/getStudentInfo", {
+                        method: 'POST',
+                        body: JSON.stringify({ studentid: responseJson.studentid }),
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    if (studentInfoResp.ok) {
+                        let studentInfoJson = await studentInfoResp.json();
+                        if (studentInfoJson.status === "ok" && Array.isArray(studentInfoJson.studentinfo)) {
+                            // If floor is an index, convert to name
+                            let floorIdx = studentInfoJson.studentinfo[2];
+                            if (window.floorLocationJson && window.floorLocationJson[floorIdx]) {
+                                floorName = window.floorLocationJson[floorIdx];
+                            } else {
+                                floorName = floorIdx;
+                            }
                         }
-                        triggerDisplayUpdate()
+                    }
+                
+                    // Fetch pass info (for destination and travel time)
+                    let passInfoResp = await fetch("/api/getPassInfo", {
+                        method: 'POST',
+                        body: JSON.stringify({
+                             passid: passid,
+                             appendApproverName: false
+                            }),
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    if (passInfoResp.ok) {
+                        let passInfoJson = await passInfoResp.json();
+                        if (passInfoJson.status === "ok" && passInfoJson.passinfo) {
+                            let passinfo = passInfoJson.passinfo;
+                            // Adjust indices as needed for your backend
+                            let floorIdx = passinfo[1];
+                            let destIdx = passinfo[2];
+                            if (window.floorLocationJson && window.floorLocationJson[floorIdx]) {
+                                floorName = window.floorLocationJson[floorIdx];
+                            }
+                            if (window.destinationLocationJson && window.destinationLocationJson[destIdx]) {
+                                destName = window.destinationLocationJson[destIdx];
+                            }
+                            // Get approve time (or last approve time)
+                            let approveTime = passinfo[4] || passinfo[5] || passinfo[6] || passinfo[7];
+                            if (approveTime) {
+                                let travelTimeMinutes = calculateElapsedTime(approveTime);
+                                travelTimeStr = `${travelTimeMinutes} Min`;
+                            }
+                        }
+                    }
+                
+                    // Compose dialog text
+                    let dialogText = `${floorName || ''} ↔️ ${destName || ''}`;
+                    if (travelTimeStr) {
+                        dialogText += ` | 🕓 ${travelTimeStr}`;
+                    }
+                
+                    var confirmApprove = await confirmDialog(
+                        `Flag ${studentName} ?`,
+                        dialogText,
+                        'warning',
+                        'Flag'
+                    );
+                    if (confirmApprove) {
+                        var updateResult = await updateStudentPass({'passid': passid,'flag': true});
+                        if (updateResult != 'error') {
+                            createAlertPopup(5000, 'success', 'Flag Success', `${studentName} has been flagged`);
+                        } else {
+                            createAlertPopup(5000, 'error', 'Flag Failed', `Failed to flag ${studentName}`);
+                        }
+                        triggerDisplayUpdate();
                     }
                 }
+                // ...existing code...
                 document.getElementById(`info-${passid}-${rdn}`).onclick = function(event){
                     renderPassInfoPopup(passid);
                     triggerDisplayUpdate()
@@ -875,8 +954,8 @@ window.CardScannerMonitor({prefix: ';', suffix: '?'}, function(data){
 });
 
 async function mainProcess() {
-    document.getElementById('usernameTopbar').onclick = function(event) {
-        var signoutNow = confirm('Do you want to signout now?')
+    document.getElementById('usernameTopbar').onclick = async function(event) {
+        var signoutNow = await confirmDialog('Sign Out', 'Do you want to signout now?', 'warning', 'Signout')
         if (signoutNow) {
             window.location = '/signout'
         }
@@ -1024,12 +1103,12 @@ async function mainProcess() {
     let keysPressed = {};
     window.exportingError = false
 
-    document.addEventListener('keydown', (event) => {
+    document.addEventListener('keydown', async (event) => {
         keysPressed[event.key] = true;
         if (keysPressed['Control'] && keysPressed['e'] && keysPressed['r'] && !window.exportingError) {
             window.exportingError = true
             keysPressed = {}
-            if (confirm('ERROR REPORT EXPORT\nAre you sure you want to export errors to your clipboard?')) {
+            if (await confirmDialog('ERROR REPORT EXPORT\nAre you sure you want to export errors to your clipboard?')) {
                 navigator.clipboard.writeText(String(window.errorLog))
             }
             window.exportingError = false
@@ -1098,6 +1177,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    setInterval(updateDisplay, 17500)
+    setInterval(updateDisplay, 20000)
 });
 

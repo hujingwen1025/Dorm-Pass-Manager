@@ -7,7 +7,11 @@ document.getElementById('submitNewPassword').onclick = async function(event) {
     const rpPassword = document.getElementById('rppassword').value;
 
     if (newPassword != rpPassword) {
-        alert('The two passwords entered do not match');
+        Swal.fire({
+            icon: "error",
+            title: "Passwords Do Not Match",
+            text: "The two passwords entered do not match",
+        });
     } else {
         const response = await fetch('/api/resetNewPassword', {
             method: 'POST',
@@ -23,10 +27,18 @@ document.getElementById('submitNewPassword').onclick = async function(event) {
         const result = await response.json();
         
         if (result.status === 'ok') {
-            alert('Password reset successfully');
-            window.location.href = '/';
+            Swal.fire({
+                icon: "success",
+                title: "Passwords Has Been Reset",
+                text: "You will be redirected back",
+            });
+            setTimeout(() => {window.location.href = '/';}, 5000);
         } else {
-            alert(`Error: ${result.errorinfo}`);
+            Swal.fire({
+                icon: "error",
+                title: "Password Reset Error",
+                text: result.errorinfo,
+            });
         }
     }
 }})

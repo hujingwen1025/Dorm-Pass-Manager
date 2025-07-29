@@ -5,8 +5,6 @@
         <meta charset="UTF-8">
     <link rel="icon" type="image/x-icon" href="/static/resource/favicon.png">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
-        <script src="/static/js/socketScript.js"></script>
         <meta lang="en">
         <style>
             /*=================
@@ -1471,6 +1469,7 @@
             }
 
             .bottomText{
+                color: #242324;
                 transition: all 0.2s ease;
                 visibility: hidden;
                 font-family: "Nunito", serif;
@@ -1480,6 +1479,7 @@
             }
 
             .endText {
+                color: #242324;
                 transition: all 0.2s ease;
                 visibility: hidden;
                 font-family: "Nunito", serif;
@@ -1490,6 +1490,7 @@
 
             .topLayerText {
                 background-color: #242324;
+                color: #242324;
                 visibility: hidden;
                 z-index: 99999;
                 animation: fadeIn 2s;
@@ -1500,36 +1501,10 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
-    <script src="/static/js/tamperDetect.js"></script>
+    <script src="/static/js/firstLanding.js"></script>
 </head>
 
     <body>
-        <script type="text/javascript">
-            console.log('SGV5IHRoZXJlLCBpdCBzZWVtcyBsaWtlIHlvdSBrbm93IGFib3V0IHdlYiBkZXYhIFlvdSBtaWdodCBiZSB3b25kZXJpbmcgd2h5IHRoaXMgcGFnZSBjb250YWlucyBhIGZha2UgbG9hZGluZyBzY3JlZW4uIFRoaXMgaXMgYmVjYXVzZSB0aGUgc2VydmVyIGlzIHN0aWxsIHByb2Nlc3NpbmcgaW5mb3JtYXRpb24gYW5kIEkgbmVlZCBhIHdheSBmb3IgdGhlIHVzZXIgdG8gd2FpdC4gSSBkbyBub3Qgd2FudCB0byBtYWtlIGl0IHRvbyBjb21wbGljYXRlZCBzbyBJIGZvdW5kIG91dCB0aGUgc2NyaXB0IHdpbGwgaGF2ZSBhIG1heGltdW0gcnVubmluZyB0aW1lIG9mIDIwIHNlY29uZHMgd2hpY2ggSSBtYWRlIGEgbG9hZGluZyBzY3JlZW4gZm9yIDI3LjUgc2Vjb25kcy4gSXQgd29ya3MgYnV0IGl0cyBzbG9wcHkuIEJhZCBzb2x1dGlvbiBidXQgaXQgd29ya3MuIFNvLi4uIFllYWguIFNodXQgdXAgYW5kIG1vdmUgb24uIEJ5ZSA7KQ==')
-            function showFirstText() {
-              document.getElementById("bottomText").style.visibility = "visible";
-            }
-            setTimeout("showFirstText()", 6400);
-
-            function showSecondText() {
-                document.getElementById("endText").style.visibility = "visible";
-            }
-            setTimeout("showSecondText()", 10400);
-
-            function showTopLayerText() {
-                document.getElementById("topLayerText").style.visibility = "visible";
-                document.getElementById("endText").style.visibility = "hidden";
-                document.getElementById("bottomText").style.visibility = "hidden";
-                document.getElementById("topText").style.visibility = "hidden";
-                document.getElementById("welcomeText").style.visibility = "hidden";
-            }
-            setTimeout("showTopLayerText()", 20400);
-
-            function redirect() {
-                window.location.href = "/";
-            }
-            setTimeout("redirect()", 28000);
-        </script>
         <div class="animation01">
             <div></div>
             <div></div>

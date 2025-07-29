@@ -21,6 +21,24 @@ function dlog(text) {
     }
 }
 
+async function confirmDialog(title, text, icon, buttonText) {
+    var result = await Swal.fire({
+        title: title,
+        text: text,
+        icon: icon,
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: buttonText
+    })
+
+    if (result.isConfirmed) {
+        return true
+    }
+
+    return false
+}
+
 function toDatetimeLocal(dateString) {
     const date = new Date(dateString);
     const pad = n => n < 10 ? '0' + n : n;
@@ -1090,7 +1108,7 @@ async function deleteLocation(locationid) {
 }
 
 async function doStudentDelete() {
-    confirmDelete = confirm('Do you want to delete the selected student?')
+    confirmDelete = await confirmDialog('Delete Student', 'Do you want delete the selected student?', 'warning', 'Delete')
     if (confirmDelete) {
         if (window.studentEditId == undefined || window.studentEditId == null) {
             createAlertPopup(5000, null, 'Error', 'No student selected for deletion')
@@ -1110,7 +1128,7 @@ async function doStudentDelete() {
 }
 
 async function doUserDelete() {
-    confirmDelete = confirm('Do you want to delete the selected user?')
+    confirmDelete = await confirmDialog('Delete User', 'Do you want to delete the selected user?', 'warning', 'Delete')
     if (confirmDelete) {
         if (window.userEditId == undefined || window.userEditId == null) {
             createAlertPopup(5000, null, 'Error', 'No user selected for deletion')
@@ -1130,7 +1148,7 @@ async function doUserDelete() {
 }
 
 async function doLocationDelete() {
-    confirmDelete = confirm('Do you want to delete the selected location?')
+    confirmDelete = await confirmDialog('Delete Location', 'Do you want to delete the selected location?', 'warning', 'Delete')
     if (confirmDelete) {
         if (window.locationEditId == undefined || window.locationEditId == null) {
             createAlertPopup(5000, null, 'Error', 'No location selected for deletion')
@@ -1467,7 +1485,7 @@ async function downloadBackup(filename) {
 }
 
 async function deleteBackup(filename) {
-    if (confirm(`Do you want to delete ${filename}? This action cannot be undone!`) != true) {
+    if (await confirmDialog('Delete Backup', `Do you want to delete ${filename}? This action cannot be undone!`, 'warning', 'Delete') != true) {
         return;
     }
     try {
@@ -1502,7 +1520,7 @@ async function deleteBackup(filename) {
 }
 
 async function loadBackup(filename) {
-    if (confirm(`Do you want to load ${filename}? This will override all data on the exsisting database and force everyone regardless of their current state to sign out!`) != true) {
+    if (await confirmDialog('Load Backup', `Do you want to load ${filename}? This will override all data on the exsisting database and force everyone regardless of their current state to sign out!`, 'warning', 'Load') != true) {
         return;
     }
     try {
@@ -1829,8 +1847,8 @@ document.addEventListener('DOMContentLoaded', () => {
     mainProcess();
 });
 async function mainProcess() {
-    document.getElementById('usernameTopbar').onclick = function(event) {
-        var signoutNow = confirm('Do you want to signout now?')
+    document.getElementById('usernameTopbar').onclick = async function(event) {
+        var signoutNow = await confirmDialog('Sign Out', 'Do you want to signout now?', 'warning', 'Signout')
         if (signoutNow) {
             window.location = '/signout'
         }
