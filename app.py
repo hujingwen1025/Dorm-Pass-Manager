@@ -160,6 +160,7 @@ def ensureLoggedIn(session, allowedroles = 3, studentPortal = False):
     try:
         sessionid = decrypt(str(session.get('sessionid')))
         passkey = decrypt(str(session.get('passkey')))
+        
         userinfo = sessionStorage.verify(sessionid, passkey)
         if studentPortal:
             if userinfo[2] == False:
@@ -172,11 +173,8 @@ def ensureLoggedIn(session, allowedroles = 3, studentPortal = False):
     except:
         return False
     
-def currentDatetime(naive = True):
-    if naive:
-        return datetime.now()
-    else:
-        return datetime.now(pytz.timezone('Asia/Shanghai'))
+def currentDatetime():
+    return datetime.now()
 
 def listToJson(lst):
     res_dict = {}
@@ -201,8 +199,8 @@ def getPassStatus(passid):
     else:
         return None
     
-def calculateElapsedSeconds(timestamp, naive = True):
-    rawtime = currentDatetime(naive) - timestamp
+def calculateElapsedSeconds(timestamp):
+    rawtime = currentDatetime() - timestamp
     return rawtime.days * 86400 + rawtime.seconds
 
 def convertSecondsToTime(seconds):
@@ -436,17 +434,6 @@ def getOidFromSession(session):
     oid = sessionStorage.verify(sessionid, passkey)[0]
 
     return oid
-
-def convert_gmt_to_cst(gmt_datetime):
-    try:
-        gmt_dt = gmt_datetime.replace(tzinfo=pytz.UTC)
-    
-        cst_dt = gmt_dt.replace(tzinfo=pytz.timezone('Asia/Shanghai'))
-    
-        return cst_dt
-
-    except:
-        return None
 
 def getLocationNameFromId(locationid):
     with dbConnect() as connection:
@@ -1368,7 +1355,7 @@ def approvePassByCard():
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute(
-                'SELECT passid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime '
+                'SELECT passid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged '
                 'FROM passes WHERE studentid = %s ORDER BY passid DESC LIMIT 1', (studentid,))
             pass_result = dbcursor.fetchall()
     if not pass_result:
@@ -1376,7 +1363,7 @@ def approvePassByCard():
         retinfo['errorinfo'] = 'No active pass found for student'
         return jsonify(retinfo)
 
-    passid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime = pass_result[0]
+    passid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged = pass_result[0]
 
     # Determine the next location to approve
     # 0: Dorm (fleavetime), 1: Destination (darrivetime), 2: Destination leave (dleavetime), 3: Dorm return (farrivetime)
@@ -1413,6 +1400,12 @@ def approvePassByCard():
     userinfo = urin
     userid = userinfo[0]
     userlocation = userinfo[5]
+
+    if flagged:
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'PASS IS FLAGGED Requires manual approval'
+
+        return jsonify(retinfo)
 
     # Check if user's location matches the next required location
     if str(userlocation) != str(next_location_id):
@@ -3849,7 +3842,7 @@ def page_not_found(e):
     return render_template('errorPage.html', errorTitle = '404 Not Found', errorText = 'The requested URL was not found on the server.', errorDesc = 'If you entered the URL manually please check your spelling and try again.', errorLink = '/'), 404
 
 @app.errorhandler(500)
-def page_not_found(e):
+def server_error(e):
     return render_template('errorPage.html', errorTitle = '500 Internal Server Error', errorText = 'The server encountered an internal error and was unable to complete your request.', errorDesc = 'Either the server is overloaded or there is an error in the application.', errorLink = '/'), 500
 
 @app.route('/fl')

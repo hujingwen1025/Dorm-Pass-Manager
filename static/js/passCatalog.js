@@ -62,6 +62,26 @@ function calculateElapsedTime(timeStr) {
     return minutes;
 }
 
+function getLocationIdByName(locationName) {
+    // Search destination locations
+    if (window.destinationLocationJson) {
+        for (const [id, nameArr] of Object.entries(window.destinationLocationJson)) {
+            if (Array.isArray(nameArr) && nameArr[0] === locationName) {
+                return id;
+            }
+        }
+    }
+    // Search floor locations
+    if (window.floorLocationJson) {
+        for (const [id, nameArr] of Object.entries(window.floorLocationJson)) {
+            if (Array.isArray(nameArr) && nameArr[0] === locationName) {
+                return id;
+            }
+        }
+    }
+    return null; // Not found
+}
+
 function triggerDisplayUpdate() {
     document.getElementById(window.lastfilterchoice).click()
 }
@@ -74,6 +94,24 @@ function renderLoader() {
 function removeLoader() {
     const loaderslot = document.getElementById("loaderSlot")
     loaderslot.innerHTML = ''
+}
+
+function getLocationType(location) {
+    if (!window.destinationLocationJson || !window.floorLocationJson) {
+        return null;
+    }
+
+    for (const [id, name] of Object.entries(window.destinationLocationJson)) {
+        if (location == id || location == name) {
+            return 'destination';
+        }
+    }
+    for (const [id, name] of Object.entries(window.floorLocationJson)) {
+        if (location == id || location == name) {
+            return 'floor';
+        }
+    }
+    return null;
 }
 
 async function getLocationId(type) {
@@ -195,24 +233,63 @@ async function startKioskMode() {
     window.onbeforeunload = function(e) { return 'Are you sure you want to leave this page?  You will lose any unsaved data.';}
 }
 
-async function getStudents(filters) {
+async function searchStudents(searchFilters) {
+    try {
+        const response = await fetch("/api/searchStudents", {
+            method: 'POST',
+            body: JSON.stringify({
+                "searchFilter": searchFilters
+            }),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error Fetching Students', responseJson.errorinfo);
+                return 'error';
+            case "ok":
+                return responseJson.students;
+            default:
+                return 'error';
+        }
+
+    } catch (error) {
+        window.errorLog.push(error)
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server');
+        return 'error';
+    }
+}
+
+async function getStudents(filters, allfilters = null) {
     var searchScopeOption = document.getElementById('searchOptionSlot')
     var searchScope = searchScopeOption.value
     var dateScopeOption = document.getElementById('passSearchDateNoFilter')
     var dateScopeSelect = document.getElementById('passSearchDate')
     var dateScope = ''
+    var searchparams = {}
     if (!dateScopeOption.checked) {
         dateScope = dateScopeSelect.value
     }
-    try {
-        const response = await fetch("/api/getStudents", {
-            method: 'POST',
-            body: JSON.stringify({
+    if (allfilters == null) {
+        searchparams = {
                 "filter": filters,
                 "searchScope": searchScope,
                 "showCompletedPass": window.showCompletedPasses,
                 "dateScope": dateScope
-            }),
+            }
+    } else {
+        searchparams = allfilters
+    }
+    try {
+        const response = await fetch("/api/getStudents", {
+            method: 'POST',
+            body: JSON.stringify(searchparams),
             headers: {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
@@ -612,6 +689,7 @@ async function setStudentIndex(studentsJson) {
 
 async function setStudents(filters) {
     renderLoader()
+    updateStudentStatusChart()
     if (window.destinationLocationJson == null) {
         window.destinationLocationJson = await getLocationId(1)
     }
@@ -1158,9 +1236,71 @@ function updateDisplay() {
     if (window.searchActivated == false) {
         triggerDisplayUpdate()
     }
+    updateStudentStatusChart()
+}
+
+async function updateStudentStatusChart() {
+    window.destinationLocationJson = await getLocationId(1)
+    window.floorLocationJson = await getLocationId(2)
+
+    var searchScopeOption = document.getElementById('searchOptionSlot')
+    var userLocationId = searchScopeOption.value
+    if (userLocationId == 'Use Current Location') {
+        userLocationId = getLocationIdByName(await getUserLocation())
+    } else {
+        userLocationId = getLocationIdByName(userLocationId)
+    }
+    
+    if (getLocationType(userLocationId) == 'floor') {
+        var totalStudents = (await searchStudents({floorid: userLocationId})).length
+    } else {
+        var totalStudents = (await getStudents({destination: userLocationId})).length
+    }
+
+    var notLeftStudents = (await getStudents(0, {"filter": {"status": 2}, "searchScope": searchScopeOption.value, "showCompletedPass": false, "dateScope": "" })).length
+    var relatedPassStudents = (await getStudents(0, {"filter": {}, "searchScope": searchScopeOption.value, "showCompletedPass": false, "dateScope": "" })).length
+    var arrivingStudents = (await getStudents(0, {"filter": {"status": 1},"searchScope": searchScopeOption.value,"showCompletedPass": false,"dateScope": ""})).length
+    var leavingStudents = (await getStudents(0, {"filter": {"status": 3},"searchScope": searchScopeOption.value,"showCompletedPass": false,"dateScope": ""})).length
+    var awayStudents = relatedPassStudents - notLeftStudents - arrivingStudents - leavingStudents
+    var presentStudents = totalStudents - relatedPassStudents + notLeftStudents
+
+    window.studentStatusChart.data.datasets[0].data[0] = presentStudents
+    window.studentStatusChart.data.datasets[0].data[1] = awayStudents
+    window.studentStatusChart.data.datasets[0].data[2] = leavingStudents
+    window.studentStatusChart.data.datasets[0].data[3] = arrivingStudents
+
+    window.studentStatusChart.update()
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    window.studentStatusChart = new Chart("studentStatusChart", {
+        type: "pie",
+        data: {
+          labels: ["Present", "Away", "Leaving", "Arriving"],
+          datasets: [{
+            backgroundColor: ["#00aba9", "#b91d47", "#2b5797", "#e8c3b9",],
+            data: [0, 0, 0, 0]
+          }]
+        },
+        options: {
+            plugins: {
+          title: {
+            font: {
+                        size: 24
+                    },
+            display: true,
+            text: "Attendance Status"
+          },
+          legend: {
+                labels: {
+                    font: {
+                        size: 18
+                    }
+                }
+            }
+        }}
+    });
+
     mainProcess()
     toggleOverlay(false)
     updateDisplay()   

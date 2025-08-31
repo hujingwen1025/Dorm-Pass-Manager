@@ -1,0 +1,7 @@
+Flask
+Flask-Session-Captcha
+cryptography
+msal
+mysql-connector-python
+pytz
+Flask-SocketIO

@@ -197,6 +197,7 @@ async function deletePass() {
         const data = await response.json();
         if (data.status == 'ok') {
             createAlertPopup(5000, 'success', 'Pass Deleted', 'Successfully deleted your most recent unused pass')
+            loadStudentPassInfo();
         } else {
             createAlertPopup(5000, null, 'Error', data.errorinfo)
         }
@@ -248,6 +249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const result = await createStudentPass(destination);
         if (result.status === 'ok') {
             createAlertPopup(3000, 'success', 'Success', 'Pass created successfully');
+            loadStudentPassInfo();
             toggleOverlay(false);
             loadStudentPassInfo();
         } else {

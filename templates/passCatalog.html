@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="/static/js/socketScript.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <title>DPM - Pass Catalog</title>
     <style>
         @font-face {
@@ -379,6 +380,10 @@
         <hr>
         <p>This list automatically updates every 20 seconds or whenever any search parameters are changed.</p>
         <button class="resetFilterButton" id="listManualUpdateButton" onclick="updateDisplay();document.getElementById('listManualUpdateButton').disabled = true;setTimeout(function () {document.getElementById('listManualUpdateButton').disabled = false;}, 7500);">Update</button>
+        <hr>
+        <div style="display: flex; justify-content: center;">
+            <canvas class="chart" id="studentStatusChart" style="width:100%;max-width:600px"></canvas>
+        </div>
     </div>
     <div class="overlay" id="popupOverlay">
         <div class="popup">
