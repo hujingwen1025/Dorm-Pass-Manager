@@ -94,7 +94,7 @@ def checkUserInformation(usergetparam, oid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute(f"SELECT {usergetparam} FROM users WHERE oid = %s", (oid,))
-            dbcursorfetch = dbcursor.fetchall()
+            dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
             
     if len(dbcursorfetch) < 1:
         return None
@@ -105,7 +105,7 @@ def checkStudentInformation(studentgetparam, oid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute(f"SELECT {studentgetparam} FROM students WHERE oid = %s", (oid,))
-            dbcursorfetch = dbcursor.fetchall()
+            dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
             
     if len(dbcursorfetch) < 1:
         return None
@@ -117,12 +117,12 @@ def getLocationsInformation(type, locationid = None):
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT locationid, name FROM locations WHERE type = %s", (type,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
     else:            
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT locationid, name FROM locations WHERE locationid = %s AND type = %s", (locationid, type,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(dbcursorfetch) < 1:
         return None
@@ -133,7 +133,7 @@ def getLocationType(locationid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute("SELECT type FROM locations WHERE locationid = %s", (locationid,))
-            dbcursorfetch = dbcursor.fetchall()
+            dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                         
     return dbcursorfetch[0][0]
 
@@ -142,7 +142,7 @@ def getSettingsValue(settingName):
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT value FROM settings WHERE name = %s', (settingName,))
             dprint(dbcursor.statement)
-            dbcursorfetch = dbcursor.fetchall()
+            dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                        
     dprint('setf')
     dprint(dbcursorfetch) 
@@ -155,6 +155,33 @@ def joinLocations(locationList):
         joinedString += ','
     joinedString = joinedString[:-1]
     return joinedString
+
+def convertTimezone(prevTime):
+    conversionTimezone = pytz.timezone('Asia/Shanghai')
+    return conversionTimezone.localize(prevTime)
+
+def dbfetchedConvertDate(dbcursorFetched):
+    returnResult = []
+    for entry in dbcursorFetched:
+        returnResult.append([])
+        try:
+            for element in entry:
+                if 1 and isinstance((element), datetime):
+                    returnResult[-1].append(convertTimezone(element))
+                else:
+                    returnResult[-1].append(element)
+        except:
+            pass
+    return returnResult
+
+def dbfetchedOneConvertDate(dbcursorFetched):
+    returnResult = []
+    for element in dbcursorFetched:
+        if 1 and isinstance((element), datetime):
+            returnResult.append(convertTimezone(element))
+        else:
+            returnResult.append(element)
+    return returnResult
 
 def ensureLoggedIn(session, allowedroles = 3, studentPortal = False):
     try:
@@ -174,7 +201,7 @@ def ensureLoggedIn(session, allowedroles = 3, studentPortal = False):
         return False
     
 def currentDatetime():
-    return datetime.now()
+    return convertTimezone(datetime.now())
 
 def listToJson(lst):
     res_dict = {}
@@ -186,7 +213,7 @@ def getPassStatus(passid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT fleavetime, darrivetime, dleavetime, farrivetime FROM passes WHERE passid = %s', (passid,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
             
     if result[0][0] == None:
         return 0
@@ -350,7 +377,7 @@ def isStudentSuspended(studentid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT suspension, suspensionED FROM students WHERE studentid = %s', (studentid,))
-            result = dbcursor.fetchone()
+            result = dbfetchedOneConvertDate(dbcursor.fetchone())
     if not result:
         return False
     suspension, suspensionED = result
@@ -381,7 +408,7 @@ class sessionStorage:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('INSERT INTO sessions (oid, passkey, expdate, active, isstudent) VALUES (%s, %s, %s, %s, %s)', (oid, passkey, expdate, True, isstudent))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
-                result = dbcursor.fetchall()
+                result = dbfetchedConvertDate(dbcursor.fetchall())
                                 
         return [str(result[0][0]), passkey]
                 
@@ -389,7 +416,7 @@ class sessionStorage:
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT oid, expdate, isstudent FROM sessions WHERE sessionid = %s AND passkey = %s AND active = true', (sessionid, passkey))
-                result = dbcursor.fetchall()
+                result = dbfetchedConvertDate(dbcursor.fetchall())
         
         if len(result) < 1:
             return None
@@ -410,7 +437,7 @@ class sessionStorage:
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT role FROM users WHERE oid = %s', (oid,))
-                    userrole = dbcursor.fetchall()[0][0]
+                    userrole = dbfetchedConvertDate(dbcursor.fetchall())[0][0]
 
         return [oid, userrole, isstudent]
     
@@ -439,7 +466,7 @@ def getLocationNameFromId(locationid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (locationid,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         return None
@@ -450,7 +477,7 @@ def getStudentNameFromId(studentid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT name FROM students WHERE studentid = %s', (studentid,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         return None
@@ -461,7 +488,7 @@ def getStudentGradeFromId(studentid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT grade FROM students WHERE studentid = %s', (studentid,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         return None
@@ -472,7 +499,7 @@ def getStudentCardidFromId(studentid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT cardid FROM students WHERE studentid = %s', (studentid,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         return None
@@ -483,7 +510,7 @@ def getStudentEmailFromId(studentid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT email FROM students WHERE studentid = %s', (studentid,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         return None
@@ -494,7 +521,7 @@ def getUserNameFromOid(oid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT name FROM users WHERE oid = %s', (oid,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         return None
@@ -505,7 +532,7 @@ def getUserNameFromId(id):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT name FROM users WHERE userid = %s', (id,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         return None
@@ -516,7 +543,7 @@ def getUserEmailFromOid(oid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT email FROM users WHERE oid = %s', (oid,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         return None
@@ -527,7 +554,7 @@ def getStudentInfoFromId(studentid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute("SELECT name, grade, floorid, disabledlocations, cardid, email FROM students WHERE studentid = %s", (studentid,))
-            dbcursorfetch = dbcursor.fetchall()
+            dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
     if len(dbcursorfetch) < 0:
         return 'nostudent'
@@ -546,7 +573,7 @@ def getStudentIdFromOid(oid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT studentid FROM students WHERE oid = %s', (oid,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         return None
@@ -566,7 +593,7 @@ def getLocationIdFromName(location_name):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT locationid FROM locations WHERE name = %s', (location_name,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
 
     if len(result) < 1:
         return None
@@ -862,7 +889,7 @@ def microsoftLoginCallback():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT * FROM users WHERE email = %s', (email,))
-                    result = dbcursor.fetchall()
+                    result = dbfetchedConvertDate(dbcursor.fetchall())
 
             if len(result) > 0:
                 with dbConnect() as connection:
@@ -880,7 +907,7 @@ def microsoftLoginCallback():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT * FROM students WHERE email = %s', (email,))
-                    result = dbcursor.fetchall()
+                    result = dbfetchedConvertDate(dbcursor.fetchall())
 
             if len(result) > 0:
                 with dbConnect() as connection:
@@ -922,7 +949,7 @@ def passwordLoginCallback():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT oid FROM users WHERE name = %s AND password = %s', (username, passwordhash,))
-                result = dbcursor.fetchall()
+                result = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(result) > 0:
             dprint('Password login successful')
@@ -951,7 +978,7 @@ def searchLocations():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT locationid, name, type FROM locations WHERE name = %s', (locationStrictName,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                                 
             retinfo['status'] = 'ok'
             retinfo['locations'] = dbcursorfetch
@@ -976,7 +1003,7 @@ def searchLocations():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute(sqlquery, sqlqueryvar)
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                                         
             retinfo['status'] = 'ok'
             retinfo['locations'] = dbcursorfetch
@@ -1002,7 +1029,7 @@ def editLocation():
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
                         dbcursor.execute('SELECT * FROM locations WHERE locationid = %s', (locationid,))
-                        dbcursorfetch = dbcursor.fetchall()
+                        dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                         
                 if len(dbcursorfetch) < 1:
                     retinfo['status'] = 'error'
@@ -1023,7 +1050,7 @@ def editLocation():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM locations WHERE locationid = %s', (locationid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -1042,7 +1069,7 @@ def editLocation():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM locations WHERE name = %s', (locationName,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 1:
             retinfo['status'] = 'error'
@@ -1146,7 +1173,7 @@ def updatePass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM passes WHERE passid = %s', (passid,))
-                result = dbcursor.fetchall()
+                result = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(result) < 1:
             retinfo['status'] = 'error'
@@ -1178,7 +1205,7 @@ def updatePass():
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
                         dbcursor.execute('SELECT * FROM passes WHERE passid = %s', (passid,))
-                        result = dbcursor.fetchall()
+                        result = dbfetchedConvertDate(dbcursor.fetchall())
 
                         if len(result) < 1:
                             retinfo['status'] = 'error'
@@ -1199,7 +1226,7 @@ def updatePass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name, grade FROM students WHERE studentid = %s', (studentid,))
-                result = dbcursor.fetchall()
+                result = dbfetchedConvertDate(dbcursor.fetchall())
                 
         dprint(result)
         
@@ -1253,7 +1280,7 @@ def updatePass():
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
                         dbcursor.execute(f"SELECT {timepositions[stampposition - 1]}, {timepositions[stampposition]} FROM passes WHERE passid = %s", (passid,))
-                        stamptime = dbcursor.fetchall()
+                        stamptime = dbfetchedConvertDate(dbcursor.fetchall())
                         
                 studentWarningTimeout = int(getSettingsValue('studentWarningTimeout'))
                 studentAlertTimeout = int(getSettingsValue('studentAlertTimemout'))
@@ -1269,7 +1296,7 @@ def updatePass():
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
                         dbcursor.execute('SELECT fleavetime, darrivetime, dleavetime, farrivetime FROM passes WHERE passid = %s', (passid,))
-                        curpass = dbcursor.fetchall()[0]
+                        curpass = dbfetchedConvertDate(dbcursor.fetchall())[0]
                         
                 retinfo["elapsedtimewarning"] = None
                                 
@@ -1334,7 +1361,7 @@ def approvePassByCard():
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT studentid FROM students WHERE cardid = %s', (cardid,))
-            student_result = dbcursor.fetchall()
+            student_result = dbfetchedConvertDate(dbcursor.fetchall())
     if not student_result:
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Student not found'
@@ -1357,7 +1384,7 @@ def approvePassByCard():
             dbcursor.execute(
                 'SELECT passid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged '
                 'FROM passes WHERE studentid = %s ORDER BY passid DESC LIMIT 1', (studentid,))
-            pass_result = dbcursor.fetchall()
+            pass_result = dbfetchedConvertDate(dbcursor.fetchall())
     if not pass_result:
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'No active pass found for student'
@@ -1431,7 +1458,7 @@ def approvePassByCard():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute(f"SELECT {lastpos}, {time_field} FROM passes WHERE passid = %s", (passid,))
-                stamptime = dbcursor.fetchall()
+                stamptime = dbfetchedConvertDate(dbcursor.fetchall())
                 
         studentWarningTimeout = int(getSettingsValue('studentWarningTimeout'))
         studentAlertTimeout = int(getSettingsValue('studentAlertTimemout'))
@@ -1447,7 +1474,7 @@ def approvePassByCard():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT fleavetime, darrivetime, dleavetime, farrivetime FROM passes WHERE passid = %s', (passid,))
-                curpass = dbcursor.fetchall()[0]
+                curpass = dbfetchedConvertDate(dbcursor.fetchall())[0]
                 
         retinfo["elapsedtimewarning"] = None
         
@@ -1605,7 +1632,7 @@ def getStudents():
                 dbcursor.execute(sqlquery, sqlqueryvar)
                 dprint('execed')
                 dprint(dbcursor.statement)
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         studentWarningTimeout = int(getSettingsValue('studentWarningTimeout'))
         studentAlertTimeout = int(getSettingsValue('studentAlertTimemout'))
@@ -1694,7 +1721,7 @@ def addStudent():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM students WHERE name = %s', (studentName,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -1722,7 +1749,7 @@ def addStudent():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT * FROM students WHERE cardid = %s', (studentCardid,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
             if len(dbcursorfetch) > 0:
                 retinfo['status'] = 'error'
@@ -1735,7 +1762,7 @@ def addStudent():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM students WHERE email = %s', (studentEmail,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -1745,7 +1772,7 @@ def addStudent():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM users WHERE email = %s', (studentEmail,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -1757,7 +1784,7 @@ def addStudent():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT type, locationid FROM locations WHERE name = %s', (studentFloor,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                     
             dprint(dbcursorfetch)
 
@@ -1787,7 +1814,7 @@ def addStudent():
             with connection.cursor() as dbcursor:
                 dbcursor.execute('INSERT INTO students (name, grade, floorid, cardid, image, email) VALUES (%s, %s, %s, %s, %s, %s)', (studentName, studentGrade, studentFloorId, studentCardid, studentImage, studentEmail,))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         retinfo['status'] = 'ok'
         retinfo['studentid'] = dbcursorfetch[0][0]
@@ -1821,7 +1848,7 @@ def getUserLocation():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (locationid,))
-                result = dbcursor.fetchall()
+                result = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(result) < 1:
             retinfo['status'] = 'error'
@@ -1878,7 +1905,7 @@ def addUser():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM users WHERE name = %s', (userName,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -1889,7 +1916,7 @@ def addUser():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM users WHERE email = %s', (userEmail,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -1900,7 +1927,7 @@ def addUser():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM students WHERE email = %s', (userEmail,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -1951,7 +1978,7 @@ def addUser():
             with connection.cursor() as dbcursor:
                 dbcursor.execute('INSERT INTO users (name, email, role, locationid, password, oid) VALUES (%s, %s, %s, %s, %s, %s)', (userName, userEmail, userRoleId, userLocationId, userPassword, userOid,))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
-                dbcursorfetch = dbcursor.fetchall()    
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())    
                 
         retinfo['status'] = 'ok'
         retinfo['userid'] = dbcursorfetch[0][0]
@@ -1991,7 +2018,7 @@ def addLocation():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM locations WHERE name = %s', (locationName,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -2013,7 +2040,7 @@ def addLocation():
             with connection.cursor() as dbcursor:
                 dbcursor.execute('INSERT INTO locations (name, type) VALUES (%s, %s)', (locationName, locationType,))
                 dbcursor.execute('SELECT LAST_INSERT_ID()')
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         retinfo['status'] = 'ok'
         retinfo['locationid'] = dbcursorfetch[0][0]
@@ -2033,7 +2060,7 @@ def editStudent():
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
                         dbcursor.execute('SELECT * FROM students WHERE studentid = %s', (studentid,))
-                        dbcursorfetch = dbcursor.fetchall()
+                        dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                         
                 if len(dbcursorfetch) < 1:
                     retinfo['status'] = 'error'
@@ -2054,7 +2081,7 @@ def editStudent():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM students WHERE studentid = %s', (studentid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -2100,7 +2127,7 @@ def editStudent():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM students WHERE name = %s AND studentid != %s', (studentName, studentid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -2125,7 +2152,7 @@ def editStudent():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT image FROM students WHERE studentid = %s', (studentid,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                     
             studentImage = dbcursorfetch[0][0]
             
@@ -2133,7 +2160,7 @@ def editStudent():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT studentid FROM students WHERE cardid = %s', (studentCardid,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
             if len(dbcursorfetch) > 0 and dbcursorfetch[0][0] != studentid:
                 retinfo['status'] = 'error'
@@ -2144,7 +2171,7 @@ def editStudent():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT image FROM students WHERE studentid = %s', (studentid,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                     
             studentCardid = dbcursorfetch[0][0]
         
@@ -2152,7 +2179,7 @@ def editStudent():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT type, locationid FROM locations WHERE name = %s', (studentFloor,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                     
             dprint(dbcursorfetch)
 
@@ -2182,7 +2209,7 @@ def editStudent():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT email FROM students WHERE email = %s AND studentid != %s', (studentEmail, studentid,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                     
             if len(dbcursorfetch) > 0:
                 retinfo['status'] = 'error'
@@ -2199,7 +2226,7 @@ def editStudent():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT email FROM users WHERE email = %s', (studentEmail,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
             if len(dbcursorfetch) > 0:
                 retinfo['status'] = 'error'
                 retinfo['errorinfo'] = 'Email of student has already been taken by a user'
@@ -2243,7 +2270,7 @@ def editUser():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT role FROM users WHERE userid = %s', (setuserid,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                     
             userRoleId = dbcursorfetch[0][0]
             userid = setuserid
@@ -2257,7 +2284,7 @@ def editUser():
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
                         dbcursor.execute('SELECT * FROM users WHERE userid = %s', (userid,))
-                        dbcursorfetch = dbcursor.fetchall()
+                        dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                         
                 if len(dbcursorfetch) < 1:
                     retinfo['status'] = 'error'
@@ -2278,7 +2305,7 @@ def editUser():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM users WHERE userid = %s', (userid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -2315,7 +2342,7 @@ def editUser():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM users WHERE name = %s AND userid != %s', (userName, userid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -2326,7 +2353,7 @@ def editUser():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM users WHERE email = %s AND userid != %s', (userEmail, userid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -2337,7 +2364,7 @@ def editUser():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM students WHERE email = %s', (userEmail,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -2349,7 +2376,7 @@ def editUser():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT password FROM users WHERE userid = %s', (userid,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                     
             userPassword = dbcursorfetch[0][0]
             
@@ -2492,7 +2519,7 @@ def searchStudents():
                 dbcursor.execute(sqlquery, sqlqueryvar)
                 dprint('execed')
                 dprint(dbcursor.statement)
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
         
         if strictNameSearch:
             try:
@@ -2505,7 +2532,7 @@ def searchStudents():
                         dbcursor.execute(sqlquery, sqlqueryvar)
                         dprint('execed')
                         dprint(dbcursor.statement)
-                        dbcursorfetch = dbcursor.fetchall()
+                        dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
             except IndexError:
                 pass
                 
@@ -2544,7 +2571,7 @@ def searchUsers():
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
                         dbcursor.execute('SELECT userid, name, email, role, locationid FROM users WHERE userid = %s', (userid,))
-                        dbcursorfetch = dbcursor.fetchall()
+                        dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                         
                 retinfo['status'] = 'ok'
                 retinfo['users'] = dbcursorfetch[0]
@@ -2606,7 +2633,7 @@ def searchUsers():
                 dbcursor.execute(sqlquery, sqlqueryvar)
                 dprint('execed')
                 dprint(dbcursor.statement)
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         querySearchLimit = int(getSettingsValue('querySearchLimit'))
                 
@@ -2659,7 +2686,7 @@ def getLocationInfo():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute(sqlquery, sqlqueryvar)
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         querySearchLimit = int(getSettingsValue('querySearchLimit'))
                 
@@ -2800,7 +2827,7 @@ def newPass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT * FROM passes WHERE studentid = %s AND farrivetime IS null", (studentid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
                 dprint('pa')
                 dprint(dbcursorfetch)
@@ -2815,7 +2842,7 @@ def newPass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (destinationid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
         
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -2826,7 +2853,7 @@ def newPass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT * FROM students WHERE studentid = %s", (studentid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
         
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -2849,7 +2876,7 @@ def newPass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT floorid FROM students WHERE studentid = %s", (studentid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         floorid = dbcursorfetch[0][0]
         
@@ -2864,22 +2891,22 @@ def newPass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT name FROM students WHERE studentid = %s", (studentid,))
-                studentname = dbcursor.fetchall()[0][0]
+                studentname = dbfetchedConvertDate(dbcursor.fetchall())[0][0]
 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT name FROM locations WHERE locationid = %s", (destinationid,))
-                destinationname = dbcursor.fetchall()[0][0]
+                destinationname = dbfetchedConvertDate(dbcursor.fetchall())[0][0]
 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT name FROM locations WHERE locationid = %s", (floorid,))
-                floorname = dbcursor.fetchall()[0][0]
+                floorname = dbfetchedConvertDate(dbcursor.fetchall())[0][0]
 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT grade FROM students WHERE studentid = %s", (studentid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
         
         studentGrade = 'Grade ' + str(dbcursorfetch[0][0])
 
@@ -2894,7 +2921,7 @@ def newPass():
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
                     dbcursor.execute('SELECT passid FROM passes WHERE studentid = %s AND fleavetime IS null', (studentid,))
-                    dbcursorfetch = dbcursor.fetchall()
+                    dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                     
             passid = str(dbcursorfetch[0][0])
         except:
@@ -2969,7 +2996,7 @@ def getUserRole():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT role FROM users WHERE userid = %s', (userid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -3007,7 +3034,7 @@ def getStudentImage():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT image FROM students WHERE studentid = %s', (studentid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -3046,30 +3073,28 @@ def getPassInfo():
             with connection.cursor() as dbcursor:
                 dbcursor.execute('''
                     SELECT studentid, floorid, destinationid, flagged, fleavetime, darrivetime, dleavetime, farrivetime, flapprover, daapprover, dlapprover, faapprover FROM passes WHERE passid = %s ''', (passid,))
-                passinfo = dbcursor.fetchone()
+                passinfo = dbfetchedOneConvertDate(dbcursor.fetchone())
 
-        passinfo = list(passinfo)
-        
         for i in range(4):
             if passinfo[i + 8] != None:
-                passinfo[i + 4] = str(passinfo[i + 4])
+                passinfo[i + 4] = passinfo[i + 4].strftime("%Y-%m-%d %H:%M:%S")
                 if appendApproverName:
                     passinfo[i + 4] += '\n' + getUserNameFromId(passinfo[i + 8])
                 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name, grade, cardid, image FROM students WHERE studentid = %s', (passinfo[0],))
-                studentinfo = dbcursor.fetchone()
+                studentinfo = dbfetchedOneConvertDate(dbcursor.fetchone())
                 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (passinfo[1],))
-                floorinfo = dbcursor.fetchone()
+                floorinfo = dbfetchedOneConvertDate(dbcursor.fetchone())
                 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (passinfo[2],))
-                destinationinfo = dbcursor.fetchone()
+                destinationinfo = dbfetchedOneConvertDate(dbcursor.fetchone())
         if passinfo == None or studentinfo == None or floorinfo == None or destinationinfo == None:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Pass does not exist with correct information'
@@ -3081,6 +3106,7 @@ def getPassInfo():
         retinfo['studentinfo'] = studentinfo
         retinfo['floorinfo'] = floorinfo
         retinfo['destinationinfo'] = destinationinfo
+
         return jsonify(retinfo)
     
     else:
@@ -3112,7 +3138,7 @@ def requestPasswordReset():
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT userid FROM users WHERE email = %s', (email,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         delaySeconds = random.randint(45, 65)
@@ -3124,7 +3150,7 @@ def requestPasswordReset():
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute("SELECT expireTime FROM passwordreset WHERE userid = %s", (userid,))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
             
     for singleReset in result:
         timeSinceLastReset = int((currentDatetime() - (singleReset[0] - timedelta(hours=1))).total_seconds())
@@ -3163,7 +3189,7 @@ def getSettingsValueAPI():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name, value FROM settings WHERE name != "smtpPassword" AND name != "msauthClientSecret"')
-                result = dbcursor.fetchall()
+                result = dbfetchedConvertDate(dbcursor.fetchall())
 
         settings = {name: value for name, value in result}
 
@@ -3207,7 +3233,7 @@ def resetPassword():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT userid FROM passwordreset WHERE token = %s AND expireTime > %s', (token, currentDatetime()))
-                result = dbcursor.fetchall()
+                result = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(result) < 1:
             return render_template('expiredPassReset.html')
@@ -3217,7 +3243,7 @@ def resetPassword():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name FROM users WHERE userid = %s', (userid,))
-                result = dbcursor.fetchall()
+                result = dbfetchedConvertDate(dbcursor.fetchall())
                 
         username = result[0][0]
         
@@ -3232,7 +3258,7 @@ def resetNewPassword():
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
             dbcursor.execute('SELECT userid FROM passwordreset WHERE token = %s AND expireTime > %s', (token, currentDatetime()))
-            result = dbcursor.fetchall()
+            result = dbfetchedConvertDate(dbcursor.fetchall())
     
     if len(result) < 1:
         return jsonify({'status': 'error', 'errorinfo': 'Invalid or expired token'})
@@ -3263,7 +3289,7 @@ def generateBackup():
         backupFileName = f"backup_{currentDatetime().strftime('%Y%m%d_%H%M%S')}.sql"
 
         try:
-            os.system(f"/usr/local/mysql-9.1.0-macos14-arm64/bin/mysqldump -u {dbuser} --password={dbpassword} '{dbdatabase}' > '{os.path.join(os.path.join(homeDir, 'DPMBackups'), backupFileName)}'")
+            os.system(f"mysqldump -u {dbuser} --password={dbpassword} '{dbdatabase}' > '{os.path.join(os.path.join(homeDir, 'DPMBackups'), backupFileName)}'")
             retinfo['status'] = 'ok'
             retinfo['backupFileName'] = backupFileName
         except Exception as e:
@@ -3356,7 +3382,7 @@ def loadBackup():
         
         try:
             if os.path.exists(file_path):
-                os.system(f"/usr/local/mysql-9.1.0-macos14-arm64/bin/mysql -u {dbuser} --password={dbpassword} '{dbdatabase}' < '{file_path}'")
+                os.system(f"mysql -u {dbuser} --password={dbpassword} '{dbdatabase}' < '{file_path}'")
 
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
@@ -3476,7 +3502,7 @@ def getStudentName():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name FROM students WHERE studentid = %s', (studentid,))
-                studentname = dbcursor.fetchone()
+                studentname = dbfetchedOneConvertDate(dbcursor.fetchone())
 
         if studentname is None:
             retinfo['status'] = 'error'
@@ -3513,7 +3539,7 @@ def studentGetImage():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT image FROM students WHERE studentid = %s', (studentid,))
-                studentimage = dbcursor.fetchone()
+                studentimage = dbfetchedOneConvertDate(dbcursor.fetchone())
 
         if studentimage is None:
             retinfo['status'] = 'error'
@@ -3550,18 +3576,20 @@ def studentGetPassInfo():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT passid, destinationid, creationtime, fleavetime, flagged FROM passes WHERE studentid = %s AND farrivetime IS NULL', (studentid,))
-                passinfo = dbcursor.fetchall()
+                passinfo = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(passinfo) < 1:
             retinfo['status'] = 'ok'
             retinfo['passinfo'] = '<h3>No active pass</h3>'
             retinfo['passstatus'] = False
             return jsonify(retinfo)
+        
+        passinfo[0][2] = passinfo[0][2].strftime("%Y-%m-%d %H:%M:%S")
 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (passinfo[0][1],))
-                locationinfo = dbcursor.fetchone()
+                locationinfo = dbfetchedOneConvertDate(dbcursor.fetchone())
 
         approvedtext = '<span class="red-text">Not Active</span>'
         retinfo['approved'] = False
@@ -3619,7 +3647,7 @@ def studentNewPass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT passid FROM passes WHERE studentid = %s AND farrivetime IS NULL", (studentid,))    
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
             retinfo['status'] = 'error'
@@ -3644,7 +3672,7 @@ def studentNewPass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT * FROM locations WHERE locationid = %s", (destinationid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -3655,7 +3683,7 @@ def studentNewPass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT * FROM students WHERE studentid = %s", (studentid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) < 1:
             retinfo['status'] = 'error'
@@ -3666,7 +3694,7 @@ def studentNewPass():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute("SELECT floorid FROM students WHERE studentid = %s", (studentid,))
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         floorid = dbcursorfetch[0][0]
 
@@ -3729,7 +3757,7 @@ def getStudentIdFromCard():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT studentid FROM students WHERE cardid = %s', (cardid,))
-                result = dbcursor.fetchall()
+                result = dbfetchedConvertDate(dbcursor.fetchall())
         if not result:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Student not found'
@@ -3760,7 +3788,7 @@ def studentDeletePass() :
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT * FROM passes WHERE fleavetime IS NULL AND studentid = %s', (studentid,))
-                deletepass = dbcursor.fetchall()
+                deletepass = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(deletepass) < 1:
             retinfo['status'] = 'error'
@@ -3784,7 +3812,7 @@ def getDestinations():
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name FROM locations WHERE type = 1')
-                dbcursorfetch = dbcursor.fetchall()
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         retinfo['status'] = 'ok'
         retinfo['destinations'] = dbcursorfetch
@@ -3844,10 +3872,6 @@ def page_not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return render_template('errorPage.html', errorTitle = '500 Internal Server Error', errorText = 'The server encountered an internal error and was unable to complete your request.', errorDesc = 'Either the server is overloaded or there is an error in the application.', errorLink = '/'), 500
-
-@app.route('/fl')
-def fl():
-    return render_template('firstLanding.html')
 
 if __name__ == '__main__':
     socketio.run(app, port=80, host="0.0.0.0", debug=debug)

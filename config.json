@@ -20,6 +20,10 @@
         "numeric": true
     },
 
+    "time": {
+        "timezone": "Asia/Shanghai"
+    },
+
     "debug": {
         "enable": false
     }
