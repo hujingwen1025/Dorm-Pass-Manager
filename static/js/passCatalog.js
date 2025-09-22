@@ -220,7 +220,20 @@ async function generateKioskToken() {
     }
 }
 
+function openBrowserKioskWindow() {
+  const url = '/kiosk'; // Replace with your desired URL
+  const windowName = 'DPM KIOSK';
+  const windowFeatures = 'popup,fullscreen';
+
+  const newWindow = window.open(url, windowName, windowFeatures);
+
+  if (!newWindow) {
+    alert('Popup blocked! Please allow popups for this site.');
+  }
+}
+
 async function startKioskMode() {
+    /*
     var kioskToken = await generateKioskToken()
     if (kioskToken == 'error') {
         createAlertPopup(5000, null, 'Error', 'Error while generating kiosk token')
@@ -231,6 +244,8 @@ async function startKioskMode() {
     location.replace(`dpmkiosk://${kioskToken}`)
     createAlertPopup(15000, type = 'success', 'DPM Kiosk Launched', `DPM Kiosk has been launched if you have it installed. If you do not have DPM Kiosk installed, please navigate to <a target="_blank" href="https://google.com">here</a> and download DPM Kiosk.`)
     window.onbeforeunload = function(e) { return 'Are you sure you want to leave this page?  You will lose any unsaved data.';}
+    */
+    openBrowserKioskWindow()
 }
 
 async function searchStudents(searchFilters) {

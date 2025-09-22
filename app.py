@@ -20,6 +20,13 @@ from typing import Dict, Any, Union
 import logging
 import secrets
 from flask_socketio import SocketIO, join_room, leave_room
+import base64
+import io
+import numpy as np
+from PIL import Image
+import face_recognition
+from io import BytesIO
+
 
 app = Flask(__name__)
 
@@ -298,7 +305,91 @@ def checkPassword(password):
     if error_message:
         return False, error_message.strip()
     return True, "Password is valid"
+
+def compareBase64Faces(test_image_b64, reference_image_b64, confidence_threshold=0.6):
+    # Remove MIME prefix if present
+    if test_image_b64.startswith('data:image/'):
+        test_image_b64 = test_image_b64.split(',', 1)[1]
+    if reference_image_b64.startswith('data:image/'):
+        reference_image_b64 = reference_image_b64.split(',', 1)[1]
     
+    # Decode base64 to image data
+    try:
+        test_image_data = base64.b64decode(test_image_b64)
+        reference_image_data = base64.b64decode(reference_image_b64)
+    except base64.binascii.Error as e:
+        return False
+    
+    # Load images using face_recognition
+    test_image = face_recognition.load_image_file(io.BytesIO(test_image_data))
+    reference_image = face_recognition.load_image_file(io.BytesIO(reference_image_data))
+    
+    # Detect faces in the test image
+    test_face_locations = face_recognition.face_locations(test_image, model='hog')
+    if not test_face_locations:
+        return False
+    
+    # Select the largest face (closest to camera) in test image
+    test_face_areas = [(top, right, bottom, left, (bottom - top) * (right - left)) for (top, right, bottom, left) in test_face_locations]
+    test_face_areas.sort(key=lambda x: x[4], reverse=True)  # Sort by area descending
+    largest_test_face = test_face_areas[0]  # (top, right, bottom, left, area)
+    test_face_encoding = face_recognition.face_encodings(test_image, known_face_locations=[largest_test_face[:4]], num_jitters=1)
+    if not test_face_encoding:
+        return False
+    test_face_encoding = test_face_encoding[0]
+    
+    # Detect and encode faces in the reference image
+    reference_face_encodings = face_recognition.face_encodings(reference_image, num_jitters=1)
+    if not reference_face_encodings:
+        return False
+    reference_face_encoding = reference_face_encodings[0]  # Use the first face found
+    
+    # Compare faces
+    face_distance = face_recognition.face_distance([reference_face_encoding], test_face_encoding)[0]
+    confidence = 1 - face_distance  # Convert distance to confidence score
+    
+    return confidence >= confidence_threshold
+
+def compress_image(base64_str, max_size=1024*1024):
+    # Decode base64 to image data
+    image_data = base64.b64decode(base64_str)
+    image = Image.open(BytesIO(image_data))
+    
+    # Convert image to RGB format if necessary for JPEG compression
+    if image.mode in ('RGBA', 'LA'):
+        # Handle transparency by pasting onto a white background
+        background = Image.new('RGB', image.size, (255, 255, 255))
+        background.paste(image, mask=image.split()[-1])
+        image = background
+    elif image.mode != 'RGB':
+        image = image.convert('RGB')
+    
+    quality = 95  # Start with high quality
+    output_buffer = BytesIO()
+    
+    # Reduce quality iteratively until size is under max_size
+    while quality > 10:
+        output_buffer.seek(0)
+        output_buffer.truncate(0)
+        image.save(output_buffer, format='JPEG', quality=quality)
+        current_size = output_buffer.tell()
+        if current_size <= max_size:
+            break
+        quality -= 5
+    else:
+        # If quality reduction isn't sufficient, resize the image to half dimensions
+        new_width = image.size[0] // 2
+        new_height = image.size[1] // 2
+        image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        output_buffer.seek(0)
+        output_buffer.truncate(0)
+        image.save(output_buffer, format='JPEG', quality=quality)
+        # Note: Further checks could be added for resizing, but this is a fallback
+    
+    compressed_data = output_buffer.getvalue()
+    compressed_base64 = base64.b64encode(compressed_data).decode('utf-8')
+    return compressed_base64
+
 def sendEmail(subject, body, recipient_email):
     msg = MIMEText(body, 'html')
     msg['Subject'] = subject
@@ -321,18 +412,7 @@ def validate_json_payload(payload: Union[str, dict]) -> bool:
 
     issues = []
     
-    # Convert string to dict if necessary
-    if isinstance(payload, str):
-        try:
-            payload_dict = json.loads(payload)
-        except json.JSONDecodeError:
-            print("Invalid JSON format")
-            return False
-    elif isinstance(payload, dict):
-        payload_dict = payload
-    else:
-        print("Payload must be a valid JSON string or dictionary")
-        return False
+    payload_dict = str(payload)
 
     # Check for suspicious patterns
     suspicious_patterns = [
@@ -565,6 +645,17 @@ def getStudentInfoFromId(studentid):
     
     return studentinfo
 
+def getStudentImageFromId(studentid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT image FROM students WHERE studentid = %s', (studentid,))
+            result = dbfetchedConvertDate(dbcursor.fetchall())
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
 def broadcastMasterCommand(command, payload = None, roles = ['admin', 'proctor', 'approver']):
     for role in roles:
         socketio.emit('command', {'command': command, 'payload': payload}, to=role)
@@ -735,7 +826,7 @@ def afterRequest(response):
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.mylivechat.com/ https://mylivechat.com; "
         "font-src 'self' https://fonts.gstatic.com https://*.mylivechat.com/ https://mylivechat.com; "
         "img-src 'self' data: https://*.mylivechat.com/ https://mylivechat.com; "
-        "connect-src 'self' https://cdnjs.cloudflare.com; "
+        "connect-src 'self' data: https://cdnjs.cloudflare.com; "
         "frame-src 'self' https://*.mylivechat.com/ https://mylivechat.com/; "
         "object-src 'none'; "
         "base-uri 'self' https://*.mylivechat.com/ https://mylivechat.com/; "
@@ -809,23 +900,10 @@ def west6():
     
 @app.route('/kiosk')
 def kiosk():
-    dprint(request.headers.get('User-Agent'))
-    if 'klonkiosk' in request.headers.get('User-Agent'):
-        kioskEncToken = request.args.get('kioskToken')
-        kioskToken = decrypt(kioskEncToken)
-        kioskSession = kioskToken.split('-', 1)
-        sessionid = kioskSession[0]
-        passkey = kioskSession[1]
-        if sessionStorage.verify(sessionid, passkey) == None:
-            return render_template('errorPage.html', errorTitle = 'Error While Launching KIOSK', errorText = 'KIOSK token provided is invalid', errorDesc = 'Please try starting the KIOSK again', errorLink = '/closePage')
-        dprint(kioskSession)
-        session['sessionid'] = sessionid
-        session['passkey'] = passkey
-        session['login'] = True
-        dprint(kioskSession)
-        return render_template('passCatalog.html')
-    else:
+    if not ensureLoggedIn(session, 3):
         return redirect('/?reject=You are not authorized to view this page')
+    
+    return render_template('kiosk.html')
     
 @app.route('/signout')
 def signout():
@@ -1172,7 +1250,7 @@ def updatePass():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM passes WHERE passid = %s', (passid,))
+                dbcursor.execute('SELECT passid, studentid, floorid, destinationid, creationtime, fleavetime, flapprover, darrivetime, daapprover, dleavetime, dlapprover, farrivetime, faapprover, flagged, keywords FROM passes WHERE passid = %s', (passid,))
                 result = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(result) < 1:
@@ -1204,7 +1282,7 @@ def updatePass():
             if delete == 'true':
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
-                        dbcursor.execute('SELECT * FROM passes WHERE passid = %s', (passid,))
+                        dbcursor.execute('SELECT passid, studentid, floorid, destinationid, creationtime, fleavetime, flapprover, darrivetime, daapprover, dleavetime, dlapprover, farrivetime, faapprover, flagged, keywords FROM passes WHERE passid = %s', (passid,))
                         result = dbfetchedConvertDate(dbcursor.fetchall())
 
                         if len(result) < 1:
@@ -1370,6 +1448,20 @@ def approvePassByCard():
 
     retinfo['studentid'] = studentid
 
+    studentTestImageBase64 = None
+
+    if request.json.get('kiosk') == True:
+        studentTestImageBase64 = request.json.get('image')
+
+        studentImageBase64 = getStudentImageFromId(studentid)
+
+        compareFaceResult = compareBase64Faces(studentTestImageBase64, studentImageBase64)
+
+        if not compareFaceResult:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Face does not match'
+            return jsonify(retinfo)
+
     suspendInfo = isStudentSuspended(studentid)
 
     if suspendInfo:
@@ -1439,15 +1531,8 @@ def approvePassByCard():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'User location does not match the next required location for approval'
         return jsonify(retinfo)
-
-    # Approve the pass at the correct stage
-    timestamp = currentDatetime()
-    with dbConnect() as connection:
-        with connection.cursor() as dbcursor:
-            dbcursor.execute(
-                f'UPDATE passes SET {time_field} = %s, {approver_field} = %s WHERE passid = %s',
-                (timestamp, userid, passid)
-            )
+    
+    warningPresent = False
 
     if time_field != 'fleavetime' and time_field != 'dleavetime' and time_field != None:
         lastpos = ''
@@ -1482,24 +1567,40 @@ def approvePassByCard():
         
         elapsedtime = None
             
-        if (curpass[1] != None and curpass[2] == None) or (curpass[3] != None) :
+        if (curpass[0] != None and curpass[1] == None) or (curpass[2] != None and curpass[3] != None) :
                                 
             elapsedSecond = calculateElapsedSeconds(stamptime[0])
             
             elapsedtime = convertSecondsToTime(elapsedSecond)                  
             if elapsedSecond > studentAlertTimeout:
+                warningPresent = True
                 retinfo["elapsedtimewarning"] = 'alert'
             elif elapsedSecond > studentWarningTimeout:
+                warningPresent = True
                 retinfo["elapsedtimewarning"] = 'warning'
             elif elapsedSecond < studentMinimumTimeout:
+                warningPresent = True
                 retinfo["elapsedtimewarning"] = 'min'
             
         retinfo["elapsedtime"] = elapsedtime
-        
-        dprint('set')
-        dprint(studentWarningTimeout)
-        dprint(studentAlertTimeout)
 
+    isKiosk = request.json.get('kiosk')
+
+    if warningPresent and isKiosk == True:
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Elapsed time warning present, kiosk approval not allowed. Please find your duty teacher to approve this pass'
+        return jsonify(retinfo)
+    
+    image_field = approver_field.replace('approver', 'image')
+    
+    timestamp = currentDatetime()
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute(
+                f'UPDATE passes SET {time_field} = %s, {approver_field} = %s, {image_field} = %s WHERE passid = %s',
+                (timestamp, userid, studentTestImageBase64, passid)
+            )
+    
     retinfo['status'] = 'ok'
 
     return jsonify(retinfo)
@@ -2826,7 +2927,7 @@ def newPass():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT * FROM passes WHERE studentid = %s AND farrivetime IS null", (studentid,))
+                dbcursor.execute("SELECT passid, studentid, floorid, destinationid, creationtime, fleavetime, flapprover, darrivetime, daapprover, dleavetime, dlapprover, farrivetime, faapprover, flagged, keywords FROM passes WHERE studentid = %s AND farrivetime IS null", (studentid,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
                 dprint('pa')
@@ -3055,6 +3156,41 @@ def getStudentImage():
         
         return jsonify(retinfo), 401
     
+@app.route('/api/getStudentFloorName', methods=['POST'])
+def getStudentFloorName():
+    if ensureLoggedIn(session, 3):
+        retinfo = {}
+        
+        studentid = request.json.get('studentid')
+                        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('''
+                    SELECT locations.name FROM students 
+                    JOIN locations ON students.floorid = locations.locationid 
+                    WHERE students.studentid = %s
+                ''', (studentid,))
+                dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
+                
+        if len(dbcursorfetch) < 1:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Floor does not exist'
+            
+            return jsonify(retinfo)
+                
+        retinfo['status'] = 'ok'
+        retinfo['floorName'] = dbcursorfetch[0][0]
+        
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo), 401
+    
 @app.route('/api/getPassInfo', methods=['POST'])
 def getPassInfo():
     if ensureLoggedIn(session, 3):
@@ -3095,7 +3231,13 @@ def getPassInfo():
             with connection.cursor() as dbcursor:
                 dbcursor.execute('SELECT name FROM locations WHERE locationid = %s', (passinfo[2],))
                 destinationinfo = dbfetchedOneConvertDate(dbcursor.fetchone())
-        if passinfo == None or studentinfo == None or floorinfo == None or destinationinfo == None:
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT flimage, daimage, dlimage, faimage FROM passes WHERE passid = %s', (passid,))
+                passimages = dbfetchedConvertDate(dbcursor.fetchall())[0]
+
+        if passinfo == None or studentinfo == None or floorinfo == None or destinationinfo == None or passimages == None:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Pass does not exist with correct information'
             
@@ -3106,6 +3248,7 @@ def getPassInfo():
         retinfo['studentinfo'] = studentinfo
         retinfo['floorinfo'] = floorinfo
         retinfo['destinationinfo'] = destinationinfo
+        retinfo['passimages'] = passimages
 
         return jsonify(retinfo)
     
@@ -3787,7 +3930,7 @@ def studentDeletePass() :
 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM passes WHERE fleavetime IS NULL AND studentid = %s', (studentid,))
+                dbcursor.execute('SELECT passid, studentid, floorid, destinationid, creationtime, fleavetime, flapprover, darrivetime, daapprover, dleavetime, dlapprover, farrivetime, faapprover, flagged, keywords FROM passes WHERE fleavetime IS NULL AND studentid = %s', (studentid,))
                 deletepass = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(deletepass) < 1:

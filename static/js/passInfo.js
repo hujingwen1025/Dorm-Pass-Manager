@@ -61,6 +61,7 @@ async function fetchPassInfo(passid) {
         const studentInfo = responseJson.studentinfo;
         const floorInfo = responseJson.floorinfo;
         const destinationInfo = responseJson.destinationinfo;
+        const passImages = responseJson.passimages;
 
         window.studentId = passInfo[0]
 
@@ -74,6 +75,33 @@ async function fetchPassInfo(passid) {
         document.getElementById('dleavetime').textContent = passInfo[6] || "N/A";
         document.getElementById('farrivetime').textContent = passInfo[7] || "N/A";
         document.getElementById('studentImage').src = studentInfo[3];
+
+        document.getElementById('studentName').onclick = function () {document.getElementById('studentImage').src = studentInfo[3];};
+
+        if (document.getElementById('fleavetime').textContent != "N/A") {
+            document.getElementById('fleavetime').onclick = function () {studentImage.src = passImages[0];};
+            if (passImages[0] == null || passImages[0] == '') {
+                document.getElementById('fleavetime').onclick = function () {studentImage.src = '/static/resource/studentImagePlaceholder.png'};
+            }
+        }
+        if (document.getElementById('darrivetime').textContent != "N/A") {
+            document.getElementById('darrivetime').onclick = function () {studentImage.src = passImages[1];};
+            if (passImages[1] == null || passImages[1] == '') {
+                document.getElementById('darrivetime').onclick = function () {studentImage.src = '/static/resource/studentImagePlaceholder.png'};
+            }
+        }
+        if (document.getElementById('dleavetime').textContent != "N/A") {
+            document.getElementById('dleavetime').onclick = function () {studentImage.src = passImages[2];};
+            if (passImages[2] == null || passImages[2] == '') {
+                document.getElementById('dleavetime').onclick = function () {studentImage.src = '/static/resource/studentImagePlaceholder.png'};
+            }
+        }
+        if (document.getElementById('farrivetime').textContent != "N/A") {
+            document.getElementById('farrivetime').onclick = function () {studentImage.src = passImages[3];};
+            if (passImages[3] == null || passImages[3] == '') {
+                document.getElementById('farrivetime').onclick = function () {studentImage.src = '/static/resource/studentImagePlaceholder.png'};
+            }
+        }
 
         return 'ok';
     } catch (error) {
