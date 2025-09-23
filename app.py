@@ -575,6 +575,17 @@ def getStudentGradeFromId(studentid):
     
     return result[0][0]
 
+def getStudentFloorIdFromId(studentid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT floorid FROM students WHERE studentid = %s', (studentid,))
+            result = dbfetchedConvertDate(dbcursor.fetchall())
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
 def getStudentCardidFromId(studentid):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
@@ -701,6 +712,7 @@ def socketiojoin(data):
         return
     
     role = checkUserInformation("role", oid)
+    userid = checkUserInformation("userid", oid)[0]
 
     if role == None:
         return
@@ -715,6 +727,7 @@ def socketiojoin(data):
         role = 'approver'
 
     join_room(role)
+    join_room('user' + str(userid))
 
 def suspend_student(studentid: int, message: str, suspension_end: datetime = None):
     if not studentid or not message:
@@ -984,7 +997,7 @@ def microsoftLoginCallback():
                 
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
-                    dbcursor.execute('SELECT * FROM students WHERE email = %s', (email,))
+                    dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE email = %s', (email,))
                     result = dbfetchedConvertDate(dbcursor.fetchall())
 
             if len(result) > 0:
@@ -1450,16 +1463,33 @@ def approvePassByCard():
 
     studentTestImageBase64 = None
 
-    if request.json.get('kiosk') == True:
+    studentName = getStudentNameFromId(studentid)
+    studentFloorId = getStudentFloorIdFromId(studentid)
+
+    oid = getOidFromSession(session)
+
+    userid = checkUserInformation("userid", oid)[0]
+
+    isKiosk = request.json.get('kiosk')
+
+    if isKiosk == True:
         studentTestImageBase64 = request.json.get('image')
 
         studentImageBase64 = getStudentImageFromId(studentid)
 
         compareFaceResult = compareBase64Faces(studentTestImageBase64, studentImageBase64)
 
+        returnSocketInfo = {'studentName': studentName, 'studentFloorId': studentFloorId, 'studentImage': studentImageBase64, 'studentScanImage': studentTestImageBase64}
+
         if not compareFaceResult:
             retinfo['status'] = 'error'
             retinfo['errorinfo'] = 'Face does not match'
+
+            returnSocketInfo['status'] = 'error'
+            returnSocketInfo['errorinfo'] = 'Face does not match'
+        
+            socketio.emit('kioskUpdate', returnSocketInfo, room='user' + str(userid))
+
             return jsonify(retinfo)
 
     suspendInfo = isStudentSuspended(studentid)
@@ -1467,6 +1497,12 @@ def approvePassByCard():
     if suspendInfo:
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = f'Student is suspended: {suspendInfo}'
+
+        if isKiosk == True:
+            returnSocketInfo['status'] = 'error'
+            returnSocketInfo['errorinfo'] = f'Student is suspended: {suspendInfo}'
+
+            socketio.emit('kioskUpdate', returnSocketInfo, room='user' + str(userid))
 
         return jsonify(retinfo)
 
@@ -1480,6 +1516,13 @@ def approvePassByCard():
     if not pass_result:
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'No active pass found for student'
+
+        if isKiosk == True:
+            returnSocketInfo['status'] = 'error'
+            returnSocketInfo['errorinfo'] = 'No active pass found for student'
+
+            socketio.emit('kioskUpdate', returnSocketInfo, room='user' + str(userid))
+
         return jsonify(retinfo)
 
     passid, floorid, destinationid, fleavetime, darrivetime, dleavetime, farrivetime, flagged = pass_result[0]
@@ -1505,16 +1548,29 @@ def approvePassByCard():
     else:
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'No active pass found for student'
+
+        if isKiosk == True:
+            returnSocketInfo['status'] = 'error'
+            returnSocketInfo['errorinfo'] = 'No active pass found for student'
+
+            socketio.emit('kioskUpdate', returnSocketInfo, room='user' + str(userid))
+
         return jsonify(retinfo)
     
     retinfo['passid'] = passid
 
     # Get current user's location
-    oid = getOidFromSession(session)
     urin = checkUserInformation("userid, name, oid, email, role, locationid", oid)
     if urin is None:
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'User not found'
+
+        if isKiosk == True:
+            returnSocketInfo['status'] = 'error'
+            returnSocketInfo['errorinfo'] = 'User not found'
+
+            socketio.emit('kioskUpdate', returnSocketInfo, room='user' + str(userid))
+
         return jsonify(retinfo)
     userinfo = urin
     userid = userinfo[0]
@@ -1524,12 +1580,25 @@ def approvePassByCard():
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'PASS IS FLAGGED Requires manual approval'
 
+        if isKiosk == True:
+            returnSocketInfo['status'] = 'error'
+            returnSocketInfo['errorinfo'] = 'PASS IS FLAGGED Requires manual approval'
+
+            socketio.emit('kioskUpdate', returnSocketInfo, room='user' + str(userid))
+
         return jsonify(retinfo)
 
     # Check if user's location matches the next required location
     if str(userlocation) != str(next_location_id):
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'User location does not match the next required location for approval'
+
+        if isKiosk == True:
+            returnSocketInfo['status'] = 'error'
+            returnSocketInfo['errorinfo'] = 'User location does not match the next required location for approval'
+
+            socketio.emit('kioskUpdate', returnSocketInfo, room='user' + str(userid))
+
         return jsonify(retinfo)
     
     warningPresent = False
@@ -1589,6 +1658,13 @@ def approvePassByCard():
     if warningPresent and isKiosk == True:
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Elapsed time warning present, kiosk approval not allowed. Please find your duty teacher to approve this pass'
+
+        if isKiosk == True:
+            returnSocketInfo['status'] = 'error'
+            returnSocketInfo['errorinfo'] = 'Elapsed time warning present, kiosk approval not allowed. Please find your duty teacher to approve this pass'
+
+            socketio.emit('kioskUpdate', returnSocketInfo, room='user' + str(userid))
+
         return jsonify(retinfo)
     
     image_field = approver_field.replace('approver', 'image')
@@ -1602,6 +1678,10 @@ def approvePassByCard():
             )
     
     retinfo['status'] = 'ok'
+
+    if isKiosk == True:
+        returnSocketInfo['status'] = 'ok'
+        socketio.emit('kioskUpdate', returnSocketInfo, room='user' + str(userid))
 
     return jsonify(retinfo)
     
@@ -1821,7 +1901,7 @@ def addStudent():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM students WHERE name = %s', (studentName,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE name = %s', (studentName,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
@@ -1849,7 +1929,7 @@ def addStudent():
         if studentCardid != None and studentCardid != '':
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
-                    dbcursor.execute('SELECT * FROM students WHERE cardid = %s', (studentCardid,))
+                    dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE cardid = %s', (studentCardid,))
                     dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
             if len(dbcursorfetch) > 0:
@@ -1862,7 +1942,7 @@ def addStudent():
 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM students WHERE email = %s', (studentEmail,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE email = %s', (studentEmail,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
@@ -2027,7 +2107,7 @@ def addUser():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM students WHERE email = %s', (userEmail,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE email = %s', (userEmail,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
@@ -2160,7 +2240,7 @@ def editStudent():
             if deleteStudent == 'true':
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
-                        dbcursor.execute('SELECT * FROM students WHERE studentid = %s', (studentid,))
+                        dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE studentid = %s', (studentid,))
                         dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                         
                 if len(dbcursorfetch) < 1:
@@ -2181,7 +2261,7 @@ def editStudent():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM students WHERE studentid = %s', (studentid,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE studentid = %s', (studentid,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) < 1:
@@ -2227,7 +2307,7 @@ def editStudent():
                 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM students WHERE name = %s AND studentid != %s', (studentName, studentid,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE name = %s AND studentid != %s', (studentName, studentid,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
@@ -2464,7 +2544,7 @@ def editUser():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT * FROM students WHERE email = %s', (userEmail,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE email = %s', (userEmail,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
@@ -2953,7 +3033,7 @@ def newPass():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT * FROM students WHERE studentid = %s", (studentid,))
+                dbcursor.execute("SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE studentid = %s", (studentid,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
         
         if len(dbcursorfetch) < 1:
@@ -3825,7 +3905,7 @@ def studentNewPass():
 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT * FROM students WHERE studentid = %s", (studentid,))
+                dbcursor.execute("SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE studentid = %s", (studentid,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) < 1:

@@ -14,6 +14,15 @@ If you don't understand what you are doing, please close this window.
 如果您不明白自己在做什么，请关闭此窗口。
 `, 'color: red') 
 
+const kioskSocket = io.connect();
+
+async function joinKioskRooms() {
+    socket.emit('join', {});
+  }
+
+const okBEEP = new Audio('/static/resource/okBEEP.mp3');
+const failBEEP = new Audio('/static/resource/failBEEP.mp3');
+
 window.errorLog = []
 window.debug = false
 function dlog(text) {
@@ -437,49 +446,74 @@ async function updateUserLocation(locationName) {
     }
 }
 
-function createAlertPopup(closetimeout, type = null, title, body, alertid = '', imageUrl = null) {
-    let alertContainer = document.getElementById('alertContainer')
+function createAlertPopup(closetimeout, type = null, title, body, alertid = '', imageUrl = '', image2Url = '') {
+    try {
+        let alertContainer = document.getElementById('alertContainer')
 
-    let alertElement = document.createElement('div');
-    alertElement.setAttribute('id', alertid)
-    alertElement.classList.add('alert')
-    dlog(type)
-    if (type != null && type != undefined && type != '') {
-        alertElement.classList.add(type)
-    }
+        let alertElement = document.createElement('div');
+        alertElement.setAttribute('id', alertid)
+        alertElement.classList.add('alert')
+        dlog(type)
+        if (type != null && type != undefined && type != '') {
+            alertElement.classList.add(type)
+        }
 
-    let closeButton = document.createElement('span');
-    closeButton.classList.add('closebtn')
-    closeButton.setAttribute('onclick', "this.parentElement.remove()")
-    closeButton.innerHTML = '&times;'
+        let closeButton = document.createElement('span');
+        closeButton.classList.add('closebtn')
+        closeButton.setAttribute('onclick', "this.parentElement.remove()")
+        closeButton.innerHTML = '&times;'
 
-    let titleText = document.createElement('strong')
-    titleText.textContent = title
+        let titleText = document.createElement('strong')
+        titleText.textContent = title
 
-    // If imageUrl is provided, add the image to the alert
-    let imageElem = null;
-    if (imageUrl) {
-        imageElem = document.createElement('img');
-        imageElem.src = imageUrl;
-        imageElem.style.width = '60px';
-        imageElem.style.height = '80px';
-        imageElem.style.borderRadius = '8px';
-        imageElem.style.display = 'block';
-        imageElem.style.margin = '10px auto';
-    }
+        // If imageUrl is provided, add the image to the alert
+        let imageElem = null;
+        if (imageUrl != '') {
+            imageElem = document.createElement('img');
+            imageElem.src = imageUrl;
+            imageElem.style.height = '90px';
+            imageElem.style.borderRadius = '8px';
+            imageElem.style.display = 'inline-block';
+            imageElem.style.margin = '10px auto';
+        }
 
-    let bodyText = document.createElement('p')
-    bodyText.innerHTML = body
+        let image2Elem = null;
+        if (image2Url != '') {
+            image2Elem = document.createElement('img');
+            image2Elem.src = image2Url;
+            image2Elem.style.height = '90px';
+            image2Elem.style.borderRadius = '8px';
+            image2Elem.style.display = 'inline-block';
+            image2Elem.style.margin = '10px auto';
+        }
 
-    alertElement.appendChild(closeButton)
-    alertElement.appendChild(titleText)
-    if (imageElem) alertElement.appendChild(imageElem);
-    alertElement.appendChild(bodyText)
+        let bodyText = document.createElement('p')
+        bodyText.innerHTML = body
 
-    alertContainer.appendChild(alertElement)
+        alertElement.appendChild(closeButton)
+        alertElement.appendChild(titleText)
 
-    if (closetimeout != null) {
-        setTimeout(function () { alertElement.remove() }, closetimeout);
+        if (imageElem != null || image2Elem != null) {
+            let imageContainer = document.createElement('div');
+            imageContainer.style.display = 'flex';
+            if (imageElem != '' && imageElem != null) {
+                imageContainer.appendChild(imageElem);
+            } 
+            if (image2Elem != '' && image2Elem != null) {
+                imageContainer.appendChild(image2Elem);
+            }
+            alertElement.appendChild(imageContainer);
+        }
+
+        alertElement.appendChild(bodyText)
+
+        alertContainer.appendChild(alertElement)
+
+        if (closetimeout != null) {
+            setTimeout(function () { alertElement.remove() }, closetimeout);
+        }
+    } catch (error) {
+        console.log(error)
     }
 }
 
@@ -1287,6 +1321,37 @@ async function updateStudentStatusChart() {
     window.studentStatusChart.update()
 }
 
+async function kioskSocketActionSetup() {
+    socket.on("connect", () => {
+        console.log("Socket connected successfully");
+    });
+    socket.on("disconnect", () => {
+        console.log("Socket disconnected");
+    });
+    socket.on("error", (error) => {
+        console.error("Socket error:", error);
+    });
+
+    socket.on("kioskUpdate", (cmd) => {
+        var now = new Date();
+        var currentTimeString = now.toLocaleTimeString();
+        switch (cmd.status) {
+            case "ok":
+                var studentFloorName = window.floorLocationJson[cmd.studentFloorId][0]
+                createAlertPopup(3000, 'success', 'KIOSK Approve Success', `<b>${cmd.studentName} - ${studentFloorName}</b><br>${currentTimeString}`, '', cmd.studentImage, cmd.studentScanImage);
+                break;
+            case "error":
+                var studentFloorName = window.floorLocationJson[cmd.studentFloorId][0]
+                createAlertPopup(20000, 'error', 'KIOSK Approve Error', `<b>${cmd.studentName} - ${studentFloorName}</b><br>${cmd.errorinfo}<br>${currentTimeString}`, '', cmd.studentImage, cmd.studentScanImage);
+                failBEEP.play();
+                break;
+            default:
+                console.warn("Unknown command received:", cmd);
+        }
+    });
+    joinRoom();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     window.studentStatusChart = new Chart("studentStatusChart", {
         type: "pie",
@@ -1331,6 +1396,9 @@ document.addEventListener('DOMContentLoaded', () => {
             renderPassInfoPopup(passid);
         };
     }
+
+    kioskSocketActionSetup()
+    joinKioskRooms()
 
     setInterval(updateDisplay, 20000)
 });

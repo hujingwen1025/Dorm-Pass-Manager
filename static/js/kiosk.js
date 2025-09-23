@@ -143,6 +143,7 @@ function startInactivityTimer() {
     
     // Set timeout to close popup
     inactivityTimer = setTimeout(function() {
+        removeLoader()
         closeDPopup();
     }, timeoutDuration);
 }
