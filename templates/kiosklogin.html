@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link rel="icon" type="image/x-icon" href="/static/resource/favicon.png">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script src="/static/js/socketScript.js"></script>
+        <style>
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+              padding: 1rem;
+            }
+
+            body,
+            input,
+            textarea,
+            button {
+                font-family: 'Courier New', Courier, monospace;
+            }
+
+            h1 {
+              margin-bottom: 0;
+              font-size: 2rem;
+            }
+
+            h2 {
+              font-weight: 200;
+            }
+
+            form {
+              margin: 3rem 0;
+              border-radius: 0.5rem;
+              background: #ffffff;
+              box-shadow: 28px 28px 56px #d9d9d9, -28px -28px 56px #ffffff;
+            }
+
+            fieldset {
+              border: none;
+            }
+
+            legend {
+              font-size: 0;
+            }
+
+            input {
+              width: 2rem;
+              height: 2rem;
+              font-size: 1rem;
+              text-align: center;
+              border: none;
+              border-radius: 0.5rem;
+              background: linear-gradient(145deg, #e6e6e6, #ffffff);
+              box-shadow:  28px 28px 56px #d9d9d9, -28px -28px 56px #ffffff;
+            }
+
+            @media only screen and (min-width: 600px) {
+              form {
+                padding: 4rem 3rem;
+              }
+
+              input {
+                width: 4rem;
+                height: 4rem;
+                font-size: 3rem; 
+              }
+
+              input + input {
+                margin-left: 1rem;
+              }
+            }
+
+            /* Chrome, Safari, Edge, Opera */
+            input::-webkit-outer-spin-button,
+            input::-webkit-inner-spin-button {
+              -webkit-appearance: none;
+              margin: 0;
+            }
+        </style>
+        <title>DPM - KIOSK Login</title>
+    </head>
+    <body>
+      <h1>Dorm Pass Manager - KIOSK LOGIN</h1>
+
+      <form>
+        <fieldset name='number-code' data-number-code-form>
+          <legend>Number Code</legend>
+          <input type="text" name='number-code-0' data-number-code-input='0' style="text-transform: uppercase" required />
+          <input type="text" name='number-code-1' data-number-code-input='1' style="text-transform: uppercase" required />
+          <input type="text" name='number-code-2' data-number-code-input='2' style="text-transform: uppercase" required />
+          <input type="text" name='number-code-3' data-number-code-input='3' style="text-transform: uppercase" required />
+          <input type="text" name='number-code-4' data-number-code-input='4' style="text-transform: uppercase" required />
+          <input type="text" name='number-code-5' data-number-code-input='5' style="text-transform: uppercase" required />
+          <input type="text" name='number-code-6' data-number-code-input='6' style="text-transform: uppercase" required />
+          <input type="text" name='number-code-7' data-number-code-input='7' style="text-transform: uppercase" required />
+        </fieldset>
+      </form>
+
+      <form style="display: none" action="/kiosk" method="post">
+        <input type="text" id="kioskpin" name="kioskpin">
+        <input type="submit" id="submitkioskpin">
+      </form>
+
+      <h2>Please enter your KIOSK PIN</h2>
+      <br>
+      <p>Login as a staff → Settings → KIOSK PIN</p>
+      <br>
+      <p id="kioskHint" style="display: none"><a href="https://exabyte.org.cn/quitKIOSK">QUIT LOCKDOWN KIOSK</a></p>
+      <script>
+        function isSEBKiosk() {
+          return navigator.userAgent.includes('SEBKIOSK');
+        }
+
+        if (isSEBKiosk()) {
+          document.getElementById('kioskHint').style.display = 'block';
+        }
+
+        async function loginKIOSK() {
+          var submitkioskpin = document.getElementById('submitkioskpin')
+          document.getElementById('kioskpin').value = numberCodeInputs.map(input => input.value).join('')
+          submitkioskpin.click()
+        }
+        // Elements
+        const numberCodeForm = document.querySelector('[data-number-code-form]');
+        const numberCodeInputs = [...numberCodeForm.querySelectorAll('[data-number-code-input]')];
+            
+        // Event callbacks
+        const handleInput = ({target}) => {
+          if (!target.value.length) { return target.value = null; }
+        
+          const inputLength = target.value.length;
+          let currentIndex = Number(target.dataset.numberCodeInput);
+        
+          if (inputLength > 1) {
+            const inputValues = target.value.split('');
+            
+            inputValues.forEach((value, valueIndex) => {
+              const nextValueIndex = currentIndex + valueIndex;
+            
+              if (nextValueIndex >= numberCodeInputs.length) { return; }
+            
+              numberCodeInputs[nextValueIndex].value = value;
+            });
+            
+            currentIndex += inputValues.length - 2;
+          }
+      
+          const nextIndex = currentIndex + 1;
+          
+          if(nextIndex < numberCodeInputs.length) {
+            numberCodeInputs[nextIndex].focus();
+          } else {
+            loginKIOSK()
+          }
+        }
+        
+        const handleKeyDown = e => {
+          const {code, target} = e;
+        
+          const currentIndex = Number(target.dataset.numberCodeInput);
+          const previousIndex = currentIndex - 1;
+          const nextIndex = currentIndex + 1;
+        
+          const hasPreviousIndex = previousIndex >= 0;
+          const hasNextIndex = nextIndex <= numberCodeInputs.length - 1
+        
+          switch(code) {
+            case 'ArrowLeft':
+            case 'ArrowUp':
+              if (hasPreviousIndex) {
+                numberCodeInputs[previousIndex].focus();
+              }
+              e.preventDefault();
+              break;
+              
+            case 'ArrowRight':
+            case 'ArrowDown':
+              if (hasNextIndex) {
+                numberCodeInputs[nextIndex].focus();
+              }
+              e.preventDefault();
+              break;
+            case 'Backspace':
+              if (!e.target.value.length && hasPreviousIndex) {
+                numberCodeInputs[previousIndex].value = null;
+                numberCodeInputs[previousIndex].focus();
+              }
+              break;
+            default:
+              break;
+          }
+        }
+        
+        // Event listeners
+        numberCodeForm.addEventListener('input', handleInput);
+        numberCodeForm.addEventListener('keydown', handleKeyDown);
+      </script>
+    </body>
+</html>

@@ -117,11 +117,15 @@
             background-color: #808080;
         }
         .alertContainer {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 300px;
-            z-index: 1000;
+          right: 0;
+          top: 0;
+          float: right;
+          max-width: 27%;
+          min-width: 27%;
+          position: fixed; /* changed from absolute to fixed */
+          margin-right: 5px;
+          margin-top: 5px; /* ensure 5px margin from top */
+          z-index: 10000; /* ensure it stays on top */
         }
         .green-text {
             color: #28a745;

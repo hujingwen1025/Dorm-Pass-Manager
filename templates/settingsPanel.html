@@ -224,8 +224,14 @@
           float: right;
           max-width: 27%;
           min-width: 27%;
-          position: absolute;
+          position: fixed; /* changed from absolute to fixed */
           margin-right: 5px;
+          margin-top: 5px; /* ensure 5px margin from top */
+          z-index: 10000; /* ensure it stays on top */
+        }
+
+        .redText {
+            color: #ff4d4d;
         }
 
         .redAction {
@@ -234,6 +240,30 @@
 
         .redAction:hover {
             background-color: #ff0000;
+        }
+
+        .greenAction {
+            background-color: #4bb885;
+        }
+
+        .greenAction:hover {
+            background-color: #3eac6b;
+        }
+
+        .blueAction {
+            background-color: #52a9f5;
+        }
+
+        .blueAction:hover {
+            background-color: #007bff;
+        }
+
+        .yellowAction {
+            background-color: #ffa946;
+        }
+
+        .yellowAction:hover {
+            background-color: #ff9f00;
         }
         
         .alert.success {background-color: #4bb885;}
@@ -254,11 +284,78 @@
         .closebtn:hover {
           color: black;
         }
+
+        legend {
+          font-size: 0;
+        }
+
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        form {
+          margin: 3rem 0;
+          border-radius: 0.5rem;
+          background: #ffffff;
+          box-shadow: 28px 28px 56px #d9d9d9, -28px -28px 56px #ffffff;
+        }
+
+        fieldset {
+            border: none;
+        }
+
+        .kioskDigits {
+          width: 2rem;
+          height: 2rem;
+          font-size: 1rem;
+          text-align: center;
+          border: none;
+          border-radius: 0.5rem;
+          background: linear-gradient(145deg, #e6e6e6, #ffffff);
+          box-shadow:  28px 28px 56px #d9d9d9, -28px -28px 56px #ffffff;
+        }
+
+        @media only screen and (min-width: 600px) {
+          form {
+            padding: 4rem 3rem;
+          }
+
+          .kioskDigits {
+            width: 4rem;
+            height: 4rem;
+            font-size: 3rem; 
+          }
+
+          .kioskDigits + .kioskDigits {
+            margin-left: 0.7rem;
+          }
+        }
+
+        .loader {
+            position: absolute;
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid blue;
+            border-bottom: 16px solid blue;
+            width: 5vw;
+            height: 5vw;
+            animation: spin 2s linear infinite;
+            z-index: 10005;
+            left: 47.5vw;
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+          }
+          
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
     </style>
 
     <script src="/static/js/settingsPanel.js"></script>
 <script src="/static/js/tamperDetect.js"></script>
 <body id="body">
+    <div id="loaderSlot"></div>
     <div class="alertContainer" id="alertContainer"></div>
     <div class="top-bar">
         <div class="text">
@@ -286,6 +383,38 @@
         <label class="formLabel" for="password">Password (Optional)</label><br>
         <input class="formInput formInput" type="password" id="editUserPassword" name="password" required ><br>
         <input class="formInput formSubmit" type="button" value="Submit" id="editUserButtonSubmit"><br>
+        <hr>
+        <h3>KIOSK Pin <span id="kioskPin"></span></h3>
+        <p class="redText">Do not share this code with anyone!</p>
+        <p class="redText" >It is highly suggested to set login password before launching a KIOSK.</p>
+        <p>A KIOSK Pin will be invalidated once it has been used. Click on "Generate New KIOSK PIN" to get a new one.</p>
+        <form>
+            <center>
+                <fieldset name='number-code' data-number-code-form>
+                    <legend>Number Code</legend>
+                    
+                    <div id="kioskPinContainer">
+                        <input class="kioskDigits" type="text" name='number-code-0' id="kioskPIN-0" value="●" disabled required />
+                        <input class="kioskDigits" type="text" name='number-code-1' id="kioskPIN-1" value="●" disabled required />
+                        <input class="kioskDigits" type="text" name='number-code-2' id="kioskPIN-2" value="●" disabled required />
+                        <input class="kioskDigits" type="text" name='number-code-3' id="kioskPIN-3" value="●" disabled required />
+                        <input class="kioskDigits" type="text" name='number-code-4' id="kioskPIN-4" value="●" disabled required />
+                        <input class="kioskDigits" type="text" name='number-code-5' id="kioskPIN-5" value="●" disabled required />
+                        <input class="kioskDigits" type="text" name='number-code-6' id="kioskPIN-6" value="●" disabled required />
+                        <input class="kioskDigits" type="text" name='number-code-7' id="kioskPIN-7" value="●" disabled required />
+                    </div>
+                </fieldset>
+            </center>
+        </form>
+        <button class="formInput formSubmit blueAction" id="toggleKioskPinVisibility">Toggle KIOSK PIN Visibility</button>
+        <br>
+        <button class="formInput formSubmit greenAction" id="generateNewKioskPin">Generate New KIOSK PIN</button>
+        <br>
+        <button class="formInput formSubmit yellowAction" id="configKIOSK">Configure Lockdown KIOSK</button>
+        <br>
+        <p>Lockdown KIOSK only needs to be configured once on each device.</p>
+        <p>Please download the Lockdown KIOSK first then configure the KIOSK. Download the KIOSK Browser from <a target="_blank" href="https://sourceforge.net/projects/seb/files/latest/download">here</a>.</p>
+        <p>You can launch the Lockdown KIOSK by opening the <i>Safe Exam Browser</i> application after configuring it once.</p>
     </div>
     <script type="text/javascript">function add_chatinline(){var hccid=17228201;var nt=document.createElement("script");nt.async=true;nt.src="https://mylivechat.com/chatinline.aspx?hccid="+hccid;var ct=document.getElementsByTagName("script")[0];ct.parentNode.insertBefore(nt,ct);}
         add_chatinline();</script>

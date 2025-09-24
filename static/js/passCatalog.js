@@ -229,7 +229,11 @@ async function generateKioskToken() {
     }
 }
 
-function openBrowserKioskWindow() {
+async function openBrowserKioskWindow() {
+    var kioskConfirmResult = await confirmDialog('Launching KIOSK With Escalated Privileges', 'Launching a KIOSK from this page will give the KIOSK escalated privileges which could be exploited if an attacker gains physical access to this computer. INSTEAD, you should use another device and set the other device up using the KIOSK setup guide located in the settings panel. You could continue but this computer should be watched at all time to prevent misuse if you do. Do you want to continue?', 'warning', 'Launch')
+    if (!kioskConfirmResult) {
+        return
+    }
   const url = '/kiosk'; // Replace with your desired URL
   const windowName = 'DPM KIOSK';
   const windowFeatures = 'popup,fullscreen';
@@ -1235,7 +1239,7 @@ async function mainProcess() {
         if (keysPressed['Control'] && keysPressed['e'] && keysPressed['r'] && !window.exportingError) {
             window.exportingError = true
             keysPressed = {}
-            if (await confirmDialog('ERROR REPORT EXPORT\nAre you sure you want to export errors to your clipboard?')) {
+            if (await confirmDialog('Confirm Error Report Export', 'Are you sure you want to export all errors to your clipboard?', 'warning', 'Export')) {
                 navigator.clipboard.writeText(String(window.errorLog))
             }
             window.exportingError = false

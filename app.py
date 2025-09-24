@@ -26,6 +26,7 @@ import numpy as np
 from PIL import Image
 import face_recognition
 from io import BytesIO
+from pathlib import Path
 
 
 app = Flask(__name__)
@@ -69,6 +70,9 @@ def decrypt(encrypted_data):
     return decrypted_data
 
 def generateSHA256(text):
+    if text == None:
+        return None
+    
     return str(hashlib.sha256(text.encode()).hexdigest())
 
 def dbConnect():
@@ -190,10 +194,14 @@ def dbfetchedOneConvertDate(dbcursorFetched):
             returnResult.append(element)
     return returnResult
 
-def ensureLoggedIn(session, allowedroles = 3, studentPortal = False):
+def ensureLoggedIn(session, allowedroles = 3, studentPortal = False, kioskAllowed = False):
     try:
         sessionid = decrypt(str(session.get('sessionid')))
         passkey = decrypt(str(session.get('passkey')))
+        isKiosk = session.get('kiosk')
+
+        if not kioskAllowed and isKiosk:
+            return False
         
         userinfo = sessionStorage.verify(sessionid, passkey)
         if studentPortal:
@@ -201,6 +209,8 @@ def ensureLoggedIn(session, allowedroles = 3, studentPortal = False):
                 return False
             return True
         if userinfo != None and userinfo[1] <= allowedroles and userinfo[2] == False:
+            if isKiosk:
+                return 'kiosk'
             return True
         else:
             return False
@@ -527,6 +537,17 @@ class sessionStorage:
                 dbcursor.execute('UPDATE sessions SET active = FALSE WHERE sessionid = %s AND passkey = %s', (sessionid, passkey))
                 
         return True
+        
+def verifyPassword(userid, password):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT password FROM users WHERE userid = %s', (userid,))
+            result = dbfetchedConvertDate(dbcursor.fetchall())
+    
+    if len(result) < 1:
+        return False
+    
+    return generateSHA256(password) == result[0][0]
     
 def getOidFromSession(session):
     sessionid_enc = session.get('sessionid')
@@ -541,6 +562,17 @@ def getOidFromSession(session):
     oid = sessionStorage.verify(sessionid, passkey)[0]
 
     return oid
+
+def getOidFromUserId(userid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT oid FROM users WHERE userid = %s', (userid,))
+            result = dbfetchedConvertDate(dbcursor.fetchall())
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
 
 def getLocationNameFromId(locationid):
     with dbConnect() as connection:
@@ -619,6 +651,17 @@ def getUserNameFromOid(oid):
     
     return result[0][0]
 
+def getUserIdFromOid(oid):
+    with dbConnect() as connection:
+        with connection.cursor() as dbcursor:
+            dbcursor.execute('SELECT userid FROM users WHERE oid = %s', (oid,))
+            result = dbfetchedConvertDate(dbcursor.fetchall())
+    
+    if len(result) < 1:
+        return None
+    
+    return result[0][0]
+
 def getUserNameFromId(id):
     with dbConnect() as connection:
         with connection.cursor() as dbcursor:
@@ -666,6 +709,55 @@ def getStudentImageFromId(studentid):
         return None
     
     return result[0][0]
+
+def getScriptDir():
+    return Path(__file__).resolve().parent
+
+class KIOSKPin:
+    def generateNewKIOSKPin(userid):
+        while True:
+            newPin = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+            with dbConnect() as connection:
+                with connection.cursor() as dbcursor:
+                    dbcursor.execute('SELECT userid FROM users WHERE kioskpin = %s', (newPin,))
+                    result = dbfetchedConvertDate(dbcursor.fetchall())
+            
+            if len(result) < 1:
+                break
+
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('UPDATE users SET kioskpin = %s WHERE userid = %s', (newPin, userid))
+
+        return newPin
+    
+    def getKIOSKPin(userid):
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT kioskpin FROM users WHERE userid = %s', (userid,))
+                result = dbfetchedConvertDate(dbcursor.fetchall())
+        
+        if len(result) < 1:
+            return None
+        
+        return result[0][0]
+
+    def verifyKIOSKPin(pin):
+        if pin == None or pin == '':
+            return False
+        
+        with dbConnect() as connection:
+            with connection.cursor() as dbcursor:
+                dbcursor.execute('SELECT userid FROM users WHERE kioskpin = %s', (str(pin),))
+                result = dbfetchedConvertDate(dbcursor.fetchall())
+        
+        if len(result) < 1:
+            return False
+        
+        KIOSKPin.generateNewKIOSKPin(result[0][0])
+        
+        return result[0][0]
 
 def broadcastMasterCommand(command, payload = None, roles = ['admin', 'proctor', 'approver']):
     for role in roles:
@@ -911,12 +1003,44 @@ def student():
 def west6():
     return 'Best floor in Keystone!'
     
-@app.route('/kiosk')
+@app.route('/kiosk', methods=['GET', 'POST'])
 def kiosk():
+    if request.method == 'POST':
+        pin = request.form['kioskpin']
+        userid = KIOSKPin.verifyKIOSKPin(pin)
+        if userid != False:
+            oid = getOidFromUserId(userid)
+
+            keepSessionDays = int(getSettingsValue('keepSessionDays'))
+            sessioninfo = sessionStorage.create(oid, keepSessionDays)
+            session['sessionid'] = str(encrypt(sessioninfo[0]))
+            session['passkey'] = str(encrypt(sessioninfo[1]))
+            session['login'] = True
+            session['kiosk'] = True
+
+            return render_template('kiosk.html')
+        
+        else:
+            return render_template('errorPage.html', errorTitle = 'Error Logging In', errorText = 'Invalid KIOSK PIN', errorDesc = 'Please try again', errorLink = '/kiosk')
+        
     if not ensureLoggedIn(session, 3):
-        return redirect('/?reject=You are not authorized to view this page')
+        return render_template('kiosklogin.html')
     
     return render_template('kiosk.html')
+
+@app.route('/DPM-KIOSK-SEB.seb')
+def kioskConfig():
+    return send_file(str(getScriptDir()) + '/DPM-KIOSK-SEB.seb', as_attachment=True)
+
+@app.route('/getKioskConfigURL', methods=['GET'])
+def getKioskConfigURL():
+    if ensureLoggedIn(session, 3):
+        serverUrl = getSettingsValue('serverURL')
+        kioskConfigUrl = serverUrl + '/DPM-KIOSK-SEB.seb'
+        kioskConfigUrl = kioskConfigUrl.replace('http', 'https').replace('https', 'seb')
+        return kioskConfigUrl
+    else:
+        return redirect('/?reject=You are not authorized to view this page')
     
 @app.route('/signout')
 def signout():
@@ -997,7 +1121,7 @@ def microsoftLoginCallback():
                 
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
-                    dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE email = %s', (email,))
+                    dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE email = %s', (email,))
                     result = dbfetchedConvertDate(dbcursor.fetchall())
 
             if len(result) > 0:
@@ -1055,6 +1179,28 @@ def passwordLoginCallback():
             return render_template('userNotRegistered.html', email = username)
     else:
         return render_template('incorrectCaptcha.html')
+    
+@app.route('/api/checkUserPassword', methods=['POST'])
+def checkUserPassword():
+    if ensureLoggedIn(session, 3, kioskAllowed = True):
+        password = request.json.get('password')
+        
+        retinfo = {}
+
+        isCorrectPassword = verifyPassword(getUserIdFromOid(getOidFromSession(session)), password)
+
+        retinfo['status'] = 'ok'
+        retinfo['correct'] = isCorrectPassword
+
+        return jsonify(retinfo)
+    
+    else:
+        retinfo = {}
+
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+
+        return jsonify(retinfo)
     
 @app.route('/api/searchLocations', methods=['POST'])
 def searchLocations():
@@ -1190,7 +1336,7 @@ def editLocation():
     
 @app.route('/api/getLocationId', methods=['POST'])
 def getLocationId():
-    if ensureLoggedIn(session, 3):
+    if ensureLoggedIn(session, 3, kioskAllowed=True):
         retinfo = {}
         
         locationtype = request.json.get('type')
@@ -1437,7 +1583,9 @@ def updatePass():
 def approvePassByCard():
     retinfo = {}
 
-    if not ensureLoggedIn(session, 3):
+    authResult = ensureLoggedIn(session, 3, kioskAllowed=True)
+
+    if not authResult:
         retinfo['status'] = 'error'
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         return jsonify(retinfo)
@@ -1470,10 +1618,18 @@ def approvePassByCard():
 
     userid = checkUserInformation("userid", oid)[0]
 
-    isKiosk = request.json.get('kiosk')
+    if authResult == 'kiosk':
+        isKiosk = True
+    else:
+        isKiosk = False
 
     if isKiosk == True:
         studentTestImageBase64 = request.json.get('image')
+
+        if not studentTestImageBase64:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Missing test image'
+            return jsonify(retinfo)
 
         studentImageBase64 = getStudentImageFromId(studentid)
 
@@ -1687,7 +1843,7 @@ def approvePassByCard():
     
 @app.route('/api/getStudents', methods=['POST'])
 def getStudents():
-    if ensureLoggedIn(session, 3):
+    if ensureLoggedIn(session, 3, kioskAllowed=True):
         retinfo = {}
         
         oid = getOidFromSession(session)
@@ -1901,7 +2057,7 @@ def addStudent():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE name = %s', (studentName,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE name = %s', (studentName,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
@@ -1929,7 +2085,7 @@ def addStudent():
         if studentCardid != None and studentCardid != '':
             with dbConnect() as connection:
                 with connection.cursor() as dbcursor:
-                    dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE cardid = %s', (studentCardid,))
+                    dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE cardid = %s', (studentCardid,))
                     dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
             if len(dbcursorfetch) > 0:
@@ -1942,7 +2098,7 @@ def addStudent():
 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE email = %s', (studentEmail,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE email = %s', (studentEmail,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
@@ -2012,7 +2168,7 @@ def addStudent():
     
 @app.route('/api/getUserLocation', methods=['POST'])
 def getUserLocation():
-    if ensureLoggedIn(session, 3):
+    if ensureLoggedIn(session, 3, kioskAllowed=True):
         retinfo = {}
         
         oid = getOidFromSession(session)
@@ -2107,7 +2263,7 @@ def addUser():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE email = %s', (userEmail,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE email = %s', (userEmail,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
@@ -2240,7 +2396,7 @@ def editStudent():
             if deleteStudent == 'true':
                 with dbConnect() as connection:
                     with connection.cursor() as dbcursor:
-                        dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE studentid = %s', (studentid,))
+                        dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE studentid = %s', (studentid,))
                         dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                         
                 if len(dbcursorfetch) < 1:
@@ -2261,7 +2417,7 @@ def editStudent():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE studentid = %s', (studentid,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE studentid = %s', (studentid,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) < 1:
@@ -2307,7 +2463,7 @@ def editStudent():
                 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE name = %s AND studentid != %s', (studentName, studentid,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE name = %s AND studentid != %s', (studentName, studentid,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
                 
         if len(dbcursorfetch) > 0:
@@ -2544,7 +2700,7 @@ def editUser():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE email = %s', (userEmail,))
+                dbcursor.execute('SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE email = %s', (userEmail,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) > 0:
@@ -2962,7 +3118,7 @@ def getUserInfo():
     
 @app.route('/api/getStudentInfo', methods=['POST'])
 def getStudentsInfo():
-    if ensureLoggedIn(session, 3):
+    if ensureLoggedIn(session, 3, kioskAllowed=True):
         retinfo = {}
         
         studentid = str(request.json.get('studentid'))
@@ -2991,7 +3147,7 @@ def getStudentsInfo():
     
 @app.route('/api/newPass', methods=['POST'])
 def newPass():
-    if ensureLoggedIn(session, 2): 
+    if ensureLoggedIn(session, 2, kioskAllowed=True): 
         retinfo = {}
         
         studentid = request.json.get('studentid')
@@ -3033,7 +3189,7 @@ def newPass():
         
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE studentid = %s", (studentid,))
+                dbcursor.execute("SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE studentid = %s", (studentid,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
         
         if len(dbcursorfetch) < 1:
@@ -3207,7 +3363,7 @@ def getUserRole():
     
 @app.route('/api/getStudentImage', methods=['POST'])
 def getStudentImage():
-    if ensureLoggedIn(session, 3):
+    if ensureLoggedIn(session, 3, kioskAllowed=True):
         retinfo = {}
         
         studentid = request.json.get('studentid')
@@ -3238,7 +3394,7 @@ def getStudentImage():
     
 @app.route('/api/getStudentFloorName', methods=['POST'])
 def getStudentFloorName():
-    if ensureLoggedIn(session, 3):
+    if ensureLoggedIn(session, 3, kioskAllowed=True):
         retinfo = {}
         
         studentid = request.json.get('studentid')
@@ -3676,6 +3832,61 @@ def uploadBackup():
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
         return jsonify(retinfo), 401
+    
+@app.route('/api/getKIOSKPin', methods=['POST'])
+def getKIOSKPin():
+    if ensureLoggedIn(session, 3):
+        retinfo = {}
+
+        userid = checkUserInformation("userid", getOidFromSession(session))[0]
+
+        if userid is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            return jsonify(retinfo)
+        
+        try:
+            pin = KIOSKPin.getKIOSKPin(userid)
+            retinfo['status'] = 'ok'
+            retinfo['pin'] = pin
+        except Exception as e:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = str(e)
+        
+        return jsonify(retinfo)
+    else:
+        retinfo = {}
+
+@app.route('/api/generateKIOSKPin', methods=['POST'])
+def generateKIOSKPin():
+    if ensureLoggedIn(session, 3):
+        retinfo = {}
+
+        userid = checkUserInformation("userid", getOidFromSession(session))[0]
+
+        if userid is None:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = 'Not authorized to perform this action'
+            return jsonify(retinfo)
+                
+        try:
+            pin = KIOSKPin.generateNewKIOSKPin(userid)
+
+            retinfo['status'] = 'ok'
+            retinfo['pin'] = pin
+
+        except Exception as e:
+            retinfo['status'] = 'error'
+            retinfo['errorinfo'] = str(e)
+        
+        return jsonify(retinfo)
+    else:
+        retinfo = {}
+        
+        retinfo['status'] = 'error'
+        retinfo['errorinfo'] = 'Not authorized to perform this action'
+        
+        return jsonify(retinfo), 401
 
 @app.route('/api/sendMasterCommand', methods=['POST'])
 def sendMasterCommand():
@@ -3905,7 +4116,7 @@ def studentNewPass():
 
         with dbConnect() as connection:
             with connection.cursor() as dbcursor:
-                dbcursor.execute("SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED, kioskbindpin FROM students WHERE studentid = %s", (studentid,))
+                dbcursor.execute("SELECT studentid, name, grade, cardid, floorid, disabledlocations, image, oid, email, suspension, suspensionED FROM students WHERE studentid = %s", (studentid,))
                 dbcursorfetch = dbfetchedConvertDate(dbcursor.fetchall())
 
         if len(dbcursorfetch) < 1:
@@ -3970,7 +4181,7 @@ def studentNewPass():
     
 @app.route('/api/getStudentIdFromCard', methods=['POST'])
 def getStudentIdFromCard():
-    if ensureLoggedIn(session, 3):
+    if ensureLoggedIn(session, 3, kioskAllowed=True):
         retinfo = {}
         cardid = request.json.get('cardid')
         if not cardid:
@@ -4049,7 +4260,7 @@ def getDestinations():
         retinfo['errorinfo'] = 'Not authorized to perform this action'
         
         return jsonify(retinfo), 401
-    
+
 @app.route('/downloadBackup/<filename>')
 def downloadBackup(filename):
     if ensureLoggedIn(session, 1):

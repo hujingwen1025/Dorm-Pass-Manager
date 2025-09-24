@@ -197,8 +197,10 @@
           float: right;
           max-width: 27%;
           min-width: 27%;
-          position: absolute;
+          position: fixed; /* changed from absolute to fixed */
           margin-right: 5px;
+          margin-top: 5px; /* ensure 5px margin from top */
+          z-index: 10000; /* ensure it stays on top */
         }
         
         .alert.success {background-color: #4bb885;}

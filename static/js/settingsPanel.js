@@ -25,6 +25,16 @@ window.onbeforeunload = function(e) {
     return 'Are you sure you want to leave this page?  You will lose any unsaved data.';
 };
 
+function renderLoader() {
+    const loaderslot = document.getElementById("loaderSlot")
+    loaderslot.insertAdjacentHTML("afterbegin", '<div class="loader"></div>')
+}
+
+function removeLoader() {
+    const loaderslot = document.getElementById("loaderSlot")
+    loaderslot.innerHTML = ''
+}
+
 async function confirmDialog(title, text, icon, buttonText) {
     var result = await Swal.fire({
         title: title,
@@ -363,6 +373,8 @@ async function editUser(userName, userEmail, userLocation, userPassword) {
 }
 
 async function doUserEdit() {
+    renderLoader()
+
     var userName = document.getElementById('editUserName').value
     var userEmail = document.getElementById('editUserEmail').value
     var userLocation = document.getElementById('editUserLocation').value
@@ -375,6 +387,8 @@ async function doUserEdit() {
     } else {
         createAlertPopup(5000, 'success', 'Settings Saved', 'Settings has been successfully saved to the server')
     }
+
+    removeLoader()
 }
 
 async function searchUsers(filters) {
@@ -441,6 +455,135 @@ async function getUserLocation() {
     }
 }
 
+async function getNewKIOSKPin() {
+    try {
+        const response = await fetch("/api/generateKIOSKPin", {
+            method: 'POST',
+            body: JSON.stringify({}),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Generating KIOSK Pin', responseJson.errorinfo)
+                return null
+            case "ok":
+                createAlertPopup(5000, 'success', 'KIOSK Pin Generated', `A new KIOSK Pin has been generated`)
+                return responseJson.pin
+            default:
+                return null
+        }
+    }   catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return null
+    }
+}
+
+async function getKIOSKPin() {
+    try {
+        const response = await fetch("/api/getKIOSKPin", {
+            method: 'POST',
+            body: JSON.stringify({}),
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                createAlertPopup(5000, null, 'Error While Getting KIOSK Pin', responseJson.errorinfo)
+                return null
+            case "ok":
+                return responseJson.pin
+            default:
+                return null
+        }
+    }   catch (error) {
+        dlog('Error:', error);
+        createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        return null
+    }
+}
+
+var pin = '●●●●●●●●'
+var kioskPINShown = false
+
+async function loadKIOSKPin() {
+    pin = await getKIOSKPin()
+    if (pin == null) {
+        return 0
+    }
+
+    if (kioskPINShown) {
+        showKIOSKPin()
+    }
+}
+
+async function showKIOSKPin() {
+    kioskPINShown = true
+    for (i = 0; i < 8; i ++) {
+        document.getElementById(`kioskPIN-${i}`).value = pin[i]
+    }
+}
+
+async function hideKIOSKPin() {
+    kioskPINShown = false
+    for (i = 0; i < 8; i ++) {
+        document.getElementById(`kioskPIN-${i}`).value = '●'
+    }
+}
+
+async function getKIOSKConfigURL() {
+    var kioskConfigURL = await fetch("/getKioskConfigURL")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text()
+      })
+      .then((data) => {
+        return data        
+      })
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+      });
+      return kioskConfigURL
+}
+
+async function configKIOSK() {
+    var kioskConfigURL = await getKIOSKConfigURL()
+    Swal.fire({
+       title: 'Configure KIOSK',
+       text: 'Are you configuring this computer or another computer?',
+       icon: 'question',
+       showDenyButton: true,
+       showCancelButton: true,
+       confirmButtonText: 'This Computer',
+       denyButtonText: 'Another Computer',
+       customClass: {
+         actions: 'my-actions',
+         cancelButton: 'order-1 right-gap',
+         confirmButton: 'order-2',
+         denyButton: 'order-3',
+       },
+     }).then((result) => {
+       if (result.isConfirmed) {
+         window.open(kioskConfigURL, '_blank');
+         createAlertPopup(10000, 'success', 'KIOSK Configured', 'KIOSK has been configured if you have it installed. If you do not have the KIOSK installed, please install the KIOSK from <a href="https://sourceforge.net/projects/seb/files/latest/download">here</a>.')
+       } else if (result.isDenied) {
+         Swal.fire('Different Computer KIOSK Config', 'Please download SEB (using this link https://sourceforge.net/projects/seb/files/latest/download) and then open this link on any browser on the computer you want to configure: ' + kioskConfigURL, 'info')
+       }
+     })
+}
 
 async function mainProcess() {
     document.getElementById('usernameTopbar').onclick = async function(event) {
@@ -506,9 +649,19 @@ async function mainProcess() {
 
     const editUserButtonSubmit = document.getElementById('editUserButtonSubmit')
     editUserButtonSubmit.onclick = function () {doUserEdit()}
+
+    const generateNewKIOSKButton = document.getElementById('generateNewKioskPin')
+    generateNewKIOSKButton.onclick = async function () {renderLoader(); await getNewKIOSKPin(); await loadKIOSKPin(); removeLoader();}
+
+    const toggleKioskPinVisibility = document.getElementById('toggleKioskPinVisibility')
+    toggleKioskPinVisibility.onclick = async function () {if (kioskPINShown) {hideKIOSKPin()} else {showKIOSKPin()}}
+
+    const configKIOSKButton = document.getElementById('configKIOSK')
+    configKIOSKButton.onclick = async function () {configKIOSK()}
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    mainProcess()
+    mainProcess() 
+    loadKIOSKPin()
     loadUserInfoEdit()
 });

@@ -40,7 +40,7 @@ function enterFullscreenForDocument() {
       elem.msRequestFullscreen();
     }
     if (!isMobileDevice()) {
-    setInterval(function() {
+    setInterval(function() {        
           if (elem.requestFullscreen) {
             elem.requestFullscreen();
           } else if (elem.webkitRequestFullscreen) { /* Safari */
@@ -1350,6 +1350,64 @@ async function processCardData(data) {
         }
 }
 
+function isSEBKiosk() {
+    return navigator.userAgent.includes('SEBKIOSK');
+}
+
+document.addEventListener('keydown', async function(event) {
+    if (event.ctrlKey && event.key === 'e') {
+        if (!isSEBKiosk()) {
+            return;
+        }
+        event.preventDefault();
+        const { value: password } = await Swal.fire({
+          title: "KIOSK Quit Password",
+          input: "password",
+          inputLabel: "Please enter your password to quit the KIOSK.",
+          inputPlaceholder: "Enter your password",
+          inputAttributes: {
+            autocapitalize: "off",
+            autocorrect: "off"
+          }
+        });        
+        try {
+            const response = await fetch('/api/checkUserPassword', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({password: password})
+            });
+            const responseJson = await response.json();
+
+        switch (responseJson.status) {
+            case "error":
+                failBEEP.play();
+                createAlertPopup(5000, null, 'Error While Checking User Password', responseJson.errorinfo);
+                return 'error';
+            case "ok":
+                if (responseJson.correct) {
+                    try {
+                        window.location.href = 'https://exabyte.org.cn/quitKIOSK'
+                    } catch (error) {
+                        
+                    }
+                } else {
+                    failBEEP.play();
+                    createAlertPopup(5000, null, 'Error', 'Incorrect Password');
+                }
+            default:
+                return 'error';
+        }
+        } catch (error) {
+            failBEEP.play();
+            window.errorLog.push(error);
+            dlog('Error:', error);
+            createAlertPopup(5000, null, 'Error', 'Error while sending data to server')
+        }
+    }
+});
+
 window.cardInAction = false;
 window.HIDData = '';
 
@@ -1368,4 +1426,5 @@ if (!isMobileDevice()) {
         }
     }
     );
+    setInterval(function() {document.getElementById('cardidInput').focus()}, 3000)
 }

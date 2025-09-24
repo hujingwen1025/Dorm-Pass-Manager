@@ -220,14 +220,16 @@
                 border-radius: 7.5px;
             }
             .alertContainer {
-              right: 0;
-              top: 0;
-              float: right;
-              max-width: 27%;
-              min-width: 27%;
-              position: absolute;
-              margin-right: 5px;
-            }
+          right: 0;
+          top: 0;
+          float: right;
+          max-width: 27%;
+          min-width: 27%;
+          position: fixed; /* changed from absolute to fixed */
+          margin-right: 5px;
+          margin-top: 5px; /* ensure 5px margin from top */
+          z-index: 10000; /* ensure it stays on top */
+        }
 
             .redAction {
                 background-color: #ff4d4d;

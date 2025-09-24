@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Face Recognition with Timer</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <title>DPM KIOSK</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -149,8 +150,10 @@
           float: right;
           max-width: 27%;
           min-width: 27%;
-          position: absolute;
+          position: fixed; /* changed from absolute to fixed */
           margin-right: 5px;
+          margin-top: 5px; /* ensure 5px margin from top */
+          z-index: 10000; /* ensure it stays on top */
         }
         
         .alert.success {background-color: #4bb885;}
@@ -443,7 +446,7 @@
             </div>
         </div>
     </div>
-
+    
     <script src="/static/js/card-scanner.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
     <script src="/static/js/kiosk.js"></script>
